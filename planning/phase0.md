@@ -1,4 +1,4 @@
-# Phase 0 — Environment Prep and Foundations
+# Environment Prep and Foundations
 
 ## Objectives
 - Stand up the baseline repo so uploads, processing, and PocketBase schemas can be developed safely.
@@ -35,7 +35,7 @@
 - FFmpeg availability: add install check to setup script; pin minimum version.
 - Task runner drift: define a shared TaskStatus enum in the shared package to keep UI/worker aligned.
 
-## AI Prompt for This Phase
+## AI Prompt
 ```
 You are an expert Next.js + PocketBase architect setting up a video processing stack.
 Goals: configure FFmpeg, Google Cloud Transcoder + Video Intelligence + Speech-to-Text, and S3-compatible storage; define PocketBase collections (Upload, File, Media, MediaClip, MediaLabel, Task); scaffold a worker that can enqueue and process tasks, updating Task.status/progress.

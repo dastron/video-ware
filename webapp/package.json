@@ -17,6 +17,10 @@
     "test:ui": "vitest --ui"
   },
   "dependencies": {
+    "@google-cloud/speech": "^7.2.1",
+    "@google-cloud/storage": "^7.18.0",
+    "@google-cloud/video-intelligence": "^6.2.1",
+    "@google-cloud/video-transcoder": "^4.4.1",
     "@hookform/resolvers": "^5.2.2",
     "@project/shared": "workspace:*",
     "@radix-ui/react-accordion": "^1.2.12",

@@ -5,6 +5,8 @@ import type { RecordService } from 'pocketbase';
 import type { User } from '../schema/user';
 import type { Todo } from '../schema/todo';
 
+export * from './video-ware.js';
+
 // Typed PocketBase interface
 export interface TypedPocketBase extends PocketBase {
   collection(idOrName: 'Users'): RecordService<User>;

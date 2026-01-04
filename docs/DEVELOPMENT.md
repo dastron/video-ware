@@ -49,6 +49,13 @@ next-pb/
    ```
    The shared package must be built before the webapp can use it.
 
+## Video Ware (Phase 0) Prereqs
+
+This project is evolving into a media upload + processing system (FFmpeg + Google Cloud APIs + S3-compatible storage).
+
+- Phase 0 setup notes: `docs/VIDEO_WARE_PHASE0.md`
+- Planning docs: `planning/phase0.md`
+
 ## Development Workflow
 
 ### Backend Development (PocketBase)

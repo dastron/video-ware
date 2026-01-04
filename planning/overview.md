@@ -19,14 +19,22 @@
 - Workers: Task processor (Node) consuming a task queue in PocketBase; runs FFmpeg and calls Google Cloud APIs (Transcoder, Video Intelligence/object detection, speech-to-text when needed).
 - Media pipeline: upload -> create Upload + File -> enqueue ProcessUpload task -> generate Media, thumbnails, sprites, proxy -> derive clips -> run detection/label tasks -> expose labels for recommendations.
 
+## Tenancy Model (Workspace-Scoped)
+- All operations occur under a `workspaceRef` (not directly under a user).
+- Users participate in workspaces via membership records and roles; permissions and queries should be scoped by `workspaceRef` by default.
+- Optional: keep a `createdBy`/`createdByUserRef` field for audit trails, but do not use it for authorization.
+
 ## Data Model (initial draft)
-- Upload: name, size, status, userRef, sourcePath, UploadRef; links to File records.
-- File: name, size, status, fileType (original/proxy/thumbnail/sprite), fileSource (s3 path), fileData (dimensions, codec), TaskRef?, MediaRef?, UploadRef?.
-- Media: UploadRef, duration, start, end, mediaType (video/audio/image), thumbnailURL, spriteURL, mediaData (codec, fps, dimensions), processingVersion.
-- MediaClip: MediaRef, parentClipRef?, duration, start, end, clipType (range/ai/object/voice/etc), clipData (selection metadata).
-- MediaLabel: MediaRef, duration, start, end, labelType (object/shot/person/speech/etc), labelData (payload from detectors), source (google_videointel/transcoder/etc), version, confidence.
-- Task: type, status, progress, priority, attempts, payload, result, errorLog, createdBy; relation fields to Upload/Media/Clip where relevant.
-- Timeline (phase 2+): name, MediaRef (target output), ordered clip refs, editList blob (see below), render settings.
+- Workspace: name, slug, settings; top-level scope for all resources.
+- WorkspaceMember: workspaceRef, userRef, role; drives shared permissions.
+- Upload: workspaceRef, name, size, status; links to File records.
+- File: workspaceRef, name, size, status, fileType (original/proxy/thumbnail/sprite), fileSource (s3 path), fileData (dimensions, codec), TaskRef?, MediaRef?, UploadRef?.
+- Media: workspaceRef, UploadRef, duration, start, end, mediaType (video/audio/image), thumbnailURL, spriteURL, mediaData (codec, fps, dimensions), processingVersion.
+- MediaClip: workspaceRef, MediaRef, parentClipRef?, duration, start, end, clipType (range/ai/object/voice/etc), clipData (selection metadata).
+- MediaLabel: workspaceRef, MediaRef, duration, start, end, labelType (object/shot/person/speech/etc), labelData (payload from detectors), source (google_videointel/transcoder/etc), version, confidence.
+- Task: workspaceRef, type, status, progress, priority, attempts, payload, result, errorLog; relations to Upload/Media/Clip where relevant.
+- Timeline (timeline feature): name, MediaRef (target output), ordered clip refs, editList blob (see below), render settings.
+- ClipRecommendation: workspaceRef, timelineRef?, seedClipRef?, recommendedClipRef, score/rank, reason, queryHash, expiresAt, acceptedAt/dismissedAt.
 - EditList blob (app-level type): array of segments with `key`, `inputs[]`, `startTimeOffset`, `endTimeOffset` (seconds + nanos) for export and preview assembly.
 - Base detector fragments (from Google): BaseSegmentFragment, BaseFrameFragment, BaseReferenceFragment, BaseEntityFragment; store in labelData and normalized MediaLabel rows for fast querying.
 
@@ -35,7 +43,7 @@
 2) Task: `process_upload` downloads/streams file, validates media, generates proxy, thumbnails, sprites, and creates a Media record.
 3) Task: `derive_clips` (optional) seeds initial clips (full-range clip, detected shots).
 4) Task: `detect_labels` calls Google APIs, stores raw JSON, upserts MediaLabel entries, increments processing version.
-5) Task: `recommend_clips` (phase 4) generates suggested clips based on labels, similarity, and timeline context.
+5) Task: `recommend_clips` generates suggested clips based on labels, similarity, and timeline context.
 6) UI surfaces statuses, previews, and allows clip/timeline editing; exports use editList to stitch ranges or trigger render tasks.
 
 ## External Dependencies
@@ -50,12 +58,12 @@
 - Task runner reliability: backoff, deduplication, idempotency, and observability.
 - Timeline scale: efficient storage of editList and clip ordering for long videos.
 
-## Phase Map (alignment)
-- Phase 0: Boilerplate prep, credentials, FFmpeg/Google API integration scaffolding, storage wiring, task runner skeleton.
-- Phase 1: Uploads MVP — upload UI, PocketBase collections, S3 writes, processing task to produce Media + previews + initial clip.
-- Phase 2: Clip creation and timelines — CRUD for clips, timeline composition, editList representation, basic export simulation.
-- Phase 3: Detection and labeling — integrate Google detectors, store raw JSON, upsert MediaLabel, version jobs, surface metadata.
-- Phase 4: Timeline editing with recommendations — recommendation engine tied to labels, assistive UI for clip suggestions.
+## Milestone Map (alignment)
+- Foundations: credentials, FFmpeg/Google API integration scaffolding, storage wiring, task runner skeleton.
+- Uploads MVP: upload UI, PocketBase collections, S3 writes, processing task to produce Media + previews + initial clip.
+- Clips + timelines: CRUD for clips, timeline composition, editList representation, basic export simulation.
+- Detection + labeling: integrate Google detectors, store raw JSON, upsert MediaLabel, version jobs, surface metadata.
+- Timeline recommendations: recommendation engine tied to labels, assistive UI for clip suggestions.
 
 ## Gaps to Clarify
 - Authentication/tenancy model (multi-user, access to uploads/media/labels).

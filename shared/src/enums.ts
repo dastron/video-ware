@@ -26,3 +26,105 @@ export const COLLECTIONS = {
 } as const;
 
 export type CollectionNameType = (typeof COLLECTIONS)[keyof typeof COLLECTIONS];
+
+// ============================================================================
+// Video Ware (Phase 0) enums
+// ============================================================================
+
+export enum UploadStatus {
+  QUEUED = 'queued',
+  UPLOADING = 'uploading',
+  UPLOADED = 'uploaded',
+  PROCESSING = 'processing',
+  READY = 'ready',
+  FAILED = 'failed',
+}
+
+export enum FileStatus {
+  PENDING = 'pending',
+  AVAILABLE = 'available',
+  FAILED = 'failed',
+  DELETED = 'deleted',
+}
+
+export enum FileType {
+  ORIGINAL = 'original',
+  PROXY = 'proxy',
+  THUMBNAIL = 'thumbnail',
+  SPRITE = 'sprite',
+  LABELS_JSON = 'labels_json',
+  RENDER = 'render',
+}
+
+export enum FileSource {
+  S3 = 's3',
+  POCKETBASE = 'pocketbase',
+}
+
+export enum MediaType {
+  VIDEO = 'video',
+  AUDIO = 'audio',
+  IMAGE = 'image',
+}
+
+export enum ClipType {
+  FULL = 'full',
+  RANGE = 'range',
+  SHOT = 'shot',
+  OBJECT = 'object',
+  PERSON = 'person',
+  SPEECH = 'speech',
+  RECOMMENDATION = 'recommendation',
+}
+
+export enum LabelType {
+  OBJECT = 'object',
+  SHOT = 'shot',
+  PERSON = 'person',
+  SPEECH = 'speech',
+}
+
+export enum TaskStatus {
+  QUEUED = 'queued',
+  RUNNING = 'running',
+  SUCCESS = 'success',
+  FAILED = 'failed',
+  CANCELED = 'canceled',
+}
+
+export enum TaskType {
+  PROCESS_UPLOAD = 'process_upload',
+  DERIVE_CLIPS = 'derive_clips',
+  DETECT_LABELS = 'detect_labels',
+  RECOMMEND_CLIPS = 'recommend_clips',
+  RENDER_TIMELINE = 'render_timeline',
+}
+
+export enum ProcessingProvider {
+  FFMPEG = 'ffmpeg',
+  GOOGLE_TRANSCODER = 'google_transcoder',
+  GOOGLE_VIDEO_INTELLIGENCE = 'google_video_intelligence',
+  GOOGLE_SPEECH = 'google_speech',
+}
+
+export enum WorkspaceRole {
+  OWNER = 'owner',
+  ADMIN = 'admin',
+  MEMBER = 'member',
+  VIEWER = 'viewer',
+}
+
+export const VIDEO_COLLECTIONS = {
+  WORKSPACES: 'workspaces',
+  WORKSPACE_MEMBERS: 'workspace_members',
+  UPLOADS: 'uploads',
+  FILES: 'files',
+  MEDIA: 'media',
+  MEDIA_CLIPS: 'media_clips',
+  MEDIA_LABELS: 'media_labels',
+  TASKS: 'tasks',
+  TIMELINES: 'timelines',
+  CLIP_RECOMMENDATIONS: 'clip_recommendations',
+} as const;
+
+export type VideoCollectionName = (typeof VIDEO_COLLECTIONS)[keyof typeof VIDEO_COLLECTIONS];
