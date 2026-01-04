@@ -10,7 +10,6 @@ import React, {
 } from 'react';
 import type { Media } from '@project/shared';
 import { MediaService } from '@/services/media';
-import { MediaMutator } from '@/mutators';
 import pb from '@/lib/pocketbase';
 import type { RecordSubscription } from 'pocketbase';
 
@@ -56,7 +55,6 @@ export function MediaProvider({ workspaceId, children }: MediaProviderProps) {
 
   // Create services - memoized to prevent recreation
   const mediaService = useMemo(() => new MediaService(pb), []);
-  const mediaMutator = useMemo(() => new MediaMutator(pb), []);
 
   // Clear error helper
   const clearError = useCallback(() => {

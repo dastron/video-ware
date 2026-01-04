@@ -93,7 +93,7 @@ export class UploadService {
     workspaceId: string,
     file: File,
     userId?: string,
-    onProgress?: (progress: number) => void
+    _onProgress?: (progress: number) => void
   ): Promise<Upload> {
     // Validate file
     const validation = this.validateFile(file);
@@ -154,7 +154,7 @@ export class UploadService {
   private async enqueueProcessingTask(
     workspaceId: string,
     uploadId: string,
-    userId?: string
+    _userId?: string
   ): Promise<Task> {
     // Default processing configuration
     const payload: ProcessUploadPayload = {

@@ -331,12 +331,15 @@ export function UploadProvider({ workspaceId, children }: UploadProviderProps) {
 
   // Cleanup on unmount
   useEffect(() => {
+    // Capture the ref value for cleanup
+    const abortControllers = abortControllersRef.current;
+
     return () => {
       // Abort all in-progress uploads
-      abortControllersRef.current.forEach((controller) => {
+      abortControllers.forEach((controller) => {
         controller.abort();
       });
-      abortControllersRef.current.clear();
+      abortControllers.clear();
 
       // Unsubscribe from real-time updates
       unsubscribe();

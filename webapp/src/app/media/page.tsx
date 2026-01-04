@@ -9,7 +9,6 @@ import { MediaGallery } from '@/components/media';
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';

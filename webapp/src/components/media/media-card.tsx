@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import Image from 'next/image';
 import type { Media } from '@project/shared';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -121,13 +122,15 @@ export function MediaCard({ media, onClick, className }: MediaCardProps) {
         {thumbnailUrl ? (
           <>
             {/* Static thumbnail */}
-            <img
+            <Image
               src={thumbnailUrl}
               alt={`Thumbnail for media ${media.id}`}
+              fill
               className={cn(
-                'w-full h-full object-cover transition-opacity',
+                'object-cover transition-opacity',
                 isHovering && spriteUrl ? 'opacity-0' : 'opacity-100'
               )}
+              unoptimized
             />
 
             {/* Sprite sheet preview on hover */}

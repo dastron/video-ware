@@ -3,7 +3,7 @@ import {
   RelationField,
   SelectField,
   NumberField,
-  jsonField,
+  JSONField,
   baseSchema,
 } from 'pocketbase-zod-schema/schema';
 import { z } from 'zod';
@@ -16,7 +16,7 @@ export const MediaSchema = z
     UploadRef: RelationField({ collection: 'Uploads' }),
     mediaType: SelectField([MediaType.VIDEO, MediaType.AUDIO, MediaType.IMAGE]),
     duration: NumberField({ min: 0 }), // seconds as float
-    mediaData: jsonField(), // { codec, fps, width, height, ... }
+    mediaData: JSONField(), // { codec, fps, width, height, ... }
     thumbnailFile: RelationField({ collection: 'Files' }).optional(),
     spriteFile: RelationField({ collection: 'Files' }).optional(),
     processingVersion: NumberField().default(1),
@@ -29,7 +29,7 @@ export const MediaInputSchema = z.object({
   UploadRef: z.string().min(1, 'Upload is required'),
   mediaType: z.enum([MediaType.VIDEO, MediaType.AUDIO, MediaType.IMAGE]),
   duration: NumberField({ min: 0 }),
-  mediaData: jsonField(),
+  mediaData: JSONField(),
   thumbnailFile: z.string().optional(),
   spriteFile: z.string().optional(),
   processingVersion: NumberField().default(1),

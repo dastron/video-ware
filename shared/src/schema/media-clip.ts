@@ -2,7 +2,7 @@ import {
   defineCollection,
   RelationField,
   NumberField,
-  jsonField,
+  JSONField,
   baseSchema,
   TextField,
 } from 'pocketbase-zod-schema/schema';
@@ -18,7 +18,7 @@ export const MediaClipSchema = z
     start: NumberField({ min: 0 }), // seconds
     end: NumberField({ min: 0 }), // seconds
     duration: NumberField({ min: 0 }), // seconds
-    clipData: jsonField().optional(), // additional data
+    clipData: JSONField().optional(), // additional data
   })
   .extend(baseSchema);
 
@@ -38,7 +38,7 @@ export const MediaClipInputSchema = z.object({
   start: NumberField({ min: 0 }),
   end: NumberField({ min: 0 }),
   duration: NumberField({ min: 0 }),
-  clipData: jsonField().optional(),
+  clipData: JSONField().optional(),
 });
 
 // Define the collection with workspace-scoped permissions

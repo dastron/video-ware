@@ -5,7 +5,7 @@ import {
   SelectField,
   FileField,
   RelationField,
-  jsonField,
+  JSONField,
   baseSchema,
 } from 'pocketbase-zod-schema/schema';
 import { z } from 'zod';
@@ -14,14 +14,14 @@ import { FileStatus, FileType, FileSource } from '../enums';
 // Define the Zod schema
 export const FileSchema = z
   .object({
-    name: TextField({ min: 1, max: 255 }),
-    size: NumberField({ min: 0 }),
+    name: TextField(),
+    size: NumberField({required: true}),
     fileStatus: SelectField([
       FileStatus.PENDING,
       FileStatus.AVAILABLE,
       FileStatus.FAILED,
       FileStatus.DELETED,
-    ]),
+    ], {maxSelect: 1}),
     fileType: SelectField([
       FileType.ORIGINAL,
       FileType.PROXY,
@@ -33,7 +33,7 @@ export const FileSchema = z
     fileSource: SelectField([FileSource.S3, FileSource.POCKETBASE]),
     blob: FileField().optional(),
     s3Key: TextField().optional(),
-    meta: jsonField().optional(),
+    meta: JSONField().optional(),
     WorkspaceRef: RelationField({ collection: 'Workspaces' }),
     MediaRef: RelationField({ collection: 'Media' }).optional(),
   })
@@ -62,7 +62,7 @@ export const FileInputSchema = z.object({
   fileSource: z.enum([FileSource.S3, FileSource.POCKETBASE]),
   blob: FileField().optional(),
   s3Key: TextField().optional(),
-  meta: jsonField().optional(),
+  meta: JSONField().optional(),
   WorkspaceRef: z.string().min(1, 'Workspace is required'),
   UploadRef: z.string().optional(),
   MediaRef: z.string().optional(),

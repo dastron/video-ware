@@ -1,7 +1,7 @@
 import {
   defineCollection,
   TextField,
-  jsonField,
+  JSONField,
   baseSchema,
 } from 'pocketbase-zod-schema/schema';
 import { z } from 'zod';
@@ -11,7 +11,7 @@ export const WorkspaceSchema = z
   .object({
     name: TextField().min(1, 'Name is required').max(100, 'Name too long'),
     slug: TextField().max(100, 'Slug too long').optional(),
-    settings: jsonField().optional(),
+    settings: JSONField().optional(),
   })
   .extend(baseSchema);
 
@@ -19,7 +19,7 @@ export const WorkspaceSchema = z
 export const WorkspaceInputSchema = z.object({
   name: TextField().min(1, 'Name is required').max(100, 'Name too long'),
   slug: TextField().max(100, 'Slug too long').optional(),
-  settings: jsonField().optional(),
+  settings: JSONField().optional(),
 });
 
 // Define the collection with permissions
