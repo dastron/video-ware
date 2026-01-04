@@ -1,0 +1,184 @@
+'use client';
+
+import type { Upload } from '@project/shared';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+} from '@/components/ui/empty';
+import { FileVideo, RefreshCw, AlertCircle } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+interface UploadListProps {
+  uploads: Upload[];
+  onRetry?: (uploadId: string) => Promise<void>;
+  isLoading?: boolean;
+  className?: string;
+}
+
+export function UploadList({
+  uploads,
+  onRetry,
+  isLoading = false,
+  className,
+}: UploadListProps) {
+  const formatBytes = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+    if (bytes < 1024 * 1024 * 1024)
+      return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  };
+
+  const formatDate = (dateString: string): string => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+  };
+
+  const handleRetry = async (uploadId: string) => {
+    if (onRetry) {
+      try {
+        await onRetry(uploadId);
+      } catch (error) {
+        console.error('Failed to retry upload:', error);
+      }
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <Card className={className}>
+        <CardHeader>
+          <Skeleton className="h-6 w-32" />
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="space-y-2">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-3 w-3/4" />
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className={className}>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <span>Uploads</span>
+            <Badge variant="secondary">{uploads.length}</Badge>
+          </CardTitle>
+        </div>
+      </CardHeader>
+
+      <CardContent>
+        {uploads.length === 0 ? (
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <FileVideo className="h-6 w-6" />
+              </EmptyMedia>
+              <EmptyTitle>No uploads yet</EmptyTitle>
+              <EmptyDescription>
+                Upload your first video to get started!
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : (
+          <div className="space-y-3">
+            {uploads.map((upload) => (
+              <div
+                key={upload.id}
+                className={cn(
+                  'flex items-start gap-4 p-4 border rounded-lg',
+                  upload.status === 'failed' && 'border-red-200 bg-red-50'
+                )}
+              >
+                {/* File icon */}
+                <div className="flex-shrink-0">
+                  <FileVideo
+                    className={cn(
+                      'h-8 w-8',
+                      upload.status === 'failed'
+                        ? 'text-red-500'
+                        : 'text-blue-500'
+                    )}
+                  />
+                </div>
+
+                {/* Upload info */}
+                <div className="flex-1 min-w-0 space-y-1">
+                  {/* File name and status */}
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium truncate">{upload.name}</p>
+                    <Badge
+                      variant={
+                        upload.status === 'ready'
+                          ? 'default'
+                          : upload.status === 'failed'
+                            ? 'destructive'
+                            : 'secondary'
+                      }
+                      className="flex-shrink-0"
+                    >
+                      {upload.status}
+                    </Badge>
+                  </div>
+
+                  {/* File size and date */}
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <span>{formatBytes(upload.size)}</span>
+                    <span>•</span>
+                    <span>{formatDate(upload.created)}</span>
+                  </div>
+
+                  {/* Error message */}
+                  {upload.status === 'failed' && upload.errorMessage && (
+                    <div className="flex items-start gap-2 mt-2 p-2 bg-red-100 border border-red-200 rounded">
+                      <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
+                      <p className="text-sm text-red-700">
+                        {upload.errorMessage}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Retry button for failed uploads */}
+                {upload.status === 'failed' && onRetry && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleRetry(upload.id)}
+                    className="flex-shrink-0"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Retry
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}

@@ -1,0 +1,137 @@
+import type { TypedPocketBase } from '@/lib/types';
+import { WorkspaceMutator, WorkspaceMemberMutator } from '@/mutators';
+import type {
+  Workspace,
+  WorkspaceInput,
+  WorkspaceMember,
+} from '@project/shared';
+
+/**
+ * Workspace service that provides high-level workspace operations
+ * Handles workspace CRUD and membership verification
+ */
+export class WorkspaceService {
+  private workspaceMutator: WorkspaceMutator;
+  private workspaceMemberMutator: WorkspaceMemberMutator;
+
+  constructor(pb: TypedPocketBase) {
+    this.workspaceMutator = new WorkspaceMutator(pb);
+    this.workspaceMemberMutator = new WorkspaceMemberMutator(pb);
+  }
+
+  /**
+   * Create a new workspace
+   * @param input Workspace data
+   * @returns The created workspace
+   */
+  async createWorkspace(input: WorkspaceInput): Promise<Workspace> {
+    return this.workspaceMutator.create(input);
+  }
+
+  /**
+   * Get workspace by ID
+   * @param id Workspace ID
+   * @returns The workspace or null if not found
+   */
+  async getWorkspace(id: string): Promise<Workspace | null> {
+    return this.workspaceMutator.getById(id);
+  }
+
+  /**
+   * Get workspace by slug
+   * @param slug Workspace slug
+   * @returns The workspace or null if not found
+   */
+  async getWorkspaceBySlug(slug: string): Promise<Workspace | null> {
+    return this.workspaceMutator.getBySlug(slug);
+  }
+
+  /**
+   * Update workspace
+   * @param id Workspace ID
+   * @param data Partial workspace data to update
+   * @returns The updated workspace
+   */
+  async updateWorkspace(
+    id: string,
+    data: Partial<Workspace>
+  ): Promise<Workspace> {
+    return this.workspaceMutator.update(id, data);
+  }
+
+  /**
+   * Delete workspace
+   * @param id Workspace ID
+   * @returns True if deleted successfully
+   */
+  async deleteWorkspace(id: string): Promise<boolean> {
+    return this.workspaceMutator.delete(id);
+  }
+
+  /**
+   * Verify if a user has membership in a workspace
+   * @param userId User ID
+   * @param workspaceId Workspace ID
+   * @returns True if user is a member, false otherwise
+   */
+  async verifyMembership(
+    userId: string,
+    workspaceId: string
+  ): Promise<boolean> {
+    const membership = await this.workspaceMemberMutator.getByUserAndWorkspace(
+      userId,
+      workspaceId
+    );
+    return membership !== null;
+  }
+
+  /**
+   * Get user's membership in a workspace
+   * @param userId User ID
+   * @param workspaceId Workspace ID
+   * @returns The workspace member record or null if not found
+   */
+  async getMembership(
+    userId: string,
+    workspaceId: string
+  ): Promise<WorkspaceMember | null> {
+    return this.workspaceMemberMutator.getByUserAndWorkspace(
+      userId,
+      workspaceId
+    );
+  }
+
+  /**
+   * Get all workspaces a user is a member of
+   * @param userId User ID
+   * @returns List of workspace memberships
+   */
+  async getUserWorkspaces(userId: string): Promise<WorkspaceMember[]> {
+    const result =
+      await this.workspaceMemberMutator.getMembershipsByUser(userId);
+    return result.items;
+  }
+
+  /**
+   * Check if user has permission to perform an action in a workspace
+   * Throws an error if user is not a member
+   * @param userId User ID
+   * @param workspaceId Workspace ID
+   * @throws Error if user is not a member of the workspace
+   */
+  async requireMembership(userId: string, workspaceId: string): Promise<void> {
+    const isMember = await this.verifyMembership(userId, workspaceId);
+    if (!isMember) {
+      throw new Error(
+        `User ${userId} does not have permission to access workspace ${workspaceId}`
+      );
+    }
+  }
+}
+
+/**
+ * Create a WorkspaceService instance from a PocketBase client
+ */
+export function createWorkspaceService(pb: TypedPocketBase): WorkspaceService {
+  return new WorkspaceService(pb);
+}

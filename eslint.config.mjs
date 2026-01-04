@@ -1,6 +1,7 @@
 import js from "@eslint/js";
 import typescript from "@typescript-eslint/eslint-plugin";
 import typescriptParser from "@typescript-eslint/parser";
+import reactHooks from "eslint-plugin-react-hooks";
 
 export default [
   // Global ignores
@@ -66,7 +67,10 @@ export default [
 
   // React/Next.js files
   {
-    files: ["app/**/*.{jsx,tsx}"],
+    files: ["webapp/**/*.{jsx,tsx}", "app/**/*.{jsx,tsx}"],
+    plugins: {
+      "react-hooks": reactHooks
+    },
     languageOptions: {
       globals: {
         React: "readonly",
@@ -75,7 +79,10 @@ export default [
     },
     rules: {
       "react/react-in-jsx-scope": "off", // Not needed in Next.js 13+
-      "react/no-unescaped-entities": "off"
+      "react/no-unescaped-entities": "off",
+      // React Hooks rules
+      "react-hooks/rules-of-hooks": "error", // Checks rules of Hooks
+      "react-hooks/exhaustive-deps": "warn" // Checks effect dependencies
     }
   },
 

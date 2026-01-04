@@ -21,7 +21,7 @@
     "format:check": "yarn workspaces foreach -A run format:check",
     "clean": "yarn workspaces foreach -R run clean && rm -rf pb/pocketbase",
     "typegen": "yarn workspace @project/shared typegen",
-    "db:start": "yarn workspace @project/pb dev:debug" ,
+    "db:start": "yarn workspace @project/pb dev:debug",
     "db:migrate": "yarn workspace @project/shared migrate:generate",
     "db:status": "yarn workspace @project/shared migrate:status"
   },
@@ -31,6 +31,7 @@
     "@typescript-eslint/parser": "^8.51.0",
     "concurrently": "^9.2.1",
     "eslint": "^9.39.2",
+    "eslint-plugin-react-hooks": "^7.0.1",
     "prettier": "^3.7.4",
     "typescript": "^5.9.3"
   }

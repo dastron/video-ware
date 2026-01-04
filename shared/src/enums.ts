@@ -27,10 +27,6 @@ export const COLLECTIONS = {
 
 export type CollectionNameType = (typeof COLLECTIONS)[keyof typeof COLLECTIONS];
 
-// ============================================================================
-// Video Ware (Phase 0) enums
-// ============================================================================
-
 export enum UploadStatus {
   QUEUED = 'queued',
   UPLOADING = 'uploading',

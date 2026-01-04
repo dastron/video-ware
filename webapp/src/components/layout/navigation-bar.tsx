@@ -2,9 +2,17 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Menu, LogOut, Settings, CheckSquare } from 'lucide-react';
+import {
+  Menu,
+  LogOut,
+  Settings,
+  CheckSquare,
+  Upload,
+  Film,
+} from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { WorkspaceSelector } from '@/components/workspace';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -54,6 +62,8 @@ export function NavigationBar({ className }: NavigationBarProps) {
 
   // Navigation links for authenticated users
   const authenticatedLinks = [
+    { href: '/uploads', label: 'Uploads', icon: Upload },
+    { href: '/media', label: 'Media', icon: Film },
     { href: '/todos', label: 'Todos', icon: CheckSquare },
     { href: '/profile', label: 'Profile', icon: Settings },
   ];
@@ -82,7 +92,12 @@ export function NavigationBar({ className }: NavigationBarProps) {
         {/* Desktop Navigation */}
         <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
           <div className="w-full flex-1 md:w-auto md:flex-none">
-            {/* Additional navigation items can go here */}
+            {/* Workspace Selector for authenticated users */}
+            {isAuthenticated && !isMobile && (
+              <div className="flex items-center">
+                <WorkspaceSelector />
+              </div>
+            )}
           </div>
 
           {/* Desktop Auth Navigation */}
@@ -191,6 +206,10 @@ export function NavigationBar({ className }: NavigationBarProps) {
                             {user?.email}
                           </p>
                         </div>
+                      </div>
+                      {/* Workspace Selector for mobile */}
+                      <div className="pb-4 border-b">
+                        <WorkspaceSelector />
                       </div>
                       {authenticatedLinks.map((link) => (
                         <Button

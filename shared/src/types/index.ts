@@ -6,6 +6,7 @@ import type { User } from '../schema/user';
 
 export * from './video-ware.js';
 export * from './task-contracts.js';
+export * from './processor.js';
 
 // Typed PocketBase interface
 export interface TypedPocketBase extends PocketBase {

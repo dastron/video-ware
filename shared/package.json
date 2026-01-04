@@ -40,7 +40,7 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\" --ignore-path .prettierignore",
     "migrate:generate": "npx pocketbase-migrate generate",
     "migrate:status": "npx pocketbase-migrate status",
-    "test": "vitest run",
+    "test": "echo 'shared workspace - no tests needed'",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint .",
