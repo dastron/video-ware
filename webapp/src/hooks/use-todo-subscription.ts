@@ -183,7 +183,7 @@ export function useTodoSubscription(
       // Subscribe to all todos collection changes
       // PocketBase access rules will automatically filter to user's todos
       await pb
-        .collection('todos')
+        .collection('Todos')
         .subscribe('*', (data: RecordSubscription<Todo>) => {
           try {
             // Additional client-side filtering if userId is specified
@@ -200,7 +200,7 @@ export function useTodoSubscription(
 
       // Create unsubscribe function
       unsubscribeRef.current = () => {
-        pb.collection('todos').unsubscribe('*');
+        pb.collection('Todos').unsubscribe('*');
       };
 
       setIsConnecting(false);

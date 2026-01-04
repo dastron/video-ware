@@ -21,6 +21,7 @@
     "format:check": "yarn workspaces foreach -A run format:check",
     "clean": "yarn workspaces foreach -R run clean && rm -rf pb/pocketbase",
     "typegen": "yarn workspace @project/shared typegen",
+    "db:start": "yarn workspace @project/pb dev:debug" ,
     "db:migrate": "yarn workspace @project/shared migrate:generate",
     "db:status": "yarn workspace @project/shared migrate:status"
   },

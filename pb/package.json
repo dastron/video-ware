@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "./pocketbase serve",
+    "dev:debug": "./pocketbase serve --dev",
     "build": "echo 'PocketBase workspace - no build needed'",
     "test": "echo 'PocketBase workspace - no tests needed'",
     "test:watch": "echo 'PocketBase workspace - no tests needed'",

@@ -1,0 +1,94 @@
+import {
+  defineCollection,
+  TextField,
+  NumberField,
+  SelectField,
+  FileField,
+  RelationField,
+  jsonField,
+  baseSchema,
+} from 'pocketbase-zod-schema/schema';
+import { z } from 'zod';
+import { FileStatus, FileType, FileSource } from '../enums';
+
+// Define the Zod schema
+export const FileSchema = z
+  .object({
+    name: TextField({ min: 1, max: 255 }),
+    size: NumberField({ min: 0 }),
+    fileStatus: SelectField([
+      FileStatus.PENDING,
+      FileStatus.AVAILABLE,
+      FileStatus.FAILED,
+      FileStatus.DELETED,
+    ]),
+    fileType: SelectField([
+      FileType.ORIGINAL,
+      FileType.PROXY,
+      FileType.THUMBNAIL,
+      FileType.SPRITE,
+      FileType.LABELS_JSON,
+      FileType.RENDER,
+    ]),
+    fileSource: SelectField([FileSource.S3, FileSource.POCKETBASE]),
+    blob: FileField().optional(),
+    s3Key: TextField().optional(),
+    meta: jsonField().optional(),
+    WorkspaceRef: RelationField({ collection: 'Workspaces' }),
+    MediaRef: RelationField({ collection: 'Media' }).optional(),
+  })
+  .extend(baseSchema);
+
+// Define input schema for creating files
+export const FileInputSchema = z.object({
+  name: TextField({ min: 1, max: 255 }),
+  size: NumberField({ min: 0 }),
+  fileStatus: z
+    .enum([
+      FileStatus.PENDING,
+      FileStatus.AVAILABLE,
+      FileStatus.FAILED,
+      FileStatus.DELETED,
+    ])
+    .default(FileStatus.PENDING),
+  fileType: z.enum([
+    FileType.ORIGINAL,
+    FileType.PROXY,
+    FileType.THUMBNAIL,
+    FileType.SPRITE,
+    FileType.LABELS_JSON,
+    FileType.RENDER,
+  ]),
+  fileSource: z.enum([FileSource.S3, FileSource.POCKETBASE]),
+  blob: FileField().optional(),
+  s3Key: TextField().optional(),
+  meta: jsonField().optional(),
+  WorkspaceRef: z.string().min(1, 'Workspace is required'),
+  UploadRef: z.string().optional(),
+  MediaRef: z.string().optional(),
+});
+
+// Define the collection with workspace-scoped permissions
+export const FileCollection = defineCollection({
+  collectionName: 'Files',
+  schema: FileSchema,
+  permissions: {
+    // Authenticated users can list files
+    listRule: '@request.auth.id != ""',
+    // Authenticated users can view files
+    viewRule: '@request.auth.id != ""',
+    // Authenticated users can create files
+    createRule: '@request.auth.id != ""',
+    // Authenticated users can update files
+    updateRule: '@request.auth.id != ""',
+    // Authenticated users can delete files
+    deleteRule: '@request.auth.id != ""',
+  },
+});
+
+export default FileCollection;
+
+// Export TypeScript types
+export type File = z.infer<typeof FileSchema>;
+export type FileInput = z.infer<typeof FileInputSchema>;
+export type FileUpdate = Partial<FileInput>;

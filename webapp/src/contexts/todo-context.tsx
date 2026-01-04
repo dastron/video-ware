@@ -279,7 +279,7 @@ export function TodoProvider({ children }: TodoProviderProps) {
     try {
       // Subscribe to all todos collection changes
       const unsubscribe = await new Promise<() => void>((resolve, reject) => {
-        pb.collection('todos')
+        pb.collection('Todos')
           .subscribe(
             '*',
             (data: RecordSubscription<Todo>) => {
@@ -311,7 +311,7 @@ export function TodoProvider({ children }: TodoProviderProps) {
           .then(() => {
             setIsConnected(true);
             return () => {
-              pb.collection('todos').unsubscribe('*');
+              pb.collection('Todos').unsubscribe('*');
               setIsConnected(false);
             };
           })
@@ -319,7 +319,7 @@ export function TodoProvider({ children }: TodoProviderProps) {
 
         // Return the unsubscribe function
         resolve(() => {
-          pb.collection('todos').unsubscribe('*');
+          pb.collection('Todos').unsubscribe('*');
           setIsConnected(false);
         });
       });

@@ -50,7 +50,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (pb.authStore.isValid && pb.authStore.model) {
           // Verify the token is still valid by making a test request
           try {
-            await pb.collection('users').authRefresh();
+            await pb.collection('Users').authRefresh();
             setUser(pb.authStore.model as User);
           } catch {
             // Token is expired or invalid, clear it

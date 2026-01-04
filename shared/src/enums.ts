@@ -127,4 +127,5 @@ export const VIDEO_COLLECTIONS = {
   CLIP_RECOMMENDATIONS: 'clip_recommendations',
 } as const;
 
-export type VideoCollectionName = (typeof VIDEO_COLLECTIONS)[keyof typeof VIDEO_COLLECTIONS];
+export type VideoCollectionName =
+  (typeof VIDEO_COLLECTIONS)[keyof typeof VIDEO_COLLECTIONS];
