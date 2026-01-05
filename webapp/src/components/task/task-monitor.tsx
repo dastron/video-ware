@@ -191,29 +191,29 @@ export function TaskMonitor({
                     <div className="flex items-center gap-1">
                       {(task.status === 'failed' ||
                         task.status === 'canceled') && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-gray-500 hover:text-blue-600"
-                            onClick={() => retryTask(task.id)}
-                            title="Retry task"
-                          >
-                            <RefreshCw className="h-4 w-4" />
-                          </Button>
-                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-gray-500 hover:text-blue-600"
+                          onClick={() => retryTask(task.id)}
+                          title="Retry task"
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                        </Button>
+                      )}
 
                       {(task.status === 'queued' ||
                         task.status === 'running') && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-gray-500 hover:text-red-600"
-                            onClick={() => cancelTask(task.id)}
-                            title="Cancel task"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-gray-500 hover:text-red-600"
+                          onClick={() => cancelTask(task.id)}
+                          title="Cancel task"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>

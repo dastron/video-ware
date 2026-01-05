@@ -284,10 +284,10 @@ async function processUploadTask(
     );
     const proxyFileName = transcode?.enabled
       ? generateDeterministicFileName(
-        uploadId,
-        'proxy',
-        transcode as unknown as Record<string, unknown>
-      )
+          uploadId,
+          'proxy',
+          transcode as unknown as Record<string, unknown>
+        )
       : undefined;
 
     // IDEMPOTENCY CHECK 2: Check for existing derived assets with matching config
@@ -302,8 +302,8 @@ async function processUploadTask(
     );
     let proxyFile = proxyFileName
       ? existingFiles.items.find(
-        (f) => f.fileType === FileType.PROXY && f.name === proxyFileName
-      )
+          (f) => f.fileType === FileType.PROXY && f.name === proxyFileName
+        )
       : undefined;
 
     // Step 2: Generate proxy (transcode) if enabled
@@ -337,7 +337,10 @@ async function processUploadTask(
           fileSource: transcodedPath.startsWith('gs://')
             ? FileSource.GCS
             : FileSource.POCKETBASE,
-          blob: new File([readFileSync(transcodedPath)], proxyFileName) as unknown as File,
+          blob: new File(
+            [readFileSync(transcodedPath)],
+            proxyFileName
+          ) as unknown as File,
           s3Key: transcodedPath,
           WorkspaceRef: upload.WorkspaceRef,
           UploadRef: uploadId,
@@ -364,8 +367,13 @@ async function processUploadTask(
         size: getFileSize(thumbnailPath),
         fileStatus: FileStatus.AVAILABLE,
         fileType: FileType.THUMBNAIL,
-        fileSource: thumbnailPath.startsWith('gs://') ? FileSource.GCS : FileSource.POCKETBASE,
-        blob: new File([readFileSync(thumbnailPath)], thumbnailFileName) as unknown as File,
+        fileSource: thumbnailPath.startsWith('gs://')
+          ? FileSource.GCS
+          : FileSource.POCKETBASE,
+        blob: new File(
+          [readFileSync(thumbnailPath)],
+          thumbnailFileName
+        ) as unknown as File,
         s3Key: thumbnailPath,
         WorkspaceRef: upload.WorkspaceRef,
         UploadRef: uploadId,
@@ -391,8 +399,13 @@ async function processUploadTask(
         size: getFileSize(spritePath),
         fileStatus: FileStatus.AVAILABLE,
         fileType: FileType.SPRITE,
-        fileSource: spritePath.startsWith('gs://') ? FileSource.GCS : FileSource.POCKETBASE,
-        blob: new File([readFileSync(spritePath)], spriteFileName) as unknown as File,
+        fileSource: spritePath.startsWith('gs://')
+          ? FileSource.GCS
+          : FileSource.POCKETBASE,
+        blob: new File(
+          [readFileSync(spritePath)],
+          spriteFileName
+        ) as unknown as File,
         s3Key: spritePath,
         WorkspaceRef: upload.WorkspaceRef,
         UploadRef: uploadId,
@@ -574,7 +587,8 @@ async function processDetectLabelsTask(
     }
 
     // Get the processor
-    const processorProvider = provider || ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE;
+    const processorProvider =
+      provider || ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE;
     const processor = getProcessor(processorProvider, pb);
 
     if (!processor.detectLabels) {

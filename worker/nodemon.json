@@ -1,12 +1,7 @@
 {
-  "watch": [
-    "src"
-  ],
+  "watch": ["src"],
   "ext": "ts,json",
-  "ignore": [
-    "src/**/*.test.ts",
-    "src/**/*.spec.ts"
-  ],
+  "ignore": ["src/**/*.test.ts", "src/**/*.spec.ts"],
   "exec": "tsx src/index.ts --env-file-if-exists=../.env",
   "verbose": false,
   "env": {

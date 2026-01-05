@@ -1,10 +1,6 @@
 import { RecordService } from 'pocketbase';
 import type { ListResult } from 'pocketbase';
-import {
-  TaskInputSchema,
-  type Task,
-  type TaskInput,
-} from '../schema';
+import { TaskInputSchema, type Task, type TaskInput } from '../schema';
 import { type ProcessUploadPayload, type ProcessUploadResult } from '../types';
 import { TaskStatus, TaskType } from '../enums';
 import type { TypedPocketBase } from '../types';

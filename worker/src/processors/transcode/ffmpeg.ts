@@ -72,7 +72,13 @@ export class FFmpegProcessor implements MediaProcessor {
    */
   private async resolveFileRef(fileRef: string): Promise<string> {
     // If it's already a local path, return it
-    if (path.isAbsolute(fileRef) && (await fs.access(fileRef).then(() => true).catch(() => false))) {
+    if (
+      path.isAbsolute(fileRef) &&
+      (await fs
+        .access(fileRef)
+        .then(() => true)
+        .catch(() => false))
+    ) {
       return fileRef;
     }
 
@@ -80,7 +86,7 @@ export class FFmpegProcessor implements MediaProcessor {
     if (!this.pb) {
       throw new Error(
         `Cannot resolve file reference "${fileRef}": PocketBase client not provided. ` +
-        `Either provide a PocketBase client to the processor or use local file paths.`
+          `Either provide a PocketBase client to the processor or use local file paths.`
       );
     }
 
@@ -126,7 +132,9 @@ export class FFmpegProcessor implements MediaProcessor {
 
     const response = await fetch(url);
     if (!response.ok) {
-      throw new Error(`Failed to download file from ${url}: ${response.statusText}`);
+      throw new Error(
+        `Failed to download file from ${url}: ${response.statusText}`
+      );
     }
 
     const buffer = await response.arrayBuffer();
@@ -154,7 +162,9 @@ export class FFmpegProcessor implements MediaProcessor {
 
       return JSON.parse(stdout);
     } catch (error) {
-      throw new Error(`ffprobe failed: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `ffprobe failed: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
@@ -433,7 +443,9 @@ export class FFmpegProcessor implements MediaProcessor {
         await fs.rm(this.tempDir, { recursive: true, force: true });
         this.tempDir = null;
       } catch (error) {
-        console.warn(`[FFmpegProcessor] Failed to cleanup temp directory: ${error}`);
+        console.warn(
+          `[FFmpegProcessor] Failed to cleanup temp directory: ${error}`
+        );
       }
     }
   }

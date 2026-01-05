@@ -61,5 +61,8 @@ export interface MediaProcessor {
    * @param config - Label detection configuration
    * @returns Detection results and metadata
    */
-  detectLabels?(fileRef: string, config: DetectLabelsConfig): Promise<DetectLabelsResult>;
+  detectLabels?(
+    fileRef: string,
+    config: DetectLabelsConfig
+  ): Promise<DetectLabelsResult>;
 }

@@ -6,12 +6,7 @@ import { useWorkspace } from '@/hooks/use-workspace';
 import { useMedia } from '@/hooks/use-media';
 import { MediaProvider } from '@/contexts/media-context';
 import { MediaGallery } from '@/components/media';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, Film } from 'lucide-react';
 import Link from 'next/link';

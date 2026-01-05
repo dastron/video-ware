@@ -433,7 +433,11 @@ export abstract class BaseMutator<T extends RecordModel, InputType> {
     if (!error) return false;
 
     // Check for PocketBase ClientResponseError status
-    if (typeof error === 'object' && 'status' in error && error.status === 404) {
+    if (
+      typeof error === 'object' &&
+      'status' in error &&
+      error.status === 404
+    ) {
       return true;
     }
 

@@ -249,10 +249,10 @@ export function TodoProvider({ children }: TodoProviderProps) {
         prev.map((todo) =>
           todo.id === id
             ? {
-              ...todo,
-              completed: !todo.completed,
-              updated: new Date().toISOString(),
-            }
+                ...todo,
+                completed: !todo.completed,
+                updated: new Date().toISOString(),
+              }
             : todo
         )
       );

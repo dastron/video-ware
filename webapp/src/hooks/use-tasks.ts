@@ -9,11 +9,11 @@ import { TaskContext } from '@/contexts/task-context';
  * @throws Error if used outside TaskProvider
  */
 export function useTasks() {
-    const context = useContext(TaskContext);
+  const context = useContext(TaskContext);
 
-    if (context === undefined) {
-        throw new Error('useTasks must be used within a TaskProvider');
-    }
+  if (context === undefined) {
+    throw new Error('useTasks must be used within a TaskProvider');
+  }
 
-    return context;
+  return context;
 }

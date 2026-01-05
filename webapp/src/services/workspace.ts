@@ -1,5 +1,8 @@
 import type { TypedPocketBase } from '@project/shared/types';
-import { WorkspaceMutator, WorkspaceMemberMutator } from '@project/shared/mutator';
+import {
+  WorkspaceMutator,
+  WorkspaceMemberMutator,
+} from '@project/shared/mutator';
 import type {
   Workspace,
   WorkspaceInput,

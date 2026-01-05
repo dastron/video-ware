@@ -16,12 +16,15 @@ export const FileSchema = z
   .object({
     name: TextField(),
     size: NumberField({ required: true }),
-    fileStatus: SelectField([
-      FileStatus.PENDING,
-      FileStatus.AVAILABLE,
-      FileStatus.FAILED,
-      FileStatus.DELETED,
-    ], { maxSelect: 1 }),
+    fileStatus: SelectField(
+      [
+        FileStatus.PENDING,
+        FileStatus.AVAILABLE,
+        FileStatus.FAILED,
+        FileStatus.DELETED,
+      ],
+      { maxSelect: 1 }
+    ),
     fileType: SelectField([
       FileType.ORIGINAL,
       FileType.PROXY,
@@ -30,7 +33,11 @@ export const FileSchema = z
       FileType.LABELS_JSON,
       FileType.RENDER,
     ]),
-    fileSource: SelectField([FileSource.S3, FileSource.POCKETBASE, FileSource.GCS]),
+    fileSource: SelectField([
+      FileSource.S3,
+      FileSource.POCKETBASE,
+      FileSource.GCS,
+    ]),
     blob: FileField().optional(),
     s3Key: TextField().optional(),
     meta: JSONField().optional(),

@@ -1,5 +1,9 @@
 import type { TypedPocketBase } from '@project/shared';
-import { UploadMutator, TaskMutator, FileMutator } from '@project/shared/mutator';
+import {
+  UploadMutator,
+  TaskMutator,
+  FileMutator,
+} from '@project/shared/mutator';
 import {
   UploadStatus,
   ProcessingProvider,

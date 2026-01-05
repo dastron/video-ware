@@ -1,7 +1,7 @@
 import {
   type MediaProcessor,
   ProcessingProvider,
-  type TypedPocketBase
+  type TypedPocketBase,
 } from '@project/shared';
 import { FFmpegProcessor } from './transcode/ffmpeg.js';
 import { GoogleTranscoderProcessor } from './transcode/google-transcoder.js';

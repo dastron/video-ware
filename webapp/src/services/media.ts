@@ -1,5 +1,9 @@
 import type { TypedPocketBase } from '@project/shared/types';
-import { MediaMutator, FileMutator, MediaClipMutator } from '@project/shared/mutator';
+import {
+  MediaMutator,
+  FileMutator,
+  MediaClipMutator,
+} from '@project/shared/mutator';
 import type { Media, File as FileRecord, MediaClip } from '@project/shared';
 
 /**
