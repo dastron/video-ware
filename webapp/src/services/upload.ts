@@ -1,7 +1,10 @@
-import type { TypedPocketBase } from '@/lib/types';
-import { UploadMutator, TaskMutator, FileMutator } from '@/mutators';
-import type { ProcessUploadPayload } from '@/mutators/task';
-import { UploadStatus, ProcessingProvider } from '@project/shared';
+import type { TypedPocketBase } from '@project/shared';
+import { UploadMutator, TaskMutator, FileMutator } from '@project/shared/mutator';
+import {
+  UploadStatus,
+  ProcessingProvider,
+  type ProcessUploadPayload,
+} from '@project/shared';
 import type { Upload, Task } from '@project/shared';
 
 /**
@@ -172,6 +175,11 @@ export class UploadService {
         timestamp: 'midpoint',
         width: 640,
         height: 360,
+      },
+      transcode: {
+        enabled: true,
+        codec: 'h265',
+        resolution: '720p',
       },
     };
 

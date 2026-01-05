@@ -18,8 +18,12 @@ import {
   Loader2,
   Clock,
   AlertCircle,
+  RefreshCw,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTasks } from '@/hooks/use-tasks';
+import { Button } from '@/components/ui/button';
 
 interface TaskMonitorProps {
   tasks: Task[];
@@ -32,6 +36,7 @@ export function TaskMonitor({
   isLoading = false,
   className,
 }: TaskMonitorProps) {
+  const { retryTask, cancelTask } = useTasks();
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'success':
@@ -175,12 +180,42 @@ export function TaskMonitor({
                     </div>
                   </div>
 
-                  {/* Progress percentage */}
-                  {task.status === 'running' && (
-                    <div className="flex-shrink-0 text-sm font-medium text-gray-600">
-                      {task.progress}%
+                  {/* Progress percentage or actions */}
+                  <div className="flex flex-shrink-0 items-center gap-2">
+                    {task.status === 'running' && (
+                      <div className="text-sm font-medium text-gray-600">
+                        {task.progress}%
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-1">
+                      {(task.status === 'failed' ||
+                        task.status === 'canceled') && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-gray-500 hover:text-blue-600"
+                            onClick={() => retryTask(task.id)}
+                            title="Retry task"
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                          </Button>
+                        )}
+
+                      {(task.status === 'queued' ||
+                        task.status === 'running') && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-gray-500 hover:text-red-600"
+                            onClick={() => cancelTask(task.id)}
+                            title="Cancel task"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
                     </div>
-                  )}
+                  </div>
                 </div>
 
                 {/* Progress bar for running tasks */}

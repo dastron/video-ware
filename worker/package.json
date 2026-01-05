@@ -1,0 +1,33 @@
+{
+  "name": "@project/worker",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "nodemon",
+    "start": "node dist/index.js --env-file-if-exists=../.env",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\" --ignore-path .prettierignore",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\" --ignore-path .prettierignore",
+    "test": "echo 'worker workspace - no tests needed'",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
+  },
+  "dependencies": {
+    "@google-cloud/speech": "^7.2.1",
+    "@google-cloud/storage": "^7.18.0",
+    "@google-cloud/video-intelligence": "^6.2.1",
+    "@google-cloud/video-transcoder": "^4.4.1",
+    "@project/shared": "workspace:*",
+    "express": "^5.2.1",
+    "tsx": "^4.21.0"
+  },
+  "packageManager": "yarn@4.12.0",
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "nodemon": "^3.1.0",
+    "typescript": "^5.9.3"
+  }
+}

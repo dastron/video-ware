@@ -1,6 +1,6 @@
 // Create PocketBase client instance using local PocketBase package
 import PocketBase from 'pocketbase';
-import type { TypedPocketBase } from './types';
+import type { TypedPocketBase } from '@project/shared/types';
 
 export interface PocketBaseClientOptions {
   enableAutoCancellation?: boolean;

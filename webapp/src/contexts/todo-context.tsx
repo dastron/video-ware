@@ -9,7 +9,7 @@ import React, {
   useRef,
 } from 'react';
 import type { Todo, TodoInput, TodoUpdate } from '@project/shared';
-import { TodoMutator } from '@/mutators';
+import { TodoMutator } from '@project/shared/mutator';
 import pb from '@/lib/pocketbase';
 import { useAuth } from '@/hooks/use-auth';
 import type { ListResult, RecordSubscription } from 'pocketbase';
@@ -249,10 +249,10 @@ export function TodoProvider({ children }: TodoProviderProps) {
         prev.map((todo) =>
           todo.id === id
             ? {
-                ...todo,
-                completed: !todo.completed,
-                updated: new Date().toISOString(),
-              }
+              ...todo,
+              completed: !todo.completed,
+              updated: new Date().toISOString(),
+            }
             : todo
         )
       );

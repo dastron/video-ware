@@ -9,6 +9,7 @@ import {
   CheckSquare,
   Upload,
   Film,
+  Activity,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -63,6 +64,7 @@ export function NavigationBar({ className }: NavigationBarProps) {
   // Navigation links for authenticated users
   const authenticatedLinks = [
     { href: '/uploads', label: 'Uploads', icon: Upload },
+    { href: '/tasks', label: 'Tasks', icon: Activity },
     { href: '/media', label: 'Media', icon: Film },
     { href: '/todos', label: 'Todos', icon: CheckSquare },
     { href: '/profile', label: 'Profile', icon: Settings },

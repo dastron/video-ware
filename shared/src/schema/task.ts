@@ -29,7 +29,6 @@ export const TaskSchema = z
     result: JSONField().optional(),
     errorLog: TextField().optional(),
     WorkspaceRef: RelationField({ collection: 'Workspaces' }),
-    MediaRef: RelationField({ collection: 'Media' }).optional(),
     UserRef: RelationField({ collection: 'Users' }).optional(),
     provider: SelectField([
       ProcessingProvider.FFMPEG,

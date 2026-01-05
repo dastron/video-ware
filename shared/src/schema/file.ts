@@ -15,13 +15,13 @@ import { FileStatus, FileType, FileSource } from '../enums';
 export const FileSchema = z
   .object({
     name: TextField(),
-    size: NumberField({required: true}),
+    size: NumberField({ required: true }),
     fileStatus: SelectField([
       FileStatus.PENDING,
       FileStatus.AVAILABLE,
       FileStatus.FAILED,
       FileStatus.DELETED,
-    ], {maxSelect: 1}),
+    ], { maxSelect: 1 }),
     fileType: SelectField([
       FileType.ORIGINAL,
       FileType.PROXY,
@@ -30,11 +30,12 @@ export const FileSchema = z
       FileType.LABELS_JSON,
       FileType.RENDER,
     ]),
-    fileSource: SelectField([FileSource.S3, FileSource.POCKETBASE]),
+    fileSource: SelectField([FileSource.S3, FileSource.POCKETBASE, FileSource.GCS]),
     blob: FileField().optional(),
     s3Key: TextField().optional(),
     meta: JSONField().optional(),
     WorkspaceRef: RelationField({ collection: 'Workspaces' }),
+    UploadRef: RelationField({ collection: 'Uploads' }).optional(),
     MediaRef: RelationField({ collection: 'Media' }).optional(),
   })
   .extend(baseSchema);
@@ -59,7 +60,7 @@ export const FileInputSchema = z.object({
     FileType.LABELS_JSON,
     FileType.RENDER,
   ]),
-  fileSource: z.enum([FileSource.S3, FileSource.POCKETBASE]),
+  fileSource: z.enum([FileSource.S3, FileSource.POCKETBASE, FileSource.GCS]),
   blob: FileField().optional(),
   s3Key: TextField().optional(),
   meta: JSONField().optional(),

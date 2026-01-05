@@ -8,3 +8,4 @@ export * from './schema/file.js';
 export * from './schema/task.js';
 export * from './schema/media.js';
 export * from './schema/media-clip.js';
+export * from './schema/task.js';

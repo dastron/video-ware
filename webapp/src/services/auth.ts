@@ -1,8 +1,8 @@
 import PocketBase from 'pocketbase';
 import type { User, RegisterData } from '@project/shared';
-import type { TypedPocketBase } from '@/lib/types';
+import type { TypedPocketBase } from '@project/shared/types';
 import { parseAuthError, withRetry } from '@project/shared';
-import { UserMutator } from '@/mutators';
+import { UserMutator } from '@project/shared/mutator';
 
 /**
  * Authentication service that uses mutators and provides high-level auth operations

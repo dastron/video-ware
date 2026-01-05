@@ -3,6 +3,14 @@
 import PocketBase from 'pocketbase';
 import type { RecordService } from 'pocketbase';
 import type { User } from '../schema/user';
+import type { Task } from '../schema/task';
+import type { MediaClip } from '../schema/media-clip';
+import type { Upload } from '../schema/upload';
+import type { File } from '../schema/file';
+import type { Media } from '../schema/media';
+import type { Workspace } from '../schema/workspace';
+import type { WorkspaceMember } from '../schema/workspace-member';
+import type { Todo } from '../schema/todo';
 
 export * from './video-ware.js';
 export * from './task-contracts.js';
@@ -11,7 +19,14 @@ export * from './processor.js';
 // Typed PocketBase interface
 export interface TypedPocketBase extends PocketBase {
   collection(idOrName: 'Users'): RecordService<User>;
-  // Add more collections as needed
+  collection(idOrName: 'Tasks'): RecordService<Task>;
+  collection(idOrName: 'MediaClips'): RecordService<MediaClip>;
+  collection(idOrName: 'Uploads'): RecordService<Upload>;
+  collection(idOrName: 'Files'): RecordService<File>;
+  collection(idOrName: 'Media'): RecordService<Media>;
+  collection(idOrName: 'Workspaces'): RecordService<Workspace>;
+  collection(idOrName: 'WorkspaceMembers'): RecordService<WorkspaceMember>;
+  collection(idOrName: 'Todos'): RecordService<Todo>;
 }
 
 // PocketBase response types

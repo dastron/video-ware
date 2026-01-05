@@ -9,7 +9,7 @@ import React, {
   useRef,
 } from 'react';
 import type { Task } from '@project/shared';
-import { TaskMutator } from '@/mutators';
+import { TaskMutator } from '@project/shared/mutator';
 import pb from '@/lib/pocketbase';
 import type { RecordSubscription } from 'pocketbase';
 
@@ -29,6 +29,8 @@ interface TaskContextType {
   getTaskById: (taskId: string) => Task | undefined;
   getTasksByUpload: (uploadId: string) => Task[];
   getTaskProgress: (taskId: string) => TaskProgress | undefined;
+  retryTask: (taskId: string) => Promise<void>;
+  cancelTask: (taskId: string) => Promise<void>;
 
   // Real-time updates
   isConnected: boolean;
@@ -83,7 +85,7 @@ export function TaskProvider({ workspaceId, children }: TaskProviderProps) {
       const result = await taskMutator.getList(
         1,
         100,
-        `workspace = "${workspaceId}"`,
+        `WorkspaceRef = "${workspaceId}"`,
         '-created'
       );
       setTasks(result.items);
@@ -130,6 +132,38 @@ export function TaskProvider({ workspaceId, children }: TaskProviderProps) {
       };
     },
     [tasks]
+  );
+
+  // Retry task
+  const retryTask = useCallback(
+    async (taskId: string) => {
+      clearError();
+      try {
+        await taskMutator.retry(taskId);
+        await refreshTasks();
+      } catch (error) {
+        handleError(error, 'retry');
+        throw error;
+      }
+    },
+    [taskMutator, refreshTasks, clearError, handleError]
+  );
+
+  // Cancel task
+  const cancelTask = useCallback(
+    async (taskId: string) => {
+      clearError();
+      try {
+        await taskMutator.update(taskId, {
+          status: 'canceled' as any,
+        });
+        await refreshTasks();
+      } catch (error) {
+        handleError(error, 'cancel');
+        throw error;
+      }
+    },
+    [taskMutator, refreshTasks, clearError, handleError]
   );
 
   // Real-time subscription management
@@ -230,6 +264,8 @@ export function TaskProvider({ workspaceId, children }: TaskProviderProps) {
     getTaskById,
     getTasksByUpload,
     getTaskProgress,
+    retryTask,
+    cancelTask,
 
     // Real-time updates
     isConnected,

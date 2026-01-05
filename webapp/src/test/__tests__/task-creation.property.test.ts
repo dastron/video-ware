@@ -11,8 +11,12 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { TaskType, TaskStatus, ProcessingProvider } from '@project/shared';
-import type { ProcessUploadPayload } from '@/mutators/task';
+import {
+  TaskType,
+  TaskStatus,
+  ProcessingProvider,
+  type ProcessUploadPayload,
+} from '@project/shared';
 
 /**
  * Validate that a task payload contains all required fields for process_upload

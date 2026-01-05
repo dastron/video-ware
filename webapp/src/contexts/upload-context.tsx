@@ -10,7 +10,7 @@ import React, {
 } from 'react';
 import type { Upload } from '@project/shared';
 import { UploadService } from '@/services/upload';
-import { UploadMutator } from '@/mutators';
+import { UploadMutator } from '@project/shared/mutator';
 import pb from '@/lib/pocketbase';
 import type { RecordSubscription } from 'pocketbase';
 

@@ -5,9 +5,11 @@ export * from './schema.js';
 export * from './enums.js';
 export * from './types.js';
 
-// Export utilities (including error handling)
+// Export utilities (including error handling, media errors, and retry)
 export * from './utils/index.js';
-export * from './utils/error-handling.js';
 
 // Export PocketBase client utilities (only client factory, no mutators/services)
 export * from './pocketbase/client.js';
+
+// Export mutators
+export * from './mutator.js';

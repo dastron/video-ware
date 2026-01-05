@@ -55,6 +55,7 @@ export enum FileType {
 export enum FileSource {
   S3 = 's3',
   POCKETBASE = 'pocketbase',
+  GCS = 'gcs',
 }
 
 export enum MediaType {

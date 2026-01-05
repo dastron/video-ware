@@ -4,6 +4,8 @@ import type {
   ThumbnailConfig,
   SpriteConfig,
   TranscodeConfig,
+  DetectLabelsConfig,
+  DetectLabelsResult,
 } from './task-contracts.js';
 
 /**
@@ -44,7 +46,20 @@ export interface MediaProcessor {
    * Transcode the media file to a different format (optional)
    * @param fileRef - Reference to the source media file
    * @param config - Transcoding configuration
+   * @param outputFileName - Optional deterministic output filename
    * @returns Path or URL to the transcoded file
    */
-  transcode?(fileRef: string, config: TranscodeConfig): Promise<string>;
+  transcode?(
+    fileRef: string,
+    config: TranscodeConfig,
+    outputFileName?: string
+  ): Promise<string>;
+
+  /**
+   * Detect labels and objects in the media file (optional)
+   * @param fileRef - Reference to the source media file
+   * @param config - Label detection configuration
+   * @returns Detection results and metadata
+   */
+  detectLabels?(fileRef: string, config: DetectLabelsConfig): Promise<DetectLabelsResult>;
 }

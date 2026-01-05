@@ -1,0 +1,440 @@
+import type {
+  MediaProcessor,
+  ProbeOutput,
+  ThumbnailConfig,
+  SpriteConfig,
+  TranscodeConfig,
+} from '@project/shared';
+import { ProcessingProvider } from '@project/shared';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import * as os from 'os';
+import type { TypedPocketBase } from '@project/shared/types';
+
+const execFileAsync = promisify(execFile);
+
+/**
+ * FFprobe output structure
+ */
+interface FFprobeOutput {
+  streams?: Array<{
+    codec_type?: string;
+    codec_name?: string;
+    width?: string;
+    height?: string;
+    avg_frame_rate?: string;
+    bit_rate?: string;
+  }>;
+  format?: {
+    duration?: string;
+    bit_rate?: string;
+  };
+}
+
+/**
+ * FFmpeg-based media processor
+ * Handles media file processing using FFmpeg and ffprobe
+ */
+export class FFmpegProcessor implements MediaProcessor {
+  readonly provider = ProcessingProvider.FFMPEG;
+  readonly version = '7.0.1'; // FFmpeg version
+
+  private pb: TypedPocketBase | null = null;
+  private tempDir: string | null = null;
+
+  /**
+   * Initialize the processor with optional PocketBase client for file resolution
+   * @param pb Optional PocketBase client for resolving file references
+   */
+  constructor(pb?: TypedPocketBase) {
+    this.pb = pb || null;
+  }
+
+  /**
+   * Get or create a temporary directory for processing files
+   */
+  private async getTempDir(): Promise<string> {
+    if (!this.tempDir) {
+      const dataDir = path.join(process.cwd(), 'data');
+      await fs.mkdir(dataDir, { recursive: true });
+      this.tempDir = await fs.mkdtemp(path.join(dataDir, 'ffmpeg-'));
+    }
+    return this.tempDir;
+  }
+
+  /**
+   * Resolve a file reference to a local file path
+   * Handles both local paths and PocketBase file references
+   * @param fileRef - File reference (local path, upload ID, or File record ID)
+   * @returns Local file path
+   */
+  private async resolveFileRef(fileRef: string): Promise<string> {
+    // If it's already a local path, return it
+    if (path.isAbsolute(fileRef) && (await fs.access(fileRef).then(() => true).catch(() => false))) {
+      return fileRef;
+    }
+
+    // If we don't have PocketBase, we can't resolve remote references
+    if (!this.pb) {
+      throw new Error(
+        `Cannot resolve file reference "${fileRef}": PocketBase client not provided. ` +
+        `Either provide a PocketBase client to the processor or use local file paths.`
+      );
+    }
+
+    // Try to resolve as Upload ID first
+    try {
+      const upload = await this.pb.collection('Uploads').getOne(fileRef);
+      if (upload.originalFile) {
+        const filename = Array.isArray(upload.originalFile)
+          ? upload.originalFile[0]
+          : upload.originalFile;
+        const fileUrl = this.pb.files.getURL(upload, filename);
+        return await this.downloadFile(fileUrl, filename);
+      }
+    } catch {
+      // Not an upload ID, try File record ID
+    }
+
+    // Try to resolve as File record ID
+    try {
+      const fileRecord = await this.pb.collection('Files').getOne(fileRef);
+      const blob = (fileRecord as unknown as Record<string, unknown>).blob;
+      if (blob) {
+        const filename = Array.isArray(blob) ? blob[0] : (blob as string);
+        const fileUrl = this.pb.files.getURL(fileRecord, filename);
+        return await this.downloadFile(fileUrl, filename);
+      }
+    } catch {
+      // Not a file record ID either
+    }
+
+    throw new Error(`Cannot resolve file reference: ${fileRef}`);
+  }
+
+  /**
+   * Download a file from a URL to a temporary location
+   * @param url - File URL
+   * @param filename - Original filename
+   * @returns Local file path
+   */
+  private async downloadFile(url: string, filename: string): Promise<string> {
+    const tempDir = await this.getTempDir();
+    const localPath = path.join(tempDir, `${Date.now()}_${filename}`);
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to download file from ${url}: ${response.statusText}`);
+    }
+
+    const buffer = await response.arrayBuffer();
+    await fs.writeFile(localPath, Buffer.from(buffer));
+
+    return localPath;
+  }
+
+  /**
+   * Execute ffprobe command and parse JSON output
+   * @param inputFile - Input file path
+   * @returns Parsed probe output
+   */
+  private async runFFprobe(inputFile: string): Promise<FFprobeOutput> {
+    try {
+      const { stdout } = await execFileAsync('ffprobe', [
+        '-v',
+        'error',
+        '-show_entries',
+        'stream=width,height,codec_name,avg_frame_rate,bit_rate:format=duration,bit_rate',
+        '-of',
+        'json',
+        inputFile,
+      ]);
+
+      return JSON.parse(stdout);
+    } catch (error) {
+      throw new Error(`ffprobe failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * Parse ffprobe output to ProbeOutput format
+   * @param probeData - Raw ffprobe JSON output
+   * @returns Formatted probe output
+   */
+  private parseProbeOutput(probeData: FFprobeOutput): ProbeOutput {
+    const videoStream = probeData.streams?.find(
+      (s) => s.codec_type === 'video' || s.codec_name
+    );
+
+    if (!videoStream) {
+      throw new Error('No video stream found in media file');
+    }
+
+    const format = probeData.format || {};
+
+    // Parse frame rate (e.g., "30/1" -> 30)
+    let fps = 30; // default
+    if (videoStream.avg_frame_rate) {
+      const [num, den] = videoStream.avg_frame_rate.split('/').map(Number);
+      if (den && den > 0) {
+        fps = num / den;
+      }
+    }
+
+    // Parse bitrate (can be from stream or format)
+    const bitrate = videoStream.bit_rate
+      ? parseInt(videoStream.bit_rate, 10)
+      : format.bit_rate
+        ? parseInt(format.bit_rate, 10)
+        : undefined;
+
+    return {
+      duration: parseFloat(format.duration || '0'),
+      width: parseInt(videoStream.width || '0', 10),
+      height: parseInt(videoStream.height || '0', 10),
+      codec: videoStream.codec_name || 'unknown',
+      fps: Math.round(fps * 100) / 100, // Round to 2 decimal places
+      bitrate,
+    };
+  }
+
+  /**
+   * Probe a media file to extract metadata using ffprobe
+   * @param fileRef - Reference to the file (PocketBase file path or File record ID)
+   * @returns Metadata about the media file
+   */
+  async probe(fileRef: string): Promise<ProbeOutput> {
+    console.log(`[FFmpegProcessor] Probing file: ${fileRef}`);
+
+    const inputFile = await this.resolveFileRef(fileRef);
+    const probeData = await this.runFFprobe(inputFile);
+    const output = this.parseProbeOutput(probeData);
+
+    console.log(`[FFmpegProcessor] Probe result:`, output);
+    return output;
+  }
+
+  /**
+   * Generate a thumbnail image from the media file using ffmpeg
+   * @param fileRef - Reference to the source media file
+   * @param config - Thumbnail generation configuration
+   * @returns Path to the generated thumbnail file
+   */
+  async generateThumbnail(
+    fileRef: string,
+    config: ThumbnailConfig
+  ): Promise<string> {
+    console.log(
+      `[FFmpegProcessor] Generating thumbnail for: ${fileRef}`,
+      config
+    );
+
+    const inputFile = await this.resolveFileRef(fileRef);
+    const tempDir = await this.getTempDir();
+
+    // Determine timestamp
+    let timestamp: number;
+    if (config.timestamp === 'midpoint') {
+      // Get video duration first
+      const probeData = await this.runFFprobe(inputFile);
+      const duration = parseFloat(probeData.format?.duration || '0');
+      timestamp = duration / 2;
+    } else {
+      timestamp = config.timestamp;
+    }
+
+    // Generate output filename
+    const outputFilename = `thumbnail_${Date.now()}_${config.width}x${config.height}.jpg`;
+    const outputPath = path.join(tempDir, outputFilename);
+
+    // Build ffmpeg command
+    const args = [
+      '-i',
+      inputFile,
+      '-ss',
+      timestamp.toString(),
+      '-vframes',
+      '1',
+      '-vf',
+      `scale=${config.width}:${config.height}:force_original_aspect_ratio=decrease,pad=${config.width}:${config.height}:(ow-iw)/2:(oh-ih)/2`,
+      '-q:v',
+      '2', // High quality JPEG
+      '-y', // Overwrite output file
+      outputPath,
+    ];
+
+    try {
+      await execFileAsync('ffmpeg', args);
+      console.log(`[FFmpegProcessor] Thumbnail generated: ${outputPath}`);
+      return outputPath;
+    } catch (error) {
+      throw new Error(
+        `FFmpeg thumbnail generation failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  /**
+   * Generate a sprite sheet from the media file using ffmpeg
+   * @param fileRef - Reference to the source media file
+   * @param config - Sprite sheet generation configuration
+   * @returns Path to the generated sprite sheet file
+   */
+  async generateSprite(fileRef: string, config: SpriteConfig): Promise<string> {
+    console.log(
+      `[FFmpegProcessor] Generating sprite sheet for: ${fileRef}`,
+      config
+    );
+
+    const inputFile = await this.resolveFileRef(fileRef);
+    const tempDir = await this.getTempDir();
+
+    // Calculate total number of frames needed
+    const totalFrames = config.cols * config.rows;
+
+    // Generate output filename
+    const outputFilename = `sprite_${Date.now()}_${config.cols}x${config.rows}.jpg`;
+    const outputPath = path.join(tempDir, outputFilename);
+
+    // Build ffmpeg command for sprite sheet generation
+    // We'll use the select filter to extract frames at intervals
+    const args = [
+      '-i',
+      inputFile,
+      '-vf',
+      `fps=${config.fps},scale=${config.tileWidth}:${config.tileHeight}:force_original_aspect_ratio=decrease,pad=${config.tileWidth}:${config.tileHeight}:(ow-iw)/2:(oh-ih)/2,tile=${config.cols}x${config.rows}`,
+      '-frames:v',
+      totalFrames.toString(),
+      '-q:v',
+      '2', // High quality JPEG
+      '-y', // Overwrite output file
+      outputPath,
+    ];
+
+    try {
+      await execFileAsync('ffmpeg', args);
+      console.log(`[FFmpegProcessor] Sprite sheet generated: ${outputPath}`);
+      return outputPath;
+    } catch (error) {
+      throw new Error(
+        `FFmpeg sprite sheet generation failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  /**
+   * Transcode the media file to a different format using ffmpeg
+   * @param fileRef - Reference to the source media file
+   * @param config - Transcoding configuration
+   * @returns Path to the transcoded file
+   */
+  async transcode(
+    fileRef: string,
+    config: TranscodeConfig,
+    outputFileName?: string
+  ): Promise<string> {
+    console.log(`[FFmpegProcessor] Transcoding file: ${fileRef}`, config);
+
+    if (!config.enabled) {
+      throw new Error('Transcoding is not enabled in config');
+    }
+
+    const inputFile = await this.resolveFileRef(fileRef);
+    const tempDir = await this.getTempDir();
+
+    // Determine resolution
+    // ... (logic remains same)
+    let resolution: string;
+    switch (config.resolution) {
+      case '720p':
+        resolution = '1280:720';
+        break;
+      case '1080p':
+        resolution = '1920:1080';
+        break;
+      case 'original':
+        // Get original resolution from probe
+        const probeData = await this.runFFprobe(inputFile);
+        const videoStream = probeData.streams?.find(
+          (s) => s.codec_type === 'video' || s.codec_name
+        );
+        if (videoStream) {
+          resolution = `${videoStream.width}:${videoStream.height}`;
+        } else {
+          resolution = '1920:1080'; // fallback
+        }
+        break;
+      default:
+        resolution = '1920:1080';
+    }
+
+    // Determine codec arguments
+    let codecArgs: string[] = [];
+    switch (config.codec) {
+      case 'h264':
+        codecArgs = ['-c:v', 'libx264', '-preset', 'medium', '-crf', '23'];
+        break;
+      case 'h265':
+        codecArgs = ['-c:v', 'libx265', '-preset', 'medium', '-crf', '28'];
+        break;
+      case 'vp9':
+        codecArgs = ['-c:v', 'libvpx-vp9', '-crf', '30', '-b:v', '0'];
+        break;
+    }
+
+    // Add bitrate if specified
+    if (config.bitrate) {
+      codecArgs.push('-b:v', config.bitrate.toString());
+    }
+
+    // Generate output filename
+    const finalOutputFilename =
+      outputFileName ||
+      `transcoded_${Date.now()}_${config.codec}_${config.resolution}.mp4`;
+    const outputPath = path.join(tempDir, finalOutputFilename);
+
+    // Build ffmpeg command
+    const args = [
+      '-i',
+      inputFile,
+      '-vf',
+      `scale=${resolution}:force_original_aspect_ratio=decrease,pad=${resolution.split(':')[0]}:${resolution.split(':')[1]}:(${resolution.split(':')[0]}-iw)/2:(${resolution.split(':')[1]}-ih)/2`,
+      ...codecArgs,
+      '-c:a',
+      'aac',
+      '-b:a',
+      '128k',
+      '-movflags',
+      '+faststart',
+      '-y', // Overwrite output file
+      outputPath,
+    ];
+
+    try {
+      await execFileAsync('ffmpeg', args);
+      console.log(`[FFmpegProcessor] Transcoding completed: ${outputPath}`);
+      return outputPath;
+    } catch (error) {
+      throw new Error(
+        `FFmpeg transcoding failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  /**
+   * Clean up temporary files
+   * Call this when done processing to free up disk space
+   */
+  async cleanup(): Promise<void> {
+    if (this.tempDir) {
+      try {
+        await fs.rm(this.tempDir, { recursive: true, force: true });
+        this.tempDir = null;
+      } catch (error) {
+        console.warn(`[FFmpegProcessor] Failed to cleanup temp directory: ${error}`);
+      }
+    }
+  }
+}

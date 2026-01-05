@@ -56,11 +56,11 @@ export interface ProcessUploadPayload {
   /** Reference to the original file (PocketBase file path or File record ID) */
   originalFileRef: string;
   /** Processing provider to use (FFmpeg, Google Cloud, etc.) */
-  provider: ProcessingProvider;
+  provider?: ProcessingProvider;
   /** Configuration for sprite sheet generation */
-  sprite: SpriteConfig;
+  sprite?: SpriteConfig;
   /** Configuration for thumbnail generation */
-  thumbnail: ThumbnailConfig;
+  thumbnail?: ThumbnailConfig;
   /** Optional configuration for transcoding/proxy generation */
   transcode?: TranscodeConfig;
 }
@@ -81,6 +81,47 @@ export interface ProbeOutput {
   fps: number;
   /** Bitrate in bits per second (optional) */
   bitrate?: number;
+}
+
+/**
+ * Configuration for label/object detection
+ */
+export interface DetectLabelsConfig {
+  /** Confidence threshold for detection (0.0 to 1.0) */
+  confidenceThreshold?: number;
+  /** Whether to detect objects (bounding boxes) */
+  detectObjects?: boolean;
+  /** Whether to detect labels (shot/segment level) */
+  detectLabels?: boolean;
+}
+
+/**
+ * Payload for detect_labels task
+ */
+export interface DetectLabelsPayload {
+  /** ID of the Media record to analyze */
+  mediaId: string;
+  /** Reference to the file to analyze */
+  fileRef: string;
+  /** Processing provider to use */
+  provider: ProcessingProvider;
+  /** Configuration for detection */
+  config: DetectLabelsConfig;
+}
+
+/**
+ * Result from detect_labels task
+ */
+export interface DetectLabelsResult {
+  /** ID of the JSON file containing detailed labels (if saved to GCS/S3) */
+  labelsFileId?: string;
+  /** Summary of detected labels/objects */
+  summary: {
+    labelCount: number;
+    objectCount: number;
+  };
+  /** Version identifier of the processor */
+  processorVersion: string;
 }
 
 /**

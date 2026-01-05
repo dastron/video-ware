@@ -77,12 +77,12 @@ type ErrorType = Error | PocketBaseError | string | unknown;
 
 export interface AuthError {
   type:
-    | 'validation'
-    | 'authentication'
-    | 'network'
-    | 'authorization'
-    | 'server'
-    | 'unknown';
+  | 'validation'
+  | 'authentication'
+  | 'network'
+  | 'authorization'
+  | 'server'
+  | 'unknown';
   message: string;
   field?: string;
   code?: string;
@@ -358,10 +358,12 @@ export function getFieldError(
   return undefined;
 }
 
+import { UploadError } from './media-errors.js';
+
 /**
- * Check if error is retryable (network or server errors)
+ * Check if auth error is retryable (network or server errors)
  */
-export function isRetryableError(error: ErrorType): boolean {
+export function isAuthRetryableError(error: ErrorType): boolean {
   const parsedError = parseAuthError(error);
   return parsedError.type === 'network' || parsedError.type === 'server';
 }
@@ -425,7 +427,7 @@ export async function withRetry<T>(
       lastError = error as ErrorType;
 
       // Only retry for network or server errors
-      if (!isRetryableError(error) || attempt === maxRetries) {
+      if (!isAuthRetryableError(error) || attempt === maxRetries) {
         throw error;
       }
 

@@ -4,13 +4,14 @@
   "private": true,
   "packageManager": "yarn@4.12.0",
   "workspaces": [
+    "worker",
     "webapp",
     "shared",
     "pb"
   ],
   "scripts": {
     "setup": "node scripts/setup-pocketbase.js",
-    "dev": "concurrently \"yarn workspace @project/webapp dev\" \"yarn workspace @project/shared dev\" \"yarn workspace @project/pb dev\"",
+    "dev": "concurrently \"yarn workspace @project/webapp dev\" \"yarn workspace @project/pb dev\" \"yarn workspace @project/worker dev\" \"yarn workspace @project/shared dev\"",
     "build": "yarn workspaces foreach -A run build",
     "test": "yarn workspace @project/shared test && yarn workspace @project/webapp test",
     "test:watch": "concurrently \"yarn workspace @project/shared test:watch\" \"yarn workspace @project/webapp test:watch\"",

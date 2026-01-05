@@ -19,6 +19,7 @@ export const MediaSchema = z
     mediaData: JSONField(), // { codec, fps, width, height, ... }
     thumbnailFile: RelationField({ collection: 'Files' }).optional(),
     spriteFile: RelationField({ collection: 'Files' }).optional(),
+    proxyFile: RelationField({ collection: 'Files' }).optional(),
     processingVersion: NumberField().default(1),
   })
   .extend(baseSchema);
@@ -32,6 +33,7 @@ export const MediaInputSchema = z.object({
   mediaData: JSONField(),
   thumbnailFile: z.string().optional(),
   spriteFile: z.string().optional(),
+  proxyFile: z.string().optional(),
   processingVersion: NumberField().default(1),
 });
 
