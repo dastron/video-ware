@@ -77,12 +77,12 @@ type ErrorType = Error | PocketBaseError | string | unknown;
 
 export interface AuthError {
   type:
-    | 'validation'
-    | 'authentication'
-    | 'network'
-    | 'authorization'
-    | 'server'
-    | 'unknown';
+  | 'validation'
+  | 'authentication'
+  | 'network'
+  | 'authorization'
+  | 'server'
+  | 'unknown';
   message: string;
   field?: string;
   code?: string;
@@ -357,8 +357,6 @@ export function getFieldError(
 
   return undefined;
 }
-
-import { UploadError } from './media-errors.js';
 
 /**
  * Check if auth error is retryable (network or server errors)

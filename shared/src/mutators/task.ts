@@ -1,7 +1,7 @@
 import { RecordService } from 'pocketbase';
 import type { ListResult } from 'pocketbase';
 import { TaskInputSchema, type Task, type TaskInput } from '../schema';
-import { type ProcessUploadPayload, type ProcessUploadResult } from '../types';
+import { type ProcessUploadPayload } from '../types';
 import { TaskStatus, TaskType } from '../enums';
 import type { TypedPocketBase } from '../types';
 import { BaseMutator, type MutatorOptions } from './base';
@@ -68,7 +68,7 @@ export class TaskMutator extends BaseMutator<Task, TaskInput> {
    * @param result The task result
    * @returns The updated task
    */
-  async markSuccess(id: string, result: Record<string, any>): Promise<Task> {
+  async markSuccess(id: string, result: Record<string, unknown>): Promise<Task> {
     return this.update(id, {
       status: TaskStatus.SUCCESS,
       progress: 100,
