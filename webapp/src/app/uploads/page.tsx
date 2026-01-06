@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { useWorkspace } from '@/hooks/use-workspace';
 import { useUpload } from '@/hooks/use-upload';
@@ -19,17 +19,34 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
 function UploadsPageContent() {
-  const { uploads, uploadFile } = useUpload();
+  const {
+    uploads,
+    uploadFile,
+    uploadProgress,
+    isLoading,
+    retryUpload,
+    cancelUpload,
+  } = useUpload();
   const { currentWorkspace } = useWorkspace();
+
+  // Wrapper to match FileUploader interface - memoized to prevent re-renders
+  const handleFileSelect = useCallback(
+    async (file: File): Promise<void> => {
+      await uploadFile(file);
+    },
+    [uploadFile]
+  );
+
+  // Check if any uploads are in progress
+  const hasActiveUploads = useMemo(() => {
+    return Array.from(uploadProgress.values()).some(
+      (progress) => progress.percentage < 100
+    );
+  }, [uploadProgress]);
 
   if (!currentWorkspace) {
     return null;
   }
-
-  // Wrapper to match FileUploader interface
-  const handleFileSelect = async (file: File): Promise<void> => {
-    await uploadFile(file);
-  };
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
@@ -56,7 +73,10 @@ function UploadsPageContent() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <FileUploader onFileSelect={handleFileSelect} />
+              <FileUploader
+                onFileSelect={handleFileSelect}
+                isUploading={hasActiveUploads}
+              />
             </CardContent>
           </Card>
 
@@ -90,7 +110,13 @@ function UploadsPageContent() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <UploadList uploads={uploads} />
+              <UploadList
+                uploads={uploads}
+                uploadProgress={uploadProgress}
+                isLoading={isLoading}
+                onRetry={retryUpload}
+                onCancel={cancelUpload}
+              />
             </CardContent>
           </Card>
         </div>
