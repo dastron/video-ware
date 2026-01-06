@@ -10,7 +10,7 @@
     "pb"
   ],
   "scripts": {
-    "setup": "node scripts/setup-pocketbase.js",
+    "setup": "yarn workspace @project/pb setup",
     "dev": "concurrently --names \"shared,webapp,pocket,worker\" \"yarn workspace @project/shared dev\" \"sleep 2 && yarn workspace @project/webapp dev\" \"sleep 2 && yarn workspace @project/pb dev\" \"sleep 2 && yarn workspace @project/worker dev\"",
     "build": "yarn workspaces foreach -A run build",
     "test": "yarn workspace @project/shared test && yarn workspace @project/webapp test",
@@ -22,6 +22,7 @@
     "format:check": "yarn workspaces foreach -A run format:check",
     "clean": "yarn workspaces foreach -R run clean && rm -rf pb/pocketbase",
     "typegen": "yarn workspace @project/shared typegen",
+    "precommit": "yarn run lint && yarn run typecheck && yarn run format && yarn run test",
     "db:download": "yarn workspace @project/pb download",
     "db:start": "yarn workspace @project/pb dev:debug",
     "db:migrate": "yarn workspace @project/shared migrate:generate",
@@ -33,6 +34,9 @@
     "staging:stop": "docker stop $(docker ps -q --filter ancestor=video-ware:staging) 2>/dev/null || true && docker rm $(docker ps -aq --filter ancestor=video-ware:staging) 2>/dev/null || true",
     "staging:logs": "docker logs -f $(docker ps -q --filter ancestor=video-ware:staging)",
     "staging:clean": "yarn run staging:stop && docker rmi video-ware:staging 2>/dev/null || true && rm -rf staging_data"
+  },
+  "engines": {
+    "node": ">=22.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",

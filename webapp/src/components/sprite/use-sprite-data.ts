@@ -36,8 +36,8 @@ export function useSpriteData(media: Media) {
     fetchSpriteFile();
   }, [media.spriteFileRef, spriteFile]);
 
-  const config: SpriteConfig = (spriteFile)?.meta?.spriteConfig ||
-    (media.mediaData)?.spriteConfig || {
+  const config: SpriteConfig = spriteFile?.meta?.spriteConfig ||
+    media.mediaData?.spriteConfig || {
       cols: 10,
       rows: 10,
       fps: 1,

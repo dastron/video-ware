@@ -1,89 +1,141 @@
 #!/usr/bin/env node
 
-import { execSync } from 'child_process';
-import { existsSync, mkdirSync, chmodSync, readFileSync } from 'fs';
-import { join } from 'path';
-import { platform, arch } from 'os';
+const fs = require('fs');
+const path = require('path');
+const https = require('https');
+const { execSync } = require('child_process');
 
-// Read PB_VERSION from .env file
-function getPocketBaseVersion() {
-  try {
-    const envPath = join(process.cwd(), '.env');
-    if (existsSync(envPath)) {
-      const envContent = readFileSync(envPath, 'utf8');
-      const versionMatch = envContent.match(/^PB_VERSION=(.+)$/m);
-      if (versionMatch) {
-        return versionMatch[1].trim();
-      }
-    }
-  } catch (error) {
-    console.warn('⚠️  Could not read PB_VERSION from .env file');
+const POCKETBASE_VERSION = process.env.PB_VERSION || '0.35.0';
+const PLATFORM_MAP = {
+  'darwin': 'darwin',
+  'linux': 'linux',
+  'win32': 'windows'
+};
+
+const ARCH_MAP = {
+  'x64': 'amd64',
+  'arm64': 'arm64'
+};
+
+function getPlatformInfo() {
+  const platform = PLATFORM_MAP[process.platform];
+  const arch = ARCH_MAP[process.arch];
+  
+  if (!platform || !arch) {
+    throw new Error(`Unsupported platform: ${process.platform} ${process.arch}`);
   }
-  return '0.35.0'; // fallback version
+  
+  return { platform, arch };
 }
 
-const POCKETBASE_VERSION = getPocketBaseVersion();
-const POCKETBASE_DIR = join(process.cwd(), 'pocketbase');
-
-function getPocketBaseUrl() {
-  const platformMap = {
-    'darwin': 'darwin',
-    'linux': 'linux',
-    'win32': 'windows'
-  };
-  
-  const archMap = {
-    'x64': 'amd64',
-    'arm64': 'arm64'
-  };
-  
-  const os = platformMap[platform()];
-  const architecture = archMap[arch()];
-  
-  if (!os || !architecture) {
-    throw new Error(`Unsupported platform: ${platform()}-${arch()}`);
-  }
-  
-  const extension = platform() === 'win32' ? 'zip' : 'zip';
-  return `https://github.com/pocketbase/pocketbase/releases/download/v${POCKETBASE_VERSION}/pocketbase_${POCKETBASE_VERSION}_${os}_${architecture}.${extension}`;
+function downloadFile(url, dest) {
+  return new Promise((resolve, reject) => {
+    console.log(`Downloading ${url}...`);
+    
+    const file = fs.createWriteStream(dest);
+    
+    https.get(url, (response) => {
+      if (response.statusCode === 302 || response.statusCode === 301) {
+        // Handle redirect
+        return downloadFile(response.headers.location, dest).then(resolve).catch(reject);
+      }
+      
+      if (response.statusCode !== 200) {
+        reject(new Error(`Failed to download: ${response.statusCode}`));
+        return;
+      }
+      
+      response.pipe(file);
+      
+      file.on('finish', () => {
+        file.close();
+        resolve();
+      });
+      
+      file.on('error', (err) => {
+        fs.unlink(dest, () => {}); // Delete the file on error
+        reject(err);
+      });
+    }).on('error', reject);
+  });
 }
 
 async function downloadPocketBase() {
-  console.log(`📦 Setting up PocketBase v${POCKETBASE_VERSION}...`);
-  
-  if (!existsSync(POCKETBASE_DIR)) {
-    mkdirSync(POCKETBASE_DIR, { recursive: true });
-  }
-  
-  const url = getPocketBaseUrl();
-  const filename = platform() === 'win32' ? 'pocketbase.exe' : 'pocketbase';
-  const filepath = join(POCKETBASE_DIR, filename);
-  
-  if (existsSync(filepath)) {
-    console.log('✅ PocketBase already downloaded');
-    return;
-  }
-  
-  console.log(`⬇️  Downloading PocketBase from ${url}`);
-  
   try {
-    // Download and extract
-    execSync(`curl -L "${url}" -o "${POCKETBASE_DIR}/pocketbase.zip"`, { stdio: 'inherit' });
-    execSync(`cd "${POCKETBASE_DIR}" && unzip -o pocketbase.zip`, { stdio: 'inherit' });
+    const { platform, arch } = getPlatformInfo();
+    const pbDir = path.join(__dirname, '..');
     
-    // Make executable on Unix systems
-    if (platform() !== 'win32') {
-      chmodSync(filepath, '755');
+    // Create pb directory if it doesn't exist
+    if (!fs.existsSync(pbDir)) {
+      fs.mkdirSync(pbDir, { recursive: true });
     }
     
-    // Clean up zip file
-    execSync(`rm "${POCKETBASE_DIR}/pocketbase.zip"`, { stdio: 'inherit' });
+    // Determine file extension and executable name
+    const isWindows = platform === 'windows';
+    const extension = '.zip';
+    const executableName = isWindows ? 'pocketbase.exe' : 'pocketbase';
     
-    console.log('✅ PocketBase downloaded successfully');
+    // Construct download URL
+    const filename = `pocketbase_${POCKETBASE_VERSION}_${platform}_${arch}${extension}`;
+    const downloadUrl = `https://github.com/pocketbase/pocketbase/releases/download/v${POCKETBASE_VERSION}/${filename}`;
+    const zipPath = path.join(pbDir, filename);
+    const executablePath = path.join(pbDir, executableName);
+    
+    // Check if PocketBase is already installed
+    let needsDownload = false;
+    if (fs.existsSync(executablePath)) {
+      console.log('✅ PocketBase is already installed');
+      
+      // Check version
+      try {
+        const version = execSync(`cd "${pbDir}" && ./${executableName} --version`, { encoding: 'utf8' });
+        console.log(`Current version: ${version.trim()}`);
+      } catch (err) {
+        console.log('⚠️  Existing PocketBase binary seems corrupted, re-downloading...');
+        needsDownload = true;
+      }
+    } else {
+      needsDownload = true;
+    }
+    
+    // Download and install PocketBase if needed
+    if (needsDownload) {
+      console.log(`📦 Setting up PocketBase v${POCKETBASE_VERSION} for ${platform}/${arch}...`);
+      
+      // Download PocketBase
+      await downloadFile(downloadUrl, zipPath);
+      console.log('✅ Download completed');
+      
+      // Extract the zip file
+      console.log('📂 Extracting PocketBase...');
+      
+      if (process.platform === 'win32') {
+        // Use PowerShell on Windows
+        execSync(`powershell -command "Expand-Archive -Path '${zipPath}' -DestinationPath '${pbDir}' -Force"`, { stdio: 'inherit' });
+      } else {
+        // Use unzip on Unix-like systems
+        execSync(`cd "${pbDir}" && unzip -o "${filename}"`, { stdio: 'inherit' });
+      }
+      
+      // Make executable on Unix-like systems
+      if (!isWindows) {
+        execSync(`chmod +x "${executablePath}"`);
+      }
+      
+      // Clean up zip file
+      fs.unlinkSync(zipPath);
+      
+      console.log('✅ PocketBase download completed!');
+      console.log(`📍 PocketBase binary location: ${executablePath}`);
+    }
   } catch (error) {
-    console.error('❌ Failed to download PocketBase:', error.message);
+    console.error('❌ Error downloading PocketBase:', error.message);
     process.exit(1);
   }
 }
 
-downloadPocketBase();
+if (require.main === module) {
+  downloadPocketBase();
+}
+
+module.exports = { downloadPocketBase };

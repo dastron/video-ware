@@ -8,7 +8,7 @@ import React, {
   useMemo,
   useRef,
 } from 'react';
-import type { Task } from '@project/shared';
+import { TaskStatus, type Task } from '@project/shared';
 import { TaskMutator } from '@project/shared/mutator';
 import pb from '@/lib/pocketbase-client';
 import type { RecordSubscription } from 'pocketbase';
@@ -155,7 +155,7 @@ export function TaskProvider({ workspaceId, children }: TaskProviderProps) {
       clearError();
       try {
         await taskMutator.update(taskId, {
-          status: 'canceled' as any,
+          status: TaskStatus.CANCELED,
         });
         await refreshTasks();
       } catch (error) {

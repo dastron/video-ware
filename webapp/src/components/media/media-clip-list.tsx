@@ -110,7 +110,7 @@ function MediaClipItem({
               isActive && 'text-primary'
             )}
           >
-            {(clip.clipData as any)?.label || 'Clip'}
+            {clip.clipData?.label || 'Clip'}
           </div>
 
           <div className="text-xs text-muted-foreground flex items-center gap-1.5">

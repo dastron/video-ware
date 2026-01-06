@@ -388,7 +388,7 @@ async function processUploadTask(
         fileSource: thumbnailPath.startsWith('gs://')
           ? FileSource.GCS
           : FileSource.POCKETBASE,
-          file: new File([readFileSync(thumbnailPath)], thumbnailFileName, {
+        file: new File([readFileSync(thumbnailPath)], thumbnailFileName, {
           type: 'image/jpeg',
         }),
         s3Key: thumbnailPath,

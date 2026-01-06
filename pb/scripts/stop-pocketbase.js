@@ -1,13 +1,12 @@
 #!/usr/bin/env node
 
-import { execSync } from 'child_process';
-import { platform } from 'os';
+const { execSync } = require('child_process');
 
 function stopPocketBase() {
   console.log('🛑 Stopping PocketBase...');
   
   try {
-    if (platform() === 'win32') {
+    if (process.platform === 'win32') {
       // Windows
       execSync('taskkill /f /im pocketbase.exe', { stdio: 'inherit' });
     } else {
@@ -20,4 +19,8 @@ function stopPocketBase() {
   }
 }
 
-stopPocketBase();
+if (require.main === module) {
+  stopPocketBase();
+}
+
+module.exports = { stopPocketBase };
