@@ -85,6 +85,48 @@ jobs:
           build-args: |
             POCKETBASE_VERSION=0.35.0
 
+      - name: Make package public
+        if: github.event_name == 'release' || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.push_image == 'true')
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const packageName = '${{ env.IMAGE_NAME }}';
+            const [owner, repo] = packageName.split('/');
+            
+            // For user/organization packages, use the repo name as package name
+            // The API expects just the repository name, not owner/repo
+            try {
+              // Try user-level API first (for personal accounts)
+              await github.request('PATCH /user/packages/container/{package_name}', {
+                package_name: repo,
+                visibility: 'public'
+              });
+              console.log(`✅ Successfully set ${packageName} to public`);
+            } catch (userError) {
+              try {
+                // Try organization-level API (for org accounts)
+                await github.request('PATCH /orgs/{org}/packages/container/{package_name}', {
+                  org: owner,
+                  package_name: repo,
+                  visibility: 'public'
+                });
+                console.log(`✅ Successfully set ${packageName} to public (org method)`);
+              } catch (orgError) {
+                console.log(`⚠️  Could not automatically set package to public via API.`);
+                console.log(`   This might be because:`);
+                console.log(`   - The package doesn't exist yet (first push)`);
+                console.log(`   - API permissions need adjustment`);
+                console.log(`   `);
+                console.log(`   Please manually set it to public:`);
+                console.log(`   1. Go to: https://github.com/${owner}/${repo}/packages`);
+                console.log(`   2. Click on the package`);
+                console.log(`   3. Go to: Package Settings → Change visibility → Public`);
+                console.log(`   `);
+                console.log(`   User API Error: ${userError.message}`);
+                console.log(`   Org API Error: ${orgError.message}`);
+              }
+            }
+
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
