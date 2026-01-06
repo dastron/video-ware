@@ -25,7 +25,7 @@ export const UploadSchema = z
     ]),
     originalFile: FileField({ maxSize: 7000000000 }).optional(),
     WorkspaceRef: RelationField({ collection: 'Workspaces' }),
-    UserRef: RelationField({ collection: 'Users' }).optional(),
+    UserRef: RelationField({ collection: 'Users' }),
     errorMessage: TextField().optional(),
   })
   .extend(baseSchema);
@@ -45,7 +45,7 @@ export const UploadInputSchema = z.object({
     ])
     .default(UploadStatus.UPLOADING),
   WorkspaceRef: z.string().min(1, 'Workspace is required'),
-  UserRef: z.string().optional(),
+  UserRef: z.string().min(1, 'User is required'),
   errorMessage: TextField().optional(),
 });
 

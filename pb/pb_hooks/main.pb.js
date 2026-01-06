@@ -27,7 +27,7 @@ onRecordAfterCreateSuccess((e) => {
     const workspaceMembersCollection = $app.findCollectionByNameOrId("WorkspaceMembers")
     
     const workspace = new Record(workspacesCollection)
-    workspace.set("name", "Workspace")
+    workspace.set("name", "New")
     $app.save(workspace)
     
     const workspaceMember = new Record(workspaceMembersCollection)

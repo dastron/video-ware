@@ -5,7 +5,7 @@ This stage introduces clip creation and timeline composition. The goal is to mov
 ## Desired Outcomes
 - Users can create clips (time ranges) from a `Media` item and manage clip metadata.
 - Users can assemble clips into a single-track timeline with ordering, trimming, and total duration.
-- The timeline can be exported to an `editList` JSON blob (`TimeOffset` seconds+nanos) that is suitable for later rendering tasks.
+- The timeline can be exported to an `editList` JSON blob (`TimeOffset` seconds) that is suitable for later rendering tasks.
 - A `render_timeline` task can be created as a stub to validate payloads and represent an eventual render pipeline.
 
 ## Non-Goals
@@ -19,7 +19,7 @@ Use the app-level types already prepared in `@project/shared/types`:
 
 Keep one consistent time unit policy:
 - UI can display seconds, but persisted offsets should be either:
-  - `seconds+nanos` in `editList`, and
+  - `seconds` in `editList`, and
   - numeric seconds (float) or milliseconds (int) for clip fields.
 Pick one and keep it consistent across collections and UI helpers.
 
@@ -30,13 +30,13 @@ Suggested fields:
 - `name` (text)
 - `WorkspaceRef` (relation to `workspaces`)
 - `createdBy` (relation to auth user; optional audit)
-- `items` (json array) OR relation to `timeline_items` (choose one model)
-- `editList` (json) generated from items
+- `clips` (json array) OR relation to `timeline_clips` (choose one model)
+- `editList` (json) generated from clips
 - `duration` (number)
 - `version` (number; increment on edits)
 - `renderTaskRef?` (relation)
 
-### Timeline Items (recommended)
+### Timeline Clips (recommended)
 If you want stable ordering and editing:
 - `TimelineRef` (relation)
 - `ClipRef` (relation to `MediaClips`)
@@ -72,11 +72,11 @@ Suggested UX:
 - “Add clip” action creates a clip and immediately displays it in a clip list for the media.
 
 ### 2) Timeline persistence model (choose early)
-Option A (fast): `timelines.items` JSON array containing ordered references and trims.
+Option A (fast): `timelines.clips` JSON array containing ordered references and trims.
 - Pros: fewer tables, easiest to implement.
 - Cons: harder to query and reorder concurrently, brittle for future features.
 
-Option B (recommended): `timeline_items` collection.
+Option B (recommended): `timeline_clips` collection.
 - Pros: stable ordering, incremental edits, easier diffing/versioning.
 - Cons: more records, more queries.
 
@@ -85,8 +85,8 @@ If unsure, start with Option A and migrate to Option B once editing complexity g
 ### 3) Timeline editor behavior (single-track)
 Minimum interactions:
 - add clips to timeline (from media clip list)
-- reorder items (drag/drop)
-- trim items (adjust in/out)
+- reorder clips (drag/drop)
+- trim clips (adjust in/out)
 - compute derived values:
   - timeline duration
   - per-item `startOffset`/`endOffset`
@@ -97,7 +97,7 @@ Persistence strategy:
 - store `editList` snapshot as the canonical render input for that version
 
 ### 4) editList generation
-Define a deterministic mapping from timeline items -> `EditListEntry`:
+Define a deterministic mapping from timeline clips -> `EditListEntry`:
 - `key`: stable identifier (e.g. `timelineItemId` or `clipId + order`)
 - `inputs`: source IDs (initially `[mediaId]` or `[clip.mediaRef]`; keep consistent with your eventual render pipeline)
 - `startTimeOffset` / `endTimeOffset`: represent the trimmed segment in the source media timeline
@@ -110,7 +110,7 @@ Important: decide what `inputs` refer to:
 Goal: validate the timeline is renderable and create a durable job request.
 
 On “Render”:
-- generate the `editList` (from current timeline items)
+- generate the `editList` (from current timeline clips)
 - create a `tasks` record:
   - `type=render_timeline`
   - `status=queued`
@@ -123,7 +123,7 @@ No actual rendering is required yet; a worker can later pick this up.
 Backend-side validation should enforce:
 - every timeline item references an existing clip/media
 - offsets are within the source media duration
-- items are ordered and do not violate single-track constraints (no overlaps in timeline space)
+- clips are ordered and do not violate single-track constraints (no overlaps in timeline space)
 - editList uses valid `TimeOffset` values:
   - `seconds` integer >= 0
   - `nanos` integer in [0, 999,999,999]
@@ -142,7 +142,7 @@ Backend-side validation should enforce:
 ## AI Prompt
 ```
 You are implementing clip creation and timeline composition for a Next.js + PocketBase app.
-Implement: MediaClip CRUD with strict range validation; timeline persistence (either timelines.items JSON or a timeline_items collection); a single-track timeline editor UI that supports add/reorder/trim; deterministic `editList` generation using seconds+nanos TimeOffsets; and a `render_timeline` task stub that validates the payload and stores output settings.
+Implement: MediaClip CRUD with strict range validation; timeline persistence (either timelines.clips JSON or a timeline_clips collection); a single-track timeline editor UI that supports add/reorder/trim; deterministic `editList` generation using seconds TimeOffsets; and a `render_timeline` task stub that validates the payload and stores output settings.
 Constraints: align with existing webapp layering (mutators/services/contexts/hooks/components); keep time units consistent; avoid multi-track complexity; ensure editList generation is stable and testable.
 Produce: collection setup checklist, file/route structure, editList mapping rules, validation rules, and a testing checklist.
 ```

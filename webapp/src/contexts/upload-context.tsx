@@ -13,6 +13,7 @@ import { UploadService } from '@/services/upload';
 import { UploadMutator } from '@project/shared/mutator';
 import pb from '@/lib/pocketbase-client';
 import type { RecordSubscription } from 'pocketbase';
+import { useAuth } from '@/hooks/use-auth';
 
 interface UploadProgress {
   uploadId: string;
@@ -50,6 +51,9 @@ interface UploadProviderProps {
 }
 
 export function UploadProvider({ workspaceId, children }: UploadProviderProps) {
+  const { user } = useAuth();
+  const userId = user?.id;
+
   // State
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -106,6 +110,8 @@ export function UploadProvider({ workspaceId, children }: UploadProviderProps) {
   const uploadFile = useCallback(
     async (file: File): Promise<Upload> => {
       if (!workspaceId) throw new Error('No workspace selected');
+      if (!userId)
+        throw new Error('User must be authenticated to upload files');
 
       clearError();
 
@@ -145,7 +151,7 @@ export function UploadProvider({ workspaceId, children }: UploadProviderProps) {
         const upload = await uploadService.initiateUpload(
           workspaceId,
           file,
-          undefined, // userId - will use authenticated user
+          userId,
           onProgress
         );
 
@@ -179,7 +185,7 @@ export function UploadProvider({ workspaceId, children }: UploadProviderProps) {
         throw error;
       }
     },
-    [workspaceId, uploadService, clearError, handleError]
+    [workspaceId, uploadService, clearError, handleError, userId]
   );
 
   // Retry upload

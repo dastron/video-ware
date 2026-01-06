@@ -27,6 +27,7 @@ export const MediaClipInputSchema = z.object({
   WorkspaceRef: z.string().min(1, 'Workspace is required'),
   MediaRef: z.string().min(1, 'Media is required'),
   type: z.enum([
+    ClipType.USER,
     ClipType.FULL,
     ClipType.RANGE,
     ClipType.SHOT,

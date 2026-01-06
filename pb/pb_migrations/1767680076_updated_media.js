@@ -5,7 +5,7 @@ migrate((app) => {
   collection_Media_add_thumbnailFileRef.fields.add(new RelationField({
     name: "thumbnailFileRef",
     required: false,
-    collectionId: app.findCollectionByNameOrId("Files").id,
+    collectionId: "pb_48ql3az7t9ok2mu",
     maxSelect: 1,
     minSelect: 0,
     cascadeDelete: false
@@ -18,7 +18,7 @@ migrate((app) => {
   collection_Media_add_spriteFileRef.fields.add(new RelationField({
     name: "spriteFileRef",
     required: false,
-    collectionId: app.findCollectionByNameOrId("Files").id,
+    collectionId: "pb_48ql3az7t9ok2mu",
     maxSelect: 1,
     minSelect: 0,
     cascadeDelete: false
@@ -31,7 +31,7 @@ migrate((app) => {
   collection_Media_add_proxyFileRef.fields.add(new RelationField({
     name: "proxyFileRef",
     required: false,
-    collectionId: app.findCollectionByNameOrId("Files").id,
+    collectionId: "pb_48ql3az7t9ok2mu",
     maxSelect: 1,
     minSelect: 0,
     cascadeDelete: false

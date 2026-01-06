@@ -99,7 +99,7 @@ export class UploadService {
   async initiateUpload(
     workspaceId: string,
     file: File,
-    userId?: string,
+    userId: string,
     _onProgress?: (progress: number) => void
   ): Promise<Upload> {
     // Validate file
@@ -161,7 +161,7 @@ export class UploadService {
   private async enqueueProcessingTask(
     workspaceId: string,
     uploadId: string,
-    _userId?: string
+    userId: string
   ): Promise<Task> {
     // Default processing configuration
     const payload: ProcessUploadPayload = {
@@ -189,6 +189,7 @@ export class UploadService {
 
     return this.taskMutator.createProcessUploadTask(
       workspaceId,
+      userId,
       uploadId,
       payload
     );
@@ -219,7 +220,7 @@ export class UploadService {
     return this.enqueueProcessingTask(
       upload.WorkspaceRef,
       uploadId,
-      upload.UserRef
+      upload.UserRef as string
     );
   }
 

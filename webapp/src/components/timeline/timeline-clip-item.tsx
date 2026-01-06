@@ -1,0 +1,372 @@
+'use client';
+
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import type { TimelineClip, Media } from '@project/shared';
+import { useTimeline } from '@/hooks/use-timeline';
+import { SpriteAnimator } from '@/components/sprite/sprite-animator';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Trash2,
+  GripVertical,
+  Clock,
+  Edit,
+  AlertCircle,
+  Check,
+  X,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { VideoPlayerUI } from '@/components/video/video-player-ui';
+import { TrimHandles } from '@/components/video/trim-handles';
+import { useVideoSource } from '@/hooks/use-video-source';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+
+const MIN_CLIP_DURATION = 0.5; // seconds
+
+/**
+ * Extended TimelineClip type with expanded Media relation
+ */
+interface TimelineClipWithExpand extends Omit<TimelineClip, 'expand'> {
+  expand?: {
+    MediaRef?: Media;
+  };
+}
+
+interface TimelineClipItemProps {
+  clip: TimelineClipWithExpand;
+  onDragStart: () => void;
+  onDragEnd: () => void;
+  isDragging: boolean;
+  className?: string;
+}
+
+export function TimelineClipItem({
+  clip,
+  onDragStart,
+  onDragEnd,
+  isDragging,
+  className,
+}: TimelineClipItemProps) {
+  const { removeClip, updateClipTimes } = useTimeline();
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editStart, setEditStart] = useState(clip.start);
+  const [editEnd, setEditEnd] = useState(clip.end);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isHovering, setIsHovering] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [currentVideoTime, setCurrentVideoTime] = useState<number>(0);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const duration = clip.end - clip.start;
+  const media = clip.expand?.MediaRef;
+  const { src, poster } = useVideoSource(media || ({} as Media));
+
+  // Validate time range whenever inputs change
+  useEffect(() => {
+    if (!media) {
+      setValidationError('No media reference found');
+      return;
+    }
+
+    if (editStart < 0) {
+      setValidationError('Start time cannot be negative');
+      return;
+    }
+
+    if (editStart >= editEnd) {
+      setValidationError('Start time must be less than end time');
+      return;
+    }
+
+    if (editEnd > media.duration) {
+      setValidationError(
+        `End time cannot exceed media duration (${media.duration.toFixed(2)}s)`
+      );
+      return;
+    }
+
+    const clipDuration = editEnd - editStart;
+    if (clipDuration < MIN_CLIP_DURATION) {
+      setValidationError(`Clip must be at least ${MIN_CLIP_DURATION} seconds`);
+      return;
+    }
+
+    setValidationError(null);
+  }, [editStart, editEnd, media]);
+
+  // Track video current time for trim handles
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleTimeUpdate = () => {
+      setCurrentVideoTime(video.currentTime);
+    };
+
+    video.addEventListener('timeupdate', handleTimeUpdate);
+    return () => video.removeEventListener('timeupdate', handleTimeUpdate);
+  }, []);
+
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    const ms = Math.floor((seconds % 1) * 100);
+    return `${mins}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+  };
+
+  const handleRemove = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await removeClip(clip.id);
+    } catch (error) {
+      console.error('Failed to remove clip:', error);
+    }
+  };
+
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditStart(clip.start);
+    setEditEnd(clip.end);
+    setValidationError(null);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleTrimChange = useCallback((start: number, end: number) => {
+    setEditStart(start);
+    setEditEnd(end);
+  }, []);
+
+  const handleSaveEdit = async () => {
+    if (validationError) {
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      await updateClipTimes(clip.id, editStart, editEnd);
+      setIsEditDialogOpen(false);
+    } catch (error) {
+      console.error('Failed to update clip times:', error);
+      alert(
+        error instanceof Error ? error.message : 'Failed to update clip times'
+      );
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  return (
+    <>
+      <Card
+        draggable
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+        onMouseEnter={() => setIsHovering(true)}
+        onMouseLeave={() => setIsHovering(false)}
+        className={cn(
+          'relative w-48 cursor-move transition-all p-0 overflow-hidden z-10',
+          isDragging && 'opacity-50 scale-95',
+          'hover:shadow-md',
+          className
+        )}
+      >
+        {/* Drag Handle */}
+        <div className="absolute top-2 left-2 text-foreground z-10">
+          <GripVertical className="h-4 w-4 drop-shadow-[0_2px_4px_rgba(255,255,255,1),0_0_2px_rgba(255,255,255,0.8)]" />
+        </div>
+
+        {/* Sprite Preview / Thumbnail */}
+        <div className="h-24 bg-muted overflow-hidden">
+          {media ? (
+            <SpriteAnimator
+              media={media}
+              start={clip.start}
+              end={clip.end}
+              isHovering={isHovering}
+              className="w-full h-full"
+              fallbackIcon={
+                <div className="text-center text-xs text-muted-foreground">
+                  <Clock className="h-6 w-6 mx-auto mb-1" />
+                  <div>Clip {clip.order + 1}</div>
+                </div>
+              }
+            />
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center text-xs text-muted-foreground">
+                <Clock className="h-6 w-6 mx-auto mb-1" />
+                <div>Clip {clip.order + 1}</div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Clip Info */}
+        <div className="p-3 space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center gap-1 text-muted-foreground">
+              <Clock className="h-3 w-3" />
+              <span>{formatTime(duration)}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={handleEditClick}
+              >
+                <Edit className="h-3 w-3" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={handleRemove}
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+
+          <div className="text-xs space-y-1">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">In:</span>
+              <span className="font-mono">{formatTime(clip.start)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Out:</span>
+              <span className="font-mono">{formatTime(clip.end)}</span>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-4xl" showCloseButton={false}>
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <DialogTitle className="flex items-center gap-2">
+                <Edit className="h-5 w-5 text-primary" />
+                Edit
+              </DialogTitle>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsEditDialogOpen(false)}
+                  disabled={isUpdating}
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleSaveEdit}
+                  disabled={
+                    !!validationError ||
+                    isUpdating ||
+                    (editStart === clip.start && editEnd === clip.end)
+                  }
+                >
+                  {isUpdating ? (
+                    <>
+                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-2" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-4 w-4 mr-1" />
+                      Save
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-4">
+            {/* Video Preview */}
+            <div className="w-full aspect-video bg-black rounded-lg overflow-hidden">
+              {src && media ? (
+                <VideoPlayerUI
+                  src={src}
+                  poster={poster}
+                  startTime={editStart}
+                  endTime={editEnd}
+                  autoPlay={false}
+                  className="w-full h-full"
+                  ref={videoRef}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  No video source available
+                </div>
+              )}
+            </div>
+
+            {/* Visual Trim Handles */}
+            {media && (
+              <div className="space-y-2">
+                <TrimHandles
+                  duration={media.duration}
+                  startTime={editStart}
+                  endTime={editEnd}
+                  onChange={handleTrimChange}
+                  currentTime={currentVideoTime}
+                  minDuration={MIN_CLIP_DURATION}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Drag the handles to adjust clip boundaries. Use arrow keys for
+                  fine-tuning (hold Shift for larger steps).
+                </p>
+              </div>
+            )}
+
+            {/* Duration Display */}
+            <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+              <span className="text-sm font-medium">Clip Duration:</span>
+              <span className="text-sm font-mono">
+                {formatTime(editEnd - editStart)}
+              </span>
+            </div>
+
+            {/* Original vs New comparison */}
+            {(editStart !== clip.start || editEnd !== clip.end) && (
+              <div className="p-3 bg-muted/50 rounded-lg space-y-2 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Original:</span>
+                  <span className="font-mono">
+                    {formatTime(clip.start)} - {formatTime(clip.end)} (
+                    {formatTime(duration)})
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">New:</span>
+                  <span className="font-mono text-primary">
+                    {formatTime(editStart)} - {formatTime(editEnd)} (
+                    {formatTime(editEnd - editStart)})
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Validation Error */}
+            {validationError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{validationError}</AlertDescription>
+              </Alert>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}

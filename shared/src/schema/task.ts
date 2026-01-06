@@ -29,6 +29,7 @@ export const TaskSchema = z
     result: JSONField().optional(),
     errorLog: TextField().optional(),
     WorkspaceRef: RelationField({ collection: 'Workspaces' }),
+    UserRef: RelationField({ collection: 'Users' }),
     provider: SelectField([
       ProcessingProvider.FFMPEG,
       ProcessingProvider.GOOGLE_TRANSCODER,
@@ -59,12 +60,13 @@ export const TaskInputSchema = z.object({
       TaskStatus.CANCELED,
     ])
     .default(TaskStatus.QUEUED),
-  progress: NumberField({ min: 0, max: 100 }).default(1),
-  attempts: NumberField({ min: 0 }).default(1),
+  progress: NumberField({ min: 0, max: 100 }).default(1).optional(),
+  attempts: NumberField({ min: 0 }).default(1).optional(),
   payload: JSONField(),
   result: JSONField().optional(),
   errorLog: TextField().optional(),
   WorkspaceRef: z.string().min(1, 'Workspace is required'),
+  UserRef: z.string().min(1, 'User is required'),
   provider: z
     .enum([
       ProcessingProvider.FFMPEG,

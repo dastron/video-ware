@@ -56,3 +56,9 @@ export function getProcessor(
 export { FFmpegProcessor } from './transcode/ffmpeg.js';
 export { GoogleTranscoderProcessor } from './transcode/google-transcoder.js';
 export { GoogleVideoIntelligenceProcessor } from './intelligence/google-intelligence.js';
+
+// Export worker implementations
+export { BaseWorker } from './base-worker.js';
+export { TranscodeWorker } from './transcode-worker.js';
+export { IntelligenceWorker } from './intelligence-worker.js';
+export { RenderTimelineWorker } from './render-timeline-worker.js';

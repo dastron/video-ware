@@ -315,14 +315,21 @@ export abstract class BaseMutator<T extends RecordModel, InputType> {
    * Perform the actual create operation
    */
   protected async entityCreate(data: InputType): Promise<T> {
-    return await this.getCollection().create(data as Record<string, unknown>);
+    const finalExpand = this.prepareExpand();
+    const options: RecordOptions = finalExpand ? { expand: finalExpand } : {};
+    return await this.getCollection().create(
+      data as Record<string, unknown>,
+      options
+    );
   }
 
   /**
    * Perform the actual update operation
    */
   protected async entityUpdate(id: string, data: Partial<T>): Promise<T> {
-    return await this.getCollection().update(id, data);
+    const finalExpand = this.prepareExpand();
+    const options: RecordOptions = finalExpand ? { expand: finalExpand } : {};
+    return await this.getCollection().update(id, data, options);
   }
 
   /**

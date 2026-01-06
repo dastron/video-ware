@@ -11,6 +11,7 @@ import {
   Film,
   Activity,
   Video,
+  Clapperboard,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -67,6 +68,7 @@ export function NavigationBar({ className }: NavigationBarProps) {
     { href: '/uploads', label: 'Uploads', icon: Upload },
     { href: '/tasks', label: 'Tasks', icon: Activity },
     { href: '/media', label: 'Media', icon: Film },
+    { href: '/timelines', label: 'Timelines', icon: Clapperboard },
     { href: '/todos', label: 'Todos', icon: CheckSquare },
     { href: '/profile', label: 'Profile', icon: Settings },
   ];
@@ -122,6 +124,12 @@ export function NavigationBar({ className }: NavigationBarProps) {
                     <Link href="/media" className="flex items-center gap-2">
                       <Film className="h-4 w-4" />
                       <span>Media</span>
+                    </Link>
+                  </Button>
+                  <Button variant="ghost" asChild>
+                    <Link href="/timelines" className="flex items-center gap-2">
+                      <Clapperboard className="h-4 w-4" />
+                      <span>Timelines</span>
                     </Link>
                   </Button>
                   <div className="flex items-center gap-4">

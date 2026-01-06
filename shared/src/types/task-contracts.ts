@@ -167,3 +167,51 @@ export interface ProcessUploadResult {
   /** Metadata extracted from the media file */
   probeOutput: ProbeOutput;
 }
+
+/**
+ * Configuration for timeline rendering output
+ */
+export interface RenderTimelineConfig {
+  /** Output codec */
+  codec: string;
+  /** Output container format */
+  format: string;
+  /** Output resolution (e.g., '1920x1080') */
+  resolution: string;
+}
+
+/**
+ * Payload for render_timeline task
+ */
+export interface RenderTimelinePayload {
+  /** ID of the Timeline record */
+  timelineId: string;
+  /** Version of the timeline */
+  version: number;
+  /** The edit list defining the timeline composition */
+  // We use any here to avoid circular dependency with video-ware.ts, or we can redefine the shape
+  // Given the user payload:
+  // { endTimeOffset: { nanos, seconds }, inputs: string[], key: string, startTimeOffset: { nanos, seconds } }[]
+  editList: Array<{
+    key: string;
+    inputs: string[];
+    startTimeOffset: { seconds: number; nanos: number };
+    endTimeOffset: { seconds: number; nanos: number };
+  }>;
+  /** Output settings */
+  outputSettings: RenderTimelineConfig;
+  /** Processing provider */
+  provider?: ProcessingProvider;
+}
+
+/**
+ * Result from render_timeline task
+ */
+export interface RenderTimelineResult {
+  /** ID of the created Media record for the rendered timeline */
+  mediaId: string;
+  /** ID of the generated File record */
+  fileId: string;
+  /** Version of the processor used */
+  processorVersion: string;
+}

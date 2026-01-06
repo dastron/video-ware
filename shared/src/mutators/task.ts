@@ -36,6 +36,7 @@ export class TaskMutator extends BaseMutator<Task, TaskInput> {
    */
   async createProcessUploadTask(
     workspaceId: string,
+    userId: string,
     uploadId: string,
     payload: ProcessUploadPayload
   ): Promise<Task> {
@@ -48,6 +49,7 @@ export class TaskMutator extends BaseMutator<Task, TaskInput> {
       attempts: 1,
       payload: payload as unknown as Record<string, unknown>,
       WorkspaceRef: workspaceId,
+      UserRef: userId,
     });
   }
 

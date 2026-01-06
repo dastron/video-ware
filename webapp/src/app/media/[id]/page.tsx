@@ -1,14 +1,27 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useMediaDetails } from '@/hooks/use-media-details';
 import { MediaVideoPlayer } from '@/components/video/media-video-player';
-import { MediaClipList } from '@/components/media-clip/media-clip-list';
+import { ClipList } from '@/components/clip/clip-list';
+import { InlineClipCreator } from '@/components/clip/inline-clip-creator';
+import { InlineClipEditor } from '@/components/clip/inline-clip-editor';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, RefreshCw, Calendar, FileVideo, Clock } from 'lucide-react';
+import {
+  ArrowLeft,
+  RefreshCw,
+  Calendar,
+  FileVideo,
+  Clock,
+  Scissors,
+  Eye,
+  X,
+  Check,
+} from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { MediaClip } from '@project/shared';
+import { ClipType } from '@project/shared/enums';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
 export default function MediaDetailsPage() {
@@ -17,6 +30,8 @@ export default function MediaDetailsPage() {
   const searchParams = useSearchParams();
   const id = params.id as string;
   const { media, clips, isLoading, error, refresh } = useMediaDetails(id);
+  const [isInlineCreateMode, setIsInlineCreateMode] = useState(false);
+  const [editingClipId, setEditingClipId] = useState<string | null>(null);
 
   // Get clip ID from URL query parameter
   const clipIdFromUrl = searchParams.get('clip');
@@ -34,6 +49,12 @@ export default function MediaDetailsPage() {
   const activeClip = useMemo(
     () => clips.find((c) => c.id === activeClipId),
     [clips, activeClipId]
+  );
+
+  // Get the clip being edited
+  const editingClip = useMemo(
+    () => clips.find((c) => c.id === editingClipId),
+    [clips, editingClipId]
   );
 
   const handleClipSelect = (clip: MediaClip) => {
@@ -58,6 +79,46 @@ export default function MediaDetailsPage() {
 
   const handleBack = () => {
     router.push('/media');
+  };
+
+  const handleInlineClipCreated = () => {
+    // Refresh clips list and exit inline create mode
+    refresh();
+    setIsInlineCreateMode(false);
+  };
+
+  const handleInlineClipUpdated = () => {
+    // Refresh clips list and exit edit mode
+    refresh();
+    setEditingClipId(null);
+  };
+
+  const handleClipUpdate = () => {
+    // Refresh clips list
+    refresh();
+  };
+
+  const handleClipDelete = () => {
+    // Refresh clips list
+    refresh();
+  };
+
+  const handleStartInlineCreate = () => {
+    setIsInlineCreateMode(true);
+    setEditingClipId(null);
+  };
+
+  const handleCancelInlineCreate = () => {
+    setIsInlineCreateMode(false);
+  };
+
+  const handleStartEditClip = (clipId: string) => {
+    setEditingClipId(clipId);
+    setIsInlineCreateMode(false);
+  };
+
+  const handleCancelEditClip = () => {
+    setEditingClipId(null);
   };
 
   if (isLoading) {
@@ -134,16 +195,93 @@ export default function MediaDetailsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Content - Player */}
         <div className="lg:col-span-2 space-y-6">
-          <Card className="overflow-hidden bg-black/5 border-0 shadow-none">
-            <div className="w-full aspect-video">
-              <MediaVideoPlayer
-                media={media}
-                clip={activeClip}
-                autoPlay={false}
-                className="w-full h-full"
-              />
-            </div>
-          </Card>
+          {/* Inline Clip Creator Mode */}
+          {isInlineCreateMode && media && (
+            <Card className="overflow-hidden">
+              <CardContent className="pt-4 px-6 pb-6">
+                <InlineClipCreator
+                  media={media}
+                  onClipCreated={handleInlineClipCreated}
+                  onCancel={handleCancelInlineCreate}
+                />
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Inline Clip Editor Mode */}
+          {editingClip && media && (
+            <Card className="overflow-hidden">
+              <CardContent className="pt-4 px-6 pb-6">
+                <InlineClipEditor
+                  media={media}
+                  clip={editingClip}
+                  onClipUpdated={handleInlineClipUpdated}
+                  onCancel={handleCancelEditClip}
+                />
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Normal Video Player (when not in inline create/edit mode) */}
+          {!isInlineCreateMode && !editingClip && (
+            <Card className="overflow-hidden">
+              <CardContent className="pt-4 px-6 pb-6">
+                <div className="space-y-4">
+                  {/* Header */}
+                  <div className="flex items-center justify-between min-h-[2.5rem]">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <Eye className="h-4 w-4 text-primary" />
+                      <span>Viewing Media</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button variant="ghost" size="sm" disabled>
+                        <X className="h-4 w-4 mr-1" />
+                        Cancel
+                      </Button>
+                      <Button size="sm" disabled>
+                        <Check className="h-4 w-4 mr-1" />
+                        Save
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Video Preview */}
+                  <div className="w-full aspect-video bg-black rounded-lg overflow-hidden">
+                    <MediaVideoPlayer
+                      media={media}
+                      clip={activeClip}
+                      autoPlay={false}
+                      className="w-full h-full"
+                    />
+                  </div>
+
+                  {/* Create/Edit Clip Button */}
+                  <div className="flex justify-center">
+                    {activeClip ? (
+                      <Button
+                        variant="outline"
+                        onClick={() => handleStartEditClip(activeClip.id)}
+                        className="gap-2"
+                        disabled={activeClip.type === ClipType.FULL}
+                      >
+                        <Scissors className="h-4 w-4" />
+                        Edit Clip
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        onClick={handleStartInlineCreate}
+                        className="gap-2"
+                      >
+                        <Scissors className="h-4 w-4" />
+                        Create Clip
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Metadata Card */}
           <Card>
@@ -197,7 +335,7 @@ export default function MediaDetailsPage() {
         {/* Sidebar - Clips */}
         <div className="lg:col-span-1">
           <Card className="h-[calc(100vh-12rem)] min-h-[500px] flex flex-col">
-            <CardHeader>
+            <CardHeader className="pb-3">
               <CardTitle className="flex items-center justify-between">
                 <span>Clips</span>
                 <span className="text-sm font-normal text-muted-foreground">
@@ -205,13 +343,18 @@ export default function MediaDetailsPage() {
                 </span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex-1 overflow-y-auto pr-2">
-              <MediaClipList
-                media={media}
-                clips={clips}
-                onClipSelect={handleClipSelect}
-                activeClipId={activeClipId}
-              />
+            <CardContent className="flex-1 flex flex-col overflow-hidden px-0">
+              <div className="flex-1 overflow-y-auto px-6">
+                <ClipList
+                  media={media}
+                  clips={clips}
+                  activeClipId={activeClipId}
+                  onClipSelect={handleClipSelect}
+                  onClipUpdate={handleClipUpdate}
+                  onClipDelete={handleClipDelete}
+                  onInlineEdit={handleStartEditClip}
+                />
+              </div>
             </CardContent>
           </Card>
         </div>

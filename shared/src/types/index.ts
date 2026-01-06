@@ -11,6 +11,8 @@ import type { Media } from '../schema/media';
 import type { Workspace } from '../schema/workspace';
 import type { WorkspaceMember } from '../schema/workspace-member';
 import type { Todo } from '../schema/todo';
+import type { Timeline } from '../schema/timeline';
+import type { TimelineClip } from '../schema/timeline-clip';
 
 export * from './video-ware.js';
 export * from './task-contracts.js';
@@ -27,6 +29,8 @@ export interface TypedPocketBase extends PocketBase {
   collection(idOrName: 'Workspaces'): RecordService<Workspace>;
   collection(idOrName: 'WorkspaceMembers'): RecordService<WorkspaceMember>;
   collection(idOrName: 'Todos'): RecordService<Todo>;
+  collection(idOrName: 'Timelines'): RecordService<Timeline>;
+  collection(idOrName: 'TimelineClips'): RecordService<TimelineClip>;
 }
 
 // PocketBase response types

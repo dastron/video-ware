@@ -77,4 +77,13 @@ export interface MediaProcessor {
     fileRef: string,
     config: DetectLabelsConfig
   ): Promise<DetectLabelsResult>;
+
+  /**
+   * Render a timeline to a single video file (optional)
+   * @param payload - The full render task payload containing edit list and settings
+   * @returns Reference to the generated output file (path or URI)
+   */
+  renderTimeline?(
+    payload: import('./task-contracts.js').RenderTimelinePayload
+  ): Promise<string>;
 }

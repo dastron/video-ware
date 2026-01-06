@@ -4,6 +4,7 @@ import type {
   ThumbnailConfig,
   SpriteConfig,
   TranscodeConfig,
+  RenderTimelinePayload,
 } from '@project/shared';
 import { ProcessingProvider } from '@project/shared';
 import { execFile } from 'child_process';
@@ -12,6 +13,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import type { TypedPocketBase } from '@project/shared/types';
+import { FFmpegTimelineRenderer } from '../render_timeline/ffmpeg.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -87,7 +89,7 @@ export class FFmpegProcessor implements MediaProcessor {
   /**
    * Resolve a file reference to a local file path
    * Handles both local paths and PocketBase file references
-   * @param fileRef - File reference (local path, upload ID, or File record ID)
+   * @param fileRef - File reference (local path, Media ID, Upload ID, or File record ID)
    * @returns Local file path
    */
   private async resolveFileRef(fileRef: string): Promise<string> {
@@ -110,7 +112,28 @@ export class FFmpegProcessor implements MediaProcessor {
       );
     }
 
-    // Try to resolve as Upload ID first
+    // Try to resolve as Media ID first (for timeline rendering)
+    try {
+      const media = await this.pb.collection('Media').getOne(fileRef);
+      if (media.UploadRef) {
+        // Get the upload record to access the original file
+        const upload = await this.pb
+          .collection('Uploads')
+          .getOne(media.UploadRef);
+        if (upload.originalFile) {
+          const filename = Array.isArray(upload.originalFile)
+            ? upload.originalFile[0]
+            : upload.originalFile;
+          const fileUrl = this.pb.files.getURL(upload, filename);
+          // Use upload ID as identifier
+          return await this.downloadFile(fileUrl, filename, upload.id);
+        }
+      }
+    } catch {
+      // Not a Media ID, continue to try other types
+    }
+
+    // Try to resolve as Upload ID
     try {
       const upload = await this.pb.collection('Uploads').getOne(fileRef);
       if (upload.originalFile) {
@@ -534,6 +557,28 @@ export class FFmpegProcessor implements MediaProcessor {
         `FFmpeg transcoding failed: ${error instanceof Error ? error.message : String(error)}`
       );
     }
+  }
+
+  /**
+   * Render a timeline to a single video file using FFmpeg
+   * @param payload - The full render task payload containing edit list and settings
+   * @returns Path to the generated output file
+   */
+  async renderTimeline(payload: RenderTimelinePayload): Promise<string> {
+    console.log(`[FFmpegProcessor] Rendering timeline`);
+
+    const tempDir = await this.getTempDir();
+    const renderer = new FFmpegTimelineRenderer();
+
+    // Use the renderer with our resolveFileRef method
+    const outputPath = await renderer.render(
+      payload,
+      (ref: string) => this.resolveFileRef(ref),
+      tempDir
+    );
+
+    console.log(`[FFmpegProcessor] Timeline rendered: ${outputPath}`);
+    return outputPath;
   }
 
   /**

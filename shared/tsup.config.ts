@@ -8,6 +8,7 @@ export default defineConfig({
     types: 'src/types.ts',
     mutator: 'src/mutator.ts',
     env: 'src/env.ts',
+    'utils/time': 'src/utils/time.ts',
   },
   format: ['esm'],
   dts: true,

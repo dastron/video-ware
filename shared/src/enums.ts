@@ -65,6 +65,7 @@ export enum MediaType {
 }
 
 export enum ClipType {
+  USER = 'user',
   FULL = 'full',
   RANGE = 'range',
   SHOT = 'shot',

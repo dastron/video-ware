@@ -28,6 +28,10 @@
     "./mutator": {
       "import": "./dist/mutator.js",
       "types": "./dist/mutator.d.ts"
+    },
+    "./utils/time": {
+      "import": "./dist/utils/time.js",
+      "types": "./dist/utils/time.d.ts"
     }
   },
   "files": [
