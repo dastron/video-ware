@@ -151,7 +151,7 @@ export class UploadService {
 
       // Use streaming-friendly upload: send raw file body to PUT endpoint.
       // This avoids `req.formData()` buffering multi-GB payloads in memory on the server.
-      xhr.open('PUT', '/api/uploads/upload');
+      xhr.open('PUT', '/api-next/uploads/upload');
       xhr.setRequestHeader('Authorization', `Bearer ${token}`);
       xhr.setRequestHeader('x-upload-id', uploadId);
       xhr.setRequestHeader('x-workspace-id', workspaceId);
