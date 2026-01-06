@@ -55,12 +55,12 @@ import { getProcessor } from './processors/index.js';
 
 // Configuration
 const POCKETBASE_URL = env.POCKETBASE_URL;
-const POLL_INTERVAL_MS = 5000; // Poll every 5 seconds
+const POLL_INTERVAL_MS = 60000; // Poll every 60 seconds
 
 // Retry configuration for task processing
 const TASK_RETRY_CONFIG: RetryConfig = {
   maxAttempts: 3,
-  baseDelayMs: 5000, // 5 seconds
+  baseDelayMs: 60000, // 60 seconds
   maxDelayMs: 300000, // 5 minutes
   jitterFactor: 0.1,
 };
