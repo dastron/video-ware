@@ -37,7 +37,7 @@ export interface UploadServiceConfig {
  */
 const DEFAULT_CONFIG: Omit<Required<UploadServiceConfig>, 'storageConfig'> = {
   allowedTypes: ['video/mp4', 'video/webm', 'video/quicktime'],
-  maxSize: 8 * 1024 * 1024 * 1024, // 8GB
+  maxSize: 24 * 1024 * 1024 * 1024, // 24GB
   defaultProvider: ProcessingProvider.FFMPEG,
 };
 
