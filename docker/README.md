@@ -16,7 +16,7 @@ The container uses:
 From the root of the monorepo:
 
 ```bash
-docker build -f docker/Dockerfile -t next-pb:latest .
+docker build -f docker/Dockerfile -t video-ware:latest .
 ```
 
 Or with build arguments for PocketBase version:
@@ -24,7 +24,7 @@ Or with build arguments for PocketBase version:
 ```bash
 docker build -f docker/Dockerfile \
   --build-arg POCKETBASE_VERSION=0.35.0 \
-  -t next-pb:latest .
+  -t video-ware:latest .
 ```
 
 ### Multi-Architecture Builds
@@ -37,12 +37,12 @@ The Dockerfile supports building for multiple architectures using Docker's `TARG
 # Build for AMD64 (x86_64)
 docker build -f docker/Dockerfile \
   --build-arg TARGETARCH=amd64 \
-  -t next-pb:amd64 .
+  -t video-ware:amd64 .
 
 # Build for ARM64 (Apple Silicon, AWS Graviton)
 docker build -f docker/Dockerfile \
   --build-arg TARGETARCH=arm64 \
-  -t next-pb:arm64 .
+  -t video-ware:arm64 .
 ```
 
 #### Building Multi-Platform Images with Docker Buildx
@@ -57,7 +57,7 @@ docker buildx create --name multiarch --use
 docker buildx build -f docker/Dockerfile \
   --platform linux/amd64,linux/arm64 \
   --build-arg POCKETBASE_VERSION=0.35.0 \
-  -t ghcr.io/your-org/next-pb:latest \
+  -t ghcr.io/your-org/video-ware:latest \
   --push .
 ```
 
@@ -73,7 +73,7 @@ The PocketBase binary is automatically downloaded for the target architecture du
 ## Running the Container
 
 ```bash
-docker run -p 8888:80 next-pb:latest
+docker run -p 8888:80 video-ware:latest
 ```
 
 This will start all services behind Nginx:
@@ -89,7 +89,7 @@ To persist PocketBase data and worker temporary files across container restarts,
 docker run -p 8888:80 \
   -v $(pwd)/pb_data:/app/pb/pb_data \
   -v $(pwd)/worker_data:/app/data \
-  next-pb:latest
+  video-ware:latest
 ```
 
 ### Staging with Docker Volumes
@@ -129,8 +129,8 @@ yarn staging:clean:all
 ```
 
 The staging setup uses two named volumes:
-- `next-pb-staging-pb-data`: Stores PocketBase database and files
-- `next-pb-staging-worker-data`: Stores worker temporary processing files
+- `video-ware-staging-pb-data`: Stores PocketBase database and files
+- `video-ware-staging-worker-data`: Stores worker temporary processing files
 
 **Note:** Volumes persist data even when containers are removed. Use `yarn staging:volumes:rm` to delete volumes and start fresh.
 
@@ -203,7 +203,7 @@ docker run -p 8888:80 \
   -e GRACEFUL_SHUTDOWN_TIMEOUT=60 \
   -v $(pwd)/pb_data:/app/pb/pb_data \
   -v $(pwd)/worker_data:/app/data \
-  next-pb:latest
+  video-ware:latest
 ```
 
 **Note:** Set `POCKETBASE_ADMIN_PASSWORD` to a secure password to automatically create the PocketBase superuser on first startup. If not set or using the default, you'll need to create the superuser manually through the web interface.
@@ -270,7 +270,7 @@ Configure the graceful shutdown timeout via environment variable:
 ```bash
 docker run -p 8888:80 \
   -e GRACEFUL_SHUTDOWN_TIMEOUT=60 \
-  next-pb:latest
+  video-ware:latest
 ```
 
 Default timeout is 30 seconds. Range: 5-300 seconds.

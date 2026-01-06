@@ -1,5 +1,5 @@
 {
-  "name": "next-pb",
+  "name": "video-ware",
   "version": "0.0.0",
   "private": true,
   "packageManager": "yarn@4.12.0",
@@ -27,12 +27,12 @@
     "db:migrate": "yarn workspace @project/shared migrate:generate",
     "db:status": "yarn workspace @project/shared migrate:status",
     "staging": "yarn run staging:build && yarn run staging:run",
-    "staging:build": "docker build -f docker/Dockerfile --build-arg NEXT_PUBLIC_POCKETBASE_URL=\"/\" -t next-pb:staging .",
-    "staging:run": "docker run --rm -p 8888:80 -p 8889:8090 -v $(pwd)/staging_data/pb_data:/app/pb/pb_data -v $(pwd)/staging_data/worker_data:/app/data next-pb:staging",
+    "staging:build": "docker build -f docker/Dockerfile --build-arg NEXT_PUBLIC_POCKETBASE_URL=\"/\" -t video-ware:staging .",
+    "staging:run": "docker run --rm -p 8888:80 -p 8889:8090 -v $(pwd)/staging_data/pb_data:/app/pb/pb_data -v $(pwd)/staging_data/worker_data:/app/data video-ware:staging",
     "staging:up": "yarn run staging:build && yarn run staging:run",
-    "staging:stop": "docker stop $(docker ps -q --filter ancestor=next-pb:staging) 2>/dev/null || true && docker rm $(docker ps -aq --filter ancestor=next-pb:staging) 2>/dev/null || true",
-    "staging:logs": "docker logs -f $(docker ps -q --filter ancestor=next-pb:staging)",
-    "staging:clean": "yarn run staging:stop && docker rmi next-pb:staging 2>/dev/null || true && rm -rf staging_data"
+    "staging:stop": "docker stop $(docker ps -q --filter ancestor=video-ware:staging) 2>/dev/null || true && docker rm $(docker ps -aq --filter ancestor=video-ware:staging) 2>/dev/null || true",
+    "staging:logs": "docker logs -f $(docker ps -q --filter ancestor=video-ware:staging)",
+    "staging:clean": "yarn run staging:stop && docker rmi video-ware:staging 2>/dev/null || true && rm -rf staging_data"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",

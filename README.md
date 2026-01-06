@@ -5,7 +5,7 @@ A modern full-stack monorepo template combining Next.js frontend with PocketBase
 ## Project Structure
 
 ```
-next-pb/
+video-ware/
 ├── app/                       # Next.js frontend application
 │   ├── app/                   # Next.js 14+ app directory
 │   ├── components/            # React components (shadcn/ui)
@@ -38,7 +38,7 @@ next-pb/
 1. **Clone and install dependencies:**
    ```bash
    git clone <your-repo>
-   cd next-pb
+   cd video-ware
    yarn install
    ```
 

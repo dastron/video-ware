@@ -8576,21 +8576,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"next-pb@workspace:.":
-  version: 0.0.0-use.local
-  resolution: "next-pb@workspace:."
-  dependencies:
-    "@eslint/js": "npm:^9.39.2"
-    "@typescript-eslint/eslint-plugin": "npm:^8.52.0"
-    "@typescript-eslint/parser": "npm:^8.52.0"
-    concurrently: "npm:^9.2.1"
-    eslint: "npm:^9.39.2"
-    eslint-plugin-react-hooks: "npm:^7.0.1"
-    prettier: "npm:^3.7.4"
-    typescript: "npm:^5.9.3"
-  languageName: unknown
-  linkType: soft
-
 "next-themes@npm:^0.4.6":
   version: 0.4.6
   resolution: "next-themes@npm:0.4.6"
@@ -11509,6 +11494,21 @@ __metadata:
   checksum: 10/1babc3ada56f182056af6edc10e592534b887116e37cf07b42fa909efd5edf41b7693bfaca3dbdf1a991e43c684549cd15e15a1b1b51a16fa2ee1e828d508bc7
   languageName: node
   linkType: hard
+
+"video-ware@workspace:.":
+  version: 0.0.0-use.local
+  resolution: "video-ware@workspace:."
+  dependencies:
+    "@eslint/js": "npm:^9.39.2"
+    "@typescript-eslint/eslint-plugin": "npm:^8.52.0"
+    "@typescript-eslint/parser": "npm:^8.52.0"
+    concurrently: "npm:^9.2.1"
+    eslint: "npm:^9.39.2"
+    eslint-plugin-react-hooks: "npm:^7.0.1"
+    prettier: "npm:^3.7.4"
+    typescript: "npm:^5.9.3"
+  languageName: unknown
+  linkType: soft
 
 "vite-node@npm:2.1.9":
   version: 2.1.9

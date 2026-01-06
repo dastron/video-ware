@@ -62,7 +62,7 @@ jobs:
             
             # Run with persistent data
             docker run -d \\
-              --name next-pb \\
+              --name video-ware \\
               -p 80:80 \\
               -v pb_data:/app/pb/pb_data \\
               -v worker_data:/app/data \\
@@ -120,9 +120,9 @@ jobs:
             \`\`\`yaml
             version: '3.8'
             services:
-              next-pb:
+              video-ware:
                 image: ghcr.io/${owner}/${repo}:${version}
-                container_name: next-pb
+                container_name: video-ware
                 restart: unless-stopped
                 ports:
                   - "80:80"
@@ -156,21 +156,21 @@ jobs:
             apiVersion: apps/v1
             kind: Deployment
             metadata:
-              name: next-pb
+              name: video-ware
               labels:
-                app: next-pb
+                app: video-ware
             spec:
               replicas: 1
               selector:
                 matchLabels:
-                  app: next-pb
+                  app: video-ware
               template:
                 metadata:
                   labels:
-                    app: next-pb
+                    app: video-ware
                 spec:
                   containers:
-                  - name: next-pb
+                  - name: video-ware
                     image: ghcr.io/${owner}/${repo}:${version}
                     ports:
                     - containerPort: 80
@@ -178,12 +178,12 @@ jobs:
                     - name: POCKETBASE_ADMIN_EMAIL
                       valueFrom:
                         secretKeyRef:
-                          name: next-pb-secrets
+                          name: video-ware-secrets
                           key: admin-email
                     - name: POCKETBASE_ADMIN_PASSWORD
                       valueFrom:
                         secretKeyRef:
-                          name: next-pb-secrets
+                          name: video-ware-secrets
                           key: admin-password
                     volumeMounts:
                     - name: pb-data
@@ -205,18 +205,18 @@ jobs:
                   volumes:
                   - name: pb-data
                     persistentVolumeClaim:
-                      claimName: next-pb-data
+                      claimName: video-ware-data
                   - name: worker-data
                     persistentVolumeClaim:
-                      claimName: next-pb-worker-data
+                      claimName: video-ware-worker-data
             ---
             apiVersion: v1
             kind: Service
             metadata:
-              name: next-pb
+              name: video-ware
             spec:
               selector:
-                app: next-pb
+                app: video-ware
               ports:
               - port: 80
                 targetPort: 80
