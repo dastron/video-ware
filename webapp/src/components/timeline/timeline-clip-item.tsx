@@ -142,6 +142,16 @@ export function TimelineClipItem({
     setEditEnd(end);
   }, []);
 
+  const handleScrub = useCallback((time: number) => {
+    const video = videoRef.current;
+    if (!video) return;
+    try {
+      video.currentTime = time;
+    } catch {
+      // no-op (seeking can fail if metadata isn't loaded yet)
+    }
+  }, []);
+
   const handleSaveEdit = async () => {
     if (validationError) {
       return;
@@ -301,6 +311,8 @@ export function TimelineClipItem({
                   startTime={editStart}
                   endTime={editEnd}
                   autoPlay={false}
+                  seekOnStartTimeChange={false}
+                  preload="auto"
                   className="w-full h-full"
                   ref={videoRef}
                 />
@@ -319,6 +331,7 @@ export function TimelineClipItem({
                   startTime={editStart}
                   endTime={editEnd}
                   onChange={handleTrimChange}
+                  onScrub={handleScrub}
                   currentTime={currentVideoTime}
                   minDuration={MIN_CLIP_DURATION}
                 />

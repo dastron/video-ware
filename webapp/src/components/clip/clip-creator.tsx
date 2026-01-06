@@ -100,6 +100,16 @@ export function ClipCreator({
     setEndTime(end);
   }, []);
 
+  const handleScrub = useCallback((time: number) => {
+    const video = videoRef.current;
+    if (!video) return;
+    try {
+      video.currentTime = time;
+    } catch {
+      // no-op (seeking can fail if metadata isn't loaded yet)
+    }
+  }, []);
+
   const handleSetCurrentAsStart = useCallback(() => {
     if (videoRef.current) {
       setStartTime(videoRef.current.currentTime);
@@ -186,6 +196,7 @@ export function ClipCreator({
               src={src}
               poster={poster}
               autoPlay={false}
+              preload="auto"
               className="w-full h-full"
               ref={videoRef}
             />
@@ -204,6 +215,7 @@ export function ClipCreator({
             startTime={startTime}
             endTime={endTime}
             onChange={handleTrimChange}
+            onScrub={handleScrub}
             currentTime={currentVideoTime}
             minDuration={MIN_CLIP_DURATION}
           />

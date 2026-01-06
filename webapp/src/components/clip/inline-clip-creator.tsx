@@ -88,6 +88,16 @@ export function InlineClipCreator({
     setEndTime(end);
   }, []);
 
+  const handleScrub = useCallback((time: number) => {
+    const video = videoRef.current;
+    if (!video) return;
+    try {
+      video.currentTime = time;
+    } catch {
+      // no-op (seeking can fail if metadata isn't loaded yet)
+    }
+  }, []);
+
   const handleCreateClip = useCallback(async () => {
     if (!currentWorkspace) {
       toast.error('No workspace selected');
@@ -188,6 +198,7 @@ export function InlineClipCreator({
             src={src}
             poster={poster}
             autoPlay={false}
+            preload="auto"
             className="w-full h-full"
             ref={videoRef}
           />
@@ -205,6 +216,7 @@ export function InlineClipCreator({
           startTime={startTime}
           endTime={endTime}
           onChange={handleTrimChange}
+          onScrub={handleScrub}
           currentTime={currentVideoTime}
           minDuration={MIN_CLIP_DURATION}
         />

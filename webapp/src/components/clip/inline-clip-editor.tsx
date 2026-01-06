@@ -87,6 +87,16 @@ export function InlineClipEditor({
     setEndTime(end);
   }, []);
 
+  const handleScrub = useCallback((time: number) => {
+    const video = videoRef.current;
+    if (!video) return;
+    try {
+      video.currentTime = time;
+    } catch {
+      // no-op (seeking can fail if metadata isn't loaded yet)
+    }
+  }, []);
+
   const handleSaveClip = useCallback(async () => {
     if (validationError) {
       toast.error(validationError);
@@ -177,6 +187,8 @@ export function InlineClipEditor({
             startTime={startTime}
             endTime={endTime}
             autoPlay={false}
+            seekOnStartTimeChange={false}
+            preload="auto"
             className="w-full h-full"
             ref={videoRef}
           />
@@ -194,6 +206,7 @@ export function InlineClipEditor({
           startTime={startTime}
           endTime={endTime}
           onChange={handleTrimChange}
+          onScrub={handleScrub}
           currentTime={currentVideoTime}
           minDuration={MIN_CLIP_DURATION}
         />

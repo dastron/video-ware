@@ -12,6 +12,11 @@ export interface TrimHandlesProps {
   endTime: number;
   /** Callback when start or end time changes */
   onChange: (start: number, end: number) => void;
+  /**
+   * Callback to scrub an attached video player whenever the user edits a handle.
+   * Parents should seek their <video> element to `time`.
+   */
+  onScrub?: (time: number, handle: 'start' | 'end') => void;
   /** Current playhead position in seconds (optional) */
   currentTime?: number;
   /** Minimum clip duration in seconds */
@@ -30,6 +35,7 @@ export function TrimHandles({
   startTime,
   endTime,
   onChange,
+  onScrub,
   currentTime,
   minDuration = 0.5,
   disabled = false,
@@ -40,6 +46,70 @@ export function TrimHandles({
   const [focusedHandle, setFocusedHandle] = useState<'start' | 'end' | null>(
     null
   );
+  const scrubRafRef = useRef<number | null>(null);
+  const pendingScrubRef = useRef<{ time: number; handle: 'start' | 'end' } | null>(
+    null
+  );
+  const lastScrubRef = useRef<{ time: number; handle: 'start' | 'end' } | null>(
+    null
+  );
+  const lastScrubAtRef = useRef<number>(0);
+
+  const scheduleScrub = useCallback(
+    (time: number, handle: 'start' | 'end') => {
+      if (!onScrub) return;
+      pendingScrubRef.current = { time, handle };
+
+      if (scrubRafRef.current !== null) return;
+      scrubRafRef.current = requestAnimationFrame(() => {
+        scrubRafRef.current = null;
+        const next = pendingScrubRef.current;
+        if (!next) return;
+
+        const now =
+          typeof performance !== 'undefined' ? performance.now() : Date.now();
+        // Throttle seeks to reduce network range requests / jank while dragging.
+        if (now - lastScrubAtRef.current < 75) {
+          // schedule one more frame to pick up the latest pending value
+          if (scrubRafRef.current === null) {
+            scrubRafRef.current = requestAnimationFrame(() => {
+              scrubRafRef.current = null;
+              const pending = pendingScrubRef.current;
+              if (!pending) return;
+              lastScrubAtRef.current =
+                typeof performance !== 'undefined'
+                  ? performance.now()
+                  : Date.now();
+              onScrub(pending.time, pending.handle);
+            });
+          }
+          return;
+        }
+
+        const last = lastScrubRef.current;
+        if (
+          last &&
+          last.handle === next.handle &&
+          Math.abs(last.time - next.time) < 0.05
+        ) {
+          return;
+        }
+
+        lastScrubRef.current = next;
+        lastScrubAtRef.current = now;
+        onScrub(next.time, next.handle);
+      });
+    },
+    [onScrub]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (scrubRafRef.current !== null) {
+        cancelAnimationFrame(scrubRafRef.current);
+      }
+    };
+  }, []);
 
   // Convert time to percentage position
   const timeToPercent = useCallback(
@@ -73,8 +143,9 @@ export function TrimHandles({
       e.preventDefault();
       e.stopPropagation();
       setDragging(handle);
+      scheduleScrub(handle === 'start' ? startTime : endTime, handle);
     },
-    [disabled]
+    [disabled, scheduleScrub, startTime, endTime]
   );
 
   // Handle drag move
@@ -91,11 +162,13 @@ export function TrimHandles({
         const maxStart = endTime - minDuration;
         const newStart = Math.max(0, Math.min(maxStart, time));
         onChange(newStart, endTime);
+        scheduleScrub(newStart, 'start');
       } else {
         // Ensure end doesn't go below start + minDuration
         const minEnd = startTime + minDuration;
         const newEnd = Math.max(minEnd, Math.min(duration, time));
         onChange(startTime, newEnd);
+        scheduleScrub(newEnd, 'end');
       }
     };
 
@@ -123,6 +196,7 @@ export function TrimHandles({
     onChange,
     getPositionPercent,
     percentToTime,
+    scheduleScrub,
   ]);
 
   // Handle keyboard navigation
@@ -168,8 +242,9 @@ export function TrimHandles({
       }
 
       onChange(newStart, newEnd);
+      scheduleScrub(handle === 'start' ? newStart : newEnd, handle);
     },
-    [disabled, startTime, endTime, duration, minDuration, onChange]
+    [disabled, startTime, endTime, duration, minDuration, onChange, scheduleScrub]
   );
 
   const startPercent = timeToPercent(startTime);

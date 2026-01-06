@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useEffect, useState, forwardRef } from 'react';
+import React, { useRef, useEffect, useState, forwardRef, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { Play, Pause, Volume2, VolumeX, Maximize } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,15 +12,34 @@ export interface VideoPlayerUIProps {
   startTime?: number;
   endTime?: number;
   autoPlay?: boolean;
+  /**
+   * If false, `startTime` is only applied once when the `src` becomes ready,
+   * and the parent is expected to scrub via the forwarded <video> ref.
+   * This avoids seek loops during drag scrubbing.
+   */
+  seekOnStartTimeChange?: boolean;
+  /** Controls browser buffering behavior for better scrubbing UX. */
+  preload?: HTMLVideoElement['preload'];
   className?: string;
 }
 
 export const VideoPlayerUI = forwardRef<HTMLVideoElement, VideoPlayerUIProps>(
   (
-    { src, poster, startTime = 0, endTime, autoPlay = false, className },
+    {
+      src,
+      poster,
+      startTime = 0,
+      endTime,
+      autoPlay = false,
+      seekOnStartTimeChange = true,
+      preload = 'metadata',
+      className,
+    },
     forwardedRef
   ) => {
     const internalRef = useRef<HTMLVideoElement>(null);
+    const lastSrcRef = useRef<string | null>(null);
+    const didInitialSeekRef = useRef(false);
 
     // Merge internal ref with forwarded ref
     const videoRef = (node: HTMLVideoElement | null) => {
@@ -38,15 +57,38 @@ export const VideoPlayerUI = forwardRef<HTMLVideoElement, VideoPlayerUIProps>(
     const [isMuted, setIsMuted] = useState(false);
     const [isReady, setIsReady] = useState(false);
 
-    // Sync start time when ready
+    // Helper function to clamp time to boundaries
+    const clampTime = useCallback(
+      (time: number): number => {
+        if (startTime !== undefined && time < startTime) {
+          return startTime;
+        }
+        if (endTime !== undefined && time > endTime) {
+          // Move to start time when exceeding end time (or 0 if startTime is undefined)
+          return startTime !== undefined ? startTime : 0;
+        }
+        return time;
+      },
+      [startTime, endTime]
+    );
+
+    // Initial seek when the src becomes ready (always)
     useEffect(() => {
       const video = internalRef.current;
       if (!video || !isReady) return;
 
+      if (lastSrcRef.current !== src) {
+        lastSrcRef.current = src;
+        didInitialSeekRef.current = false;
+      }
+
+      if (didInitialSeekRef.current) return;
+
       const performSeekAndPlay = async () => {
         try {
-          if (Math.abs(video.currentTime - startTime) > 0.5) {
-            video.currentTime = startTime;
+          const clampedTime = clampTime(startTime);
+          if (Math.abs(video.currentTime - clampedTime) > 0.5) {
+            video.currentTime = clampedTime;
           }
 
           if (autoPlay) {
@@ -71,18 +113,58 @@ export const VideoPlayerUI = forwardRef<HTMLVideoElement, VideoPlayerUIProps>(
       };
 
       performSeekAndPlay();
-    }, [startTime, src, autoPlay, isReady]);
+      didInitialSeekRef.current = true;
+    }, [src, autoPlay, isReady, startTime, clampTime]);
+
+    // Optional: keep syncing to `startTime` on prop change (disabled during scrubbing UIs)
+    useEffect(() => {
+      if (!seekOnStartTimeChange) return;
+      const video = internalRef.current;
+      if (!video || !isReady) return;
+
+      try {
+        const clampedTime = clampTime(video.currentTime);
+        if (Math.abs(video.currentTime - clampedTime) > 0.5) {
+          video.currentTime = clampedTime;
+        }
+      } catch (err) {
+        console.error('Error during startTime sync:', err);
+      }
+    }, [seekOnStartTimeChange, startTime, endTime, isReady, clampTime]);
 
     const handleTimeUpdate = () => {
       if (!internalRef.current) return;
 
-      const time = internalRef.current.currentTime;
-      setCurrentTime(time);
+      const video = internalRef.current;
+      let time = video.currentTime;
 
-      if (endTime && time >= endTime) {
-        internalRef.current.pause();
-        setIsPlaying(false);
+      // Check if playhead is less than start time
+      if (startTime !== undefined && time < startTime) {
+        video.currentTime = startTime;
+        time = startTime;
       }
+      // Check if playhead is greater than end time
+      else if (endTime !== undefined && time > endTime) {
+        // Move to start time (or 0 if startTime is undefined)
+        const targetTime = startTime !== undefined ? startTime : 0;
+        // If playing, loop back to start and continue playing
+        if (isPlaying) {
+          video.currentTime = targetTime;
+          time = targetTime;
+          // Ensure it continues playing (in case the seek paused it)
+          if (video.paused) {
+            video.play().catch((err) => {
+              console.warn('Failed to continue playing after loop:', err);
+            });
+          }
+        } else {
+          // If paused, just move to start time
+          video.currentTime = targetTime;
+          time = targetTime;
+        }
+      }
+
+      setCurrentTime(time);
     };
 
     const handleLoadedMetadata = (
@@ -121,8 +203,9 @@ export const VideoPlayerUI = forwardRef<HTMLVideoElement, VideoPlayerUIProps>(
 
     const handleSeek = (value: number[]) => {
       if (!internalRef.current) return;
-      internalRef.current.currentTime = value[0];
-      setCurrentTime(value[0]);
+      const clampedTimeValue = clampTime(value[0]);
+      internalRef.current.currentTime = clampedTimeValue;
+      setCurrentTime(clampedTimeValue);
     };
 
     const formatTime = (time: number) => {
@@ -142,6 +225,7 @@ export const VideoPlayerUI = forwardRef<HTMLVideoElement, VideoPlayerUIProps>(
           ref={videoRef}
           src={src}
           poster={poster}
+          preload={preload}
           className="w-full h-full object-contain"
           onTimeUpdate={handleTimeUpdate}
           onLoadedMetadata={handleLoadedMetadata}
