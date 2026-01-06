@@ -1,43 +1,52 @@
-# Next.js + PocketBase Monorepo
+# Video Ware
 
-A modern full-stack monorepo template combining Next.js frontend with PocketBase backend, managed with Yarn v4 workspaces.
+A modern media upload and processing platform built with Next.js, PocketBase, and background workers. Upload media files, get resilient backups to S3-compatible storage, and receive fast previews (thumbnails, sprites) while background workers prepare assets using FFmpeg and Google Cloud APIs.
 
-## Project Structure
+## 🎯 Product Vision
+
+Video Ware delivers a Next.js web app where users can:
+- **Upload media** with progress tracking and validation
+- **Get resilient backups** to S3-compatible storage
+- **Receive fast previews** (thumbnails, sprites) while processing happens in the background
+- **Process media** using FFmpeg and Google Cloud APIs (Transcoder, Video Intelligence)
+- **Create and edit clips** with timeline composition
+- **Get AI-assisted recommendations** for object/shot/person detection and clip suggestions
+
+## 🏗️ Architecture
+
+- **Frontend**: Next.js 16 with React 19, TypeScript, and Tailwind CSS
+- **Backend**: PocketBase for collections, real-time updates, authentication, and API
+- **Workers**: Node.js background task processor for media processing (FFmpeg, Google Cloud APIs)
+- **Storage**: S3-compatible bucket for originals, derivatives, and metadata
+- **Shared Package**: TypeScript types, Zod schemas, and utilities used across the monorepo
+
+## 📦 Monorepo Structure
+
+This is a Yarn v4 workspace monorepo:
 
 ```
 video-ware/
-├── app/                       # Next.js frontend application
-│   ├── app/                   # Next.js 14+ app directory
-│   ├── components/            # React components (shadcn/ui)
-│   ├── lib/                   # Utility functions
-│   └── hooks/                 # Custom React hooks
-├── shared/                    # Shared types, schemas, and utilities
-│   ├── src/
-│   │   ├── schemas/          # Zod validation schemas
-│   │   ├── types/            # TypeScript type definitions
-│   │   ├── utils/            # Utility functions
-│   │   └── pocketbase/       # PocketBase client configuration
-│   └── dist/                 # Compiled JavaScript (generated)
-├── pb/                        # PocketBase backend
-│   ├── pocketbase*            # PocketBase binary (auto-downloaded)
-│   ├── pb_data/              # Database and files (auto-created)
-│   └── pb_hooks/             # PocketBase JavaScript hooks
-├── scripts/                   # Setup and utility scripts
-└── package.json              # Monorepo configuration
+├── webapp/          # Next.js application (@project/webapp)
+├── worker/          # Background worker for media processing
+├── shared/          # Shared types, schemas, and utilities (@project/shared)
+├── pb/              # PocketBase instance and migrations
+└── docker/          # Docker configuration for deployment
 ```
 
-## Quick Start
+## 🚀 Quick Start
 
 ### Prerequisites
 
-- Node.js 18+ 
-- Yarn v4 (configured via packageManager)
+- Node.js >= 22.0.0
+- Yarn 4.12.0
+- FFmpeg (for media processing)
+- Google Cloud credentials (for AI features)
 
-### Setup
+### Installation
 
 1. **Clone and install dependencies:**
    ```bash
-   git clone <your-repo>
+   git clone <repository-url>
    cd video-ware
    yarn install
    ```
@@ -46,274 +55,150 @@ video-ware/
    ```bash
    yarn setup
    ```
-   This downloads and configures PocketBase for your platform automatically.
-   
-   **Optional:** Set environment variables to auto-create a superuser:
+
+3. **Create admin account (optional):**
    ```bash
    export POCKETBASE_ADMIN_EMAIL=admin@example.com
    export POCKETBASE_ADMIN_PASSWORD=your-secure-password
    yarn setup
    ```
-   If credentials are provided, the superuser will be created automatically.
-
-3. **Start development servers:**
-   ```bash
-   yarn dev
-   ```
-   This starts both Next.js (port 3000) and PocketBase (port 8090) concurrently.
-
-4. **Create PocketBase admin account (if not auto-created):**
+   Or create manually:
    ```bash
    yarn pb:admin
    ```
-   Follow the prompts to create your admin account, then visit http://localhost:8090/_/
 
-## Available Scripts
-
-### Root Level Commands
-
-- `yarn setup` - Download and setup PocketBase binary
-- `yarn dev` - Start both Next.js and PocketBase in development mode
-- `yarn build` - Build the shared package and Next.js application for production
-- `yarn lint` - Run ESLint on all workspaces
-- `yarn lint:fix` - Run ESLint with auto-fix on all workspaces
-- `yarn lint:app` - Run ESLint on app workspace only
-- `yarn lint:shared` - Run ESLint on shared workspace only
-- `yarn clean` - Clean build artifacts and PocketBase data
-- `yarn install:all` - Install all dependencies
-- `yarn typegen` - Generate TypeScript types from PocketBase schema
-
-### PocketBase Commands
-
-- `yarn pb:dev` - Start PocketBase in development mode (auto-restart)
-- `yarn pb:serve` - Start PocketBase in production mode
-- `yarn pb:admin` - Create/manage admin accounts
-
-### Next.js Commands
-
-- `yarn lint:app` - Run ESLint on Next.js app (recommended)
-- `yarn workspace webapp dev` - Start Next.js dev server only
-- `yarn workspace webapp build` - Build Next.js app
-
-### Shared Package Commands
-
-- `yarn lint:shared` - Run ESLint on shared package (recommended)
-- `yarn workspace shared build` - Build shared TypeScript package
-- `yarn workspace shared dev` - Watch mode for shared package
-- `yarn workspace shared typegen` - Generate types from PocketBase schema
-- `yarn workspace shared migrate:generate` - Generate database migration
-- `yarn workspace shared migrate:status` - Check migration status
-
-## Configuration
-
-### ESLint
-
-The monorepo uses a centralized ESLint configuration (`eslint.config.mjs`) that:
-- Supports TypeScript across all workspaces
-- Provides React/Next.js specific rules for the app workspace
-- Allows console usage in the shared workspace
-- Handles browser and Node.js globals appropriately
-
-Run linting commands:
-```bash
-yarn lint          # Lint all workspaces
-yarn lint:fix      # Auto-fix issues across all workspaces
-yarn lint:app      # Lint only the Next.js app
-yarn lint:shared   # Lint only the shared package
-```
-
-### PocketBase
-
-- **Admin UI:** http://localhost:8090/_/
-- **API Base:** http://localhost:8090/api/
-- **Data Directory:** `./pb/pb_data/`
-- **Hooks Directory:** `./pb/pb_hooks/`
-
-### Next.js
-
-- **Dev Server:** http://localhost:3000
-- **Built with:** App Router, TypeScript, Tailwind CSS, shadcn/ui
-- **Components:** Pre-configured with shadcn/ui component library
-
-## Development Workflow
-
-1. **Backend Development:**
-   - Modify database schema via PocketBase Admin UI
-   - Add custom logic in `./pb/pb_hooks/main.pb.js`
-   - Use PocketBase's built-in auth, file storage, and real-time features
-
-2. **Frontend Development:**
-   - Build React components in `./webapp/components/`
-   - Create pages in `./webapp/app/`
-   - Use mutators from `@project/shared` for all PocketBase data operations
-   - All PocketBase operations are client-side only (no SSR)
-
-3. **Full-Stack Features:**
-   - Authentication (built into PocketBase)
-   - File uploads and storage
-   - Real-time subscriptions
-   - Custom business logic via hooks
-
-## Tech Stack
-
-### Frontend (Next.js)
-- **Framework:** Next.js 14+ with App Router
-- **Language:** TypeScript
-- **Styling:** Tailwind CSS v4
-- **Components:** shadcn/ui (Radix UI primitives)
-- **Forms:** React Hook Form + Zod validation
-- **Icons:** Lucide React
-
-### Backend (PocketBase)
-- **Database:** SQLite (built-in)
-- **Auth:** Multi-provider authentication
-- **API:** Auto-generated REST + Real-time
-- **Admin:** Web-based admin dashboard
-- **Hooks:** JavaScript/TypeScript custom logic
-
-### Development
-- **Package Manager:** Yarn v4 with workspaces
-- **Monorepo:** Yarn workspaces
-- **Linting:** ESLint
-- **Concurrent:** Run multiple services simultaneously
-
-## Connecting Frontend to Backend
-
-### ⚠️ Important: Use Mutators for All Data Operations
-
-**All PocketBase data operations should use mutators, not direct PocketBase SDK calls.** Mutators provide:
-- Type-safe data access
-- Automatic validation
-- Consistent error handling
-- Built-in filtering, sorting, and expansion options
-
-See the [Shared Package README](./shared/README.md) for mutator documentation.
-
-### ⚠️ Important: Client-Side Only (No SSR)
-
-**This project does NOT use Server-Side Rendering (SSR) for PocketBase data.** All PocketBase operations are performed client-side only. This avoids security issues with shared SDK instances and simplifies the architecture.
-
-See [PB_SSR.md](./docs/PB_SSR.md) for detailed information about why SSR is not recommended.
-
-### Using the Shared Package
-
-The monorepo includes a shared workspace with:
-- **Collection Definitions**: Type-safe PocketBase collections using `defineCollection()`
-- **Mutators**: Type-safe data access classes (use these for all data operations)
-- **Schemas**: Zod validation schemas with field helpers
-- **Types**: TypeScript type definitions
-- **Migrations**: Automatic database migration generation
-
-```typescript
-// In your Next.js app - Use mutators for data operations
-import { UserMutator } from '@project/shared';
-import { pb } from '@/lib/pocketbase'; // Client-side PocketBase instance
-
-// Create a mutator instance
-const userMutator = new UserMutator(pb);
-
-// Type-safe data operations
-const user = await userMutator.getById('user-id');
-const users = await userMutator.getList(1, 10);
-const newUser = await userMutator.create({ email, password });
-```
-
-**Collection Definition Pattern:**
-```typescript
-// shared/src/schema/myCollection.ts
-import { defineCollection, TextField, baseSchema } from 'pocketbase-zod-schema';
-
-export const MySchema = z.object({
-  name: TextField().min(1),
-  // ... other fields
-}).extend(baseSchema);
-
-export const MyCollection = defineCollection({
-  collectionName: 'MyCollection',
-  schema: MySchema,
-  permissions: { /* ... */ },
-});
-```
-
-### Database Migrations
-
-The `shared` workspace uses `pocketbase-zod-schema` to generate type-safe migrations:
-
-```bash
-# Generate a migration from schema changes
-yarn workspace shared migrate:generate
-
-# Check migration status
-yarn workspace shared migrate:status
-```
-
-**How it works:**
-1. Define collections using `defineCollection()` in `shared/src/schema/`
-2. Run `migrate:generate` to create migration files
-3. Migrations auto-apply when PocketBase restarts
-4. Collections, permissions, and indexes are managed from code
-
-See the [Shared Package README](./shared/README.md) for detailed `defineCollection` documentation.
-
-## Adding New Features
-
-### Backend (PocketBase)
-1. **Define collections** using `defineCollection()` in `shared/src/schema/`:
-   ```typescript
-   // shared/src/schema/post.ts
-   import { defineCollection, TextField, RelationField, baseSchema } from 'pocketbase-zod-schema';
-   
-   export const PostSchema = z.object({
-     title: TextField().min(1).max(200),
-     content: TextField(),
-     author: RelationField({ collection: 'Users' }),
-   }).extend(baseSchema);
-   
-   export const PostCollection = defineCollection({
-     collectionName: 'Posts',
-     schema: PostSchema,
-     permissions: {
-       listRule: '',
-       viewRule: '',
-       createRule: '@request.auth.id != "" && author = @request.auth.id',
-       updateRule: '@request.auth.id != "" && author = @request.auth.id',
-       deleteRule: '@request.auth.id != "" && author = @request.auth.id',
-     },
-   });
+4. **Build shared package:**
+   ```bash
+   yarn workspace @project/shared build
    ```
 
-2. **Generate migrations**: `yarn workspace shared migrate:generate`
-3. **Add custom hooks** in `pb_hooks/main.pb.js` for business logic
+5. **Start development:**
+   ```bash
+   yarn dev
+   ```
 
-### Frontend (Next.js)
-1. Create API functions in `lib/`
-2. Build components in `components/`
-3. Add pages in `app/`
+   This starts:
+   - Next.js: http://localhost:3000
+   - PocketBase: http://localhost:8090
+   - Worker: Background task processor
 
-## Deployment
+## 📚 Documentation
 
-### PocketBase
-- Deploy binary to your server
-- Set environment variables for production
-- Configure domain and SSL
+- **[Development Guide](docs/DEVELOPMENT.md)** - Comprehensive development documentation
+- **[Planning Overview](planning/overview.md)** - Product vision and architecture details
+- **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment instructions
+- **[PocketBase Docs](docs/)** - PocketBase-specific documentation
 
-### Next.js
-- Build: `yarn build`
-- Deploy to Vercel, Netlify, or your preferred platform
-- Update API URLs for production
+## 🛠️ Key Features
 
-## Contributing
+### Media Processing Pipeline
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test locally with `yarn dev`
-5. Submit a pull request
+1. **Upload** → User uploads file, creates Upload + File records, stores to S3
+2. **Process** → Background worker validates media, generates proxy, thumbnails, sprites
+3. **Detect** → Google Cloud APIs detect objects, shots, persons, speech
+4. **Label** → Store detection results as MediaLabel entries with versioning
+5. **Recommend** → Generate clip suggestions based on labels and timeline context
 
-## License
+### Workspace-Scoped Tenancy
 
-MIT License - see LICENSE file for details
+All operations occur under a `workspaceRef`:
+- Users participate in workspaces via membership records
+- Permissions and queries are scoped by workspace
+- Supports multi-user collaboration
 
----
+### Background Task Processing
 
-**Happy coding!**
+- Resilient task queue in PocketBase
+- Progress tracking and error handling
+- Retry logic with exponential backoff
+- Observability for job states and errors
+
+## 📋 Common Commands
+
+```bash
+# Development
+yarn dev                              # Start all services
+yarn workspace @project/webapp dev    # Next.js only
+yarn workspace @project/pb dev        # PocketBase only
+yarn workspace @project/worker dev  # Worker only
+
+# Building
+yarn build                           # Build all packages
+yarn workspace @project/shared build # Build shared package
+
+# Code Quality
+yarn lint                            # Lint all workspaces
+yarn lint:fix                        # Auto-fix lint issues
+yarn typecheck                       # Type check all workspaces
+yarn format                          # Format all code
+
+# Testing
+yarn test                            # Run all tests
+yarn test:watch                      # Watch mode
+
+# Type Generation
+yarn typegen                         # Generate types from PocketBase
+
+# Maintenance
+yarn clean                           # Clean all build artifacts
+yarn setup                           # Reinstall PocketBase
+```
+
+## 🔧 Tech Stack
+
+- **Frontend**: Next.js 16, React 19, TypeScript, Tailwind CSS, shadcn/ui
+- **Backend**: PocketBase (Go-based backend-as-a-service)
+- **Validation**: Zod schemas
+- **Storage**: S3-compatible (configurable)
+- **Media Processing**: FFmpeg
+- **AI Services**: Google Cloud (Transcoder, Video Intelligence, Speech-to-Text)
+- **Package Manager**: Yarn 4.12.0
+- **Testing**: Vitest
+
+## 🗂️ Data Model
+
+Key collections:
+- **Workspace**: Top-level scope for all resources
+- **WorkspaceMember**: User membership and roles
+- **Upload**: Upload metadata and status
+- **File**: File records (original/proxy/thumbnail/sprite)
+- **Media**: Processed media with metadata
+- **MediaClip**: Clips derived from media
+- **MediaLabel**: AI detection results (objects, shots, persons, etc.)
+- **Task**: Background job tracking
+- **Timeline**: Composition of clips for editing
+
+See [Planning Overview](planning/overview.md) for detailed schema.
+
+## 🚧 Development Status
+
+This project is in active development. Current focus areas:
+
+- ✅ Monorepo setup and workspace configuration
+- ✅ PocketBase integration with shared schemas
+- ✅ Basic upload and file management
+- 🚧 Media processing pipeline (FFmpeg integration)
+- 🚧 Google Cloud API integration
+- 🚧 Clip and timeline editing
+- 🚧 AI-assisted recommendations
+
+See [Planning Overview](planning/overview.md) for milestone details.
+
+## 🤝 Contributing
+
+1. Read the [Development Guide](docs/DEVELOPMENT.md)
+2. Set up your development environment
+3. Create a feature branch
+4. Make your changes
+5. Run tests and linting: `yarn precommit`
+6. Submit a pull request
+
+## 📝 License
+
+See [LICENSE](pb/LICENSE.md) for details.
+
+## 🔗 Links
+
+- [PocketBase Documentation](https://pocketbase.io/docs/)
+- [Next.js Documentation](https://nextjs.org/docs)
+- [Yarn Workspaces](https://yarnpkg.com/features/workspaces)

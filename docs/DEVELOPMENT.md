@@ -7,7 +7,8 @@ This project is a Yarn v4 workspace monorepo with the following structure:
 ```
 video-ware/
 ├── webapp/          # Next.js application (@project/webapp)
-├── shared/         # Shared types, schemas, and utilities (@project/shared)
+├── worker/          # Background worker
+├── shared/          # Shared types, schemas, and utilities (@project/shared)
 ├── pb/              # PocketBase instance and migrations
 └── scripts/         # Setup and utility scripts
 ```

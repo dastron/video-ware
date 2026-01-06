@@ -151,10 +151,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/pb/package.json ./pb/
 COPY --from=builder --chown=nextjs:nodejs /app/worker/package.json ./worker/
 
 # Install production dependencies only
+# With Yarn workspaces, all dependencies are hoisted to the root node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=nextjs:nodejs /app/webapp/node_modules ./webapp/node_modules
-COPY --from=builder --chown=nextjs:nodejs /app/shared/node_modules ./shared/node_modules
-COPY --from=builder --chown=nextjs:nodejs /app/worker/node_modules ./worker/node_modules
 
 # Copy built application
 COPY --from=builder --chown=nextjs:nodejs /app/webapp/.next ./webapp/.next
