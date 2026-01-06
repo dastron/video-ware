@@ -76,3 +76,6 @@ dist/
 # worker
 worker/data
 /data/
+
+# staging
+staging_data/

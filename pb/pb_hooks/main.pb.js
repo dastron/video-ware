@@ -11,17 +11,30 @@ routerAdd("GET", "/api/hello", (c) => {
 
 // Example: Validate user registration (before creation)
 onRecordCreateRequest((e) => {
-  if (e.record.tableName() === "users") {
+  if (e.record.tableName() === "Users") {
     // Add custom validation logic here
-    console.log("👤 New user registration:", e.record.get("email"))
+    console.log("User created:", e.record.get("email"))
   }
   e.next()
-}, "users")
+}, "Users")
 
-// Example: Send welcome email after user creation
-onRecordCreate((e) => {
-  if (e.record.tableName() === "users") {
-    // Add email sending logic here
-    console.log("📧 Welcome email should be sent to:", e.record.get("email"))
+// Create workspace and workspace member when a new user is created
+onRecordAfterCreateSuccess((e) => {
+  const userId = e.record.id
+  
+  try {
+    const workspacesCollection = $app.findCollectionByNameOrId("Workspaces")
+    const workspaceMembersCollection = $app.findCollectionByNameOrId("WorkspaceMembers")
+    
+    const workspace = new Record(workspacesCollection)
+    workspace.set("name", "Workspace")
+    $app.save(workspace)
+    
+    const workspaceMember = new Record(workspaceMembersCollection)
+    workspaceMember.set("WorkspaceRef", workspace.id)
+    workspaceMember.set("UserRef", userId)
+    $app.save(workspaceMember)
+  } catch (error) {
+    console.error("Error creating workspace for user:", userId, error)
   }
-}, "users")
+}, "Users")

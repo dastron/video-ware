@@ -11,7 +11,7 @@
   ],
   "scripts": {
     "setup": "node scripts/setup-pocketbase.js",
-    "dev": "concurrently \"yarn workspace @project/webapp dev\" \"yarn workspace @project/pb dev\" \"yarn workspace @project/worker dev\" \"yarn workspace @project/shared dev\"",
+    "dev": "concurrently --names \"shared,webapp,pocket,worker\" \"yarn workspace @project/shared dev\" \"sleep 2 && yarn workspace @project/webapp dev\" \"sleep 2 && yarn workspace @project/pb dev\" \"sleep 2 && yarn workspace @project/worker dev\"",
     "build": "yarn workspaces foreach -A run build",
     "test": "yarn workspace @project/shared test && yarn workspace @project/webapp test",
     "test:watch": "concurrently \"yarn workspace @project/shared test:watch\" \"yarn workspace @project/webapp test:watch\"",
@@ -22,9 +22,17 @@
     "format:check": "yarn workspaces foreach -A run format:check",
     "clean": "yarn workspaces foreach -R run clean && rm -rf pb/pocketbase",
     "typegen": "yarn workspace @project/shared typegen",
+    "db:download": "yarn workspace @project/pb download",
     "db:start": "yarn workspace @project/pb dev:debug",
     "db:migrate": "yarn workspace @project/shared migrate:generate",
-    "db:status": "yarn workspace @project/shared migrate:status"
+    "db:status": "yarn workspace @project/shared migrate:status",
+    "staging": "yarn run staging:build && yarn run staging:run",
+    "staging:build": "docker build -f docker/Dockerfile --build-arg NEXT_PUBLIC_POCKETBASE_URL=\"/\" -t next-pb:staging .",
+    "staging:run": "docker run --rm -p 8888:80 -p 8889:8090 -v $(pwd)/staging_data/pb_data:/app/pb/pb_data -v $(pwd)/staging_data/worker_data:/app/data next-pb:staging",
+    "staging:up": "yarn run staging:build && yarn run staging:run",
+    "staging:stop": "docker stop $(docker ps -q --filter ancestor=next-pb:staging) 2>/dev/null || true && docker rm $(docker ps -aq --filter ancestor=next-pb:staging) 2>/dev/null || true",
+    "staging:logs": "docker logs -f $(docker ps -q --filter ancestor=next-pb:staging)",
+    "staging:clean": "yarn run staging:stop && docker rmi next-pb:staging 2>/dev/null || true && rm -rf staging_data"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",

@@ -23,7 +23,7 @@ Or with build arguments for PocketBase version:
 
 ```bash
 docker build -f docker/Dockerfile \
-  --build-arg POCKETBASE_VERSION=0.32.4 \
+  --build-arg POCKETBASE_VERSION=0.35.0 \
   -t next-pb:latest .
 ```
 
@@ -56,7 +56,7 @@ docker buildx create --name multiarch --use
 # Build and push multi-platform image
 docker buildx build -f docker/Dockerfile \
   --platform linux/amd64,linux/arm64 \
-  --build-arg POCKETBASE_VERSION=0.32.4 \
+  --build-arg POCKETBASE_VERSION=0.35.0 \
   -t ghcr.io/your-org/next-pb:latest \
   --push .
 ```
@@ -73,24 +73,66 @@ The PocketBase binary is automatically downloaded for the target architecture du
 ## Running the Container
 
 ```bash
-docker run -p 80:80 next-pb:latest
+docker run -p 8888:80 next-pb:latest
 ```
 
 This will start all services behind Nginx:
-- **Application**: http://localhost (routes to Next.js)
-- **PocketBase API**: http://localhost/api/
-- **PocketBase Admin**: http://localhost/_/
+- **Application**: http://localhost:8888 (routes to Next.js)
+- **PocketBase API**: http://localhost:8888/api/
+- **PocketBase Admin**: http://localhost:8888/_/
 
 ## Persistent Data
 
 To persist PocketBase data and worker temporary files across container restarts, mount volumes:
 
 ```bash
-docker run -p 80:80 \
+docker run -p 8888:80 \
   -v $(pwd)/pb_data:/app/pb/pb_data \
   -v $(pwd)/worker_data:/app/data \
   next-pb:latest
 ```
+
+### Staging with Docker Volumes
+
+For staging environments, the project uses named Docker volumes for persistent data. This provides better portability and easier management compared to bind mounts.
+
+**Available staging volume commands:**
+
+```bash
+# Create staging volumes (run once, or they'll be auto-created on first run)
+yarn staging:volumes:create
+
+# List staging volumes
+yarn staging:volumes:ls
+
+# Inspect staging volumes (see mount points, size, etc.)
+yarn staging:volumes:inspect
+
+# Remove staging volumes (data will be lost)
+yarn staging:volumes:rm
+```
+
+**Staging workflow:**
+
+```bash
+# Build and run staging (volumes are auto-created if they don't exist)
+yarn staging:up
+
+# View logs
+yarn staging:logs
+
+# Stop staging container
+yarn staging:stop
+
+# Clean up everything (container, image, and volumes)
+yarn staging:clean:all
+```
+
+The staging setup uses two named volumes:
+- `next-pb-staging-pb-data`: Stores PocketBase database and files
+- `next-pb-staging-worker-data`: Stores worker temporary processing files
+
+**Note:** Volumes persist data even when containers are removed. Use `yarn staging:volumes:rm` to delete volumes and start fresh.
 
 ## Environment Variables
 
@@ -101,17 +143,24 @@ The container supports extensive configuration through environment variables. Al
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `POCKETBASE_URL` | `http://localhost:8090` | PocketBase server URL |
-| `POCKETBASE_ADMIN_EMAIL` | `admin@example.com` | Admin email for PocketBase |
-| `POCKETBASE_ADMIN_PASSWORD` | `your-secure-password` | Admin password for PocketBase |
+| `POCKETBASE_ADMIN_EMAIL` | `admin@example.com` | Admin email for PocketBase superuser |
+| `POCKETBASE_ADMIN_PASSWORD` | `your-secure-password` | Admin password for PocketBase superuser |
 | `PB_DATA_DIR` | `/app/pb/pb_data` | Directory for PocketBase data storage |
 | `PB_PUBLIC_DIR` | `/app/webapp/.next` | Directory for PocketBase public/static files |
+
+**Automatic Superuser Creation:**
+
+The container automatically creates a PocketBase superuser on startup if `POCKETBASE_ADMIN_PASSWORD` is set to a non-default value. This prevents the need to manually create the first admin account through the web interface.
+
+- If `POCKETBASE_ADMIN_PASSWORD` is set to a secure password, the superuser is created automatically using `POCKETBASE_ADMIN_EMAIL`
+- If using the default password (`your-secure-password`), PocketBase will prompt for manual superuser creation on first startup
+- The superuser is created using PocketBase's `superuser upsert` command, which works even when PocketBase isn't running
 
 ### Worker Configuration
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `WORKER_DATA_DIR` | `/app/data` | Directory for worker temporary data |
-| `WORKER_CONCURRENCY` | `2` | Number of concurrent worker processes (1-10) |
 | `WORKER_MAX_RETRIES` | `3` | Maximum retry attempts for failed tasks (0-10) |
 | `WORKER_PROVIDER` | `ffmpeg` | Media processing provider (`ffmpeg` or `google`) |
 | `WORKER_POLL_INTERVAL` | `5000` | Task queue poll interval in ms (1000-60000) |
@@ -144,10 +193,11 @@ The container supports extensive configuration through environment variables. Al
 ### Example with All Options
 
 ```bash
-docker run -p 80:80 \
+docker run -p 8888:80 \
   -e POCKETBASE_URL=http://localhost:8090 \
+  -e POCKETBASE_ADMIN_EMAIL=admin@example.com \
+  -e POCKETBASE_ADMIN_PASSWORD=your-secure-password \
   -e PB_DATA_DIR=/app/pb/pb_data \
-  -e WORKER_CONCURRENCY=4 \
   -e WORKER_PROVIDER=ffmpeg \
   -e LOG_LEVEL=debug \
   -e GRACEFUL_SHUTDOWN_TIMEOUT=60 \
@@ -155,6 +205,8 @@ docker run -p 80:80 \
   -v $(pwd)/worker_data:/app/data \
   next-pb:latest
 ```
+
+**Note:** Set `POCKETBASE_ADMIN_PASSWORD` to a secure password to automatically create the PocketBase superuser on first startup. If not set or using the default, you'll need to create the superuser manually through the web interface.
 
 ## Configuration Files
 
@@ -171,7 +223,7 @@ The container validates environment variables on startup using the shared schema
 ### Validation Features
 
 - **Type checking**: Ensures values match expected types (string, number, boolean, enum)
-- **Range validation**: Validates numeric ranges (e.g., WORKER_CONCURRENCY: 1-10)
+- **Range validation**: Validates numeric ranges (e.g., WORKER_MAX_RETRIES: 1-10)
 - **Default values**: Applies sensible defaults for optional variables
 - **Clear error messages**: Provides helpful hints for fixing configuration issues
 
@@ -216,7 +268,7 @@ The container supports graceful shutdown when receiving SIGTERM or SIGINT signal
 Configure the graceful shutdown timeout via environment variable:
 
 ```bash
-docker run -p 80:80 \
+docker run -p 8888:80 \
   -e GRACEFUL_SHUTDOWN_TIMEOUT=60 \
   next-pb:latest
 ```
@@ -245,7 +297,7 @@ All processes are automatically restarted if they crash.
 
 ## Ports
 
-- **80**: Nginx (main entry point)
+- **8888** (host) → **80** (container): Nginx (main entry point, default host port is 8888)
 - **3000**: Next.js (internal, proxied by Nginx)
 - **8090**: PocketBase (internal, proxied by Nginx)
 

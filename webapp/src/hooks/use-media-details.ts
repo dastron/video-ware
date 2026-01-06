@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import pb from '@/lib/pocketbase';
+import pb from '@/lib/pocketbase-client';
 import type { Media, MediaClip } from '@project/shared';
 import { useAuth } from './use-auth';
 

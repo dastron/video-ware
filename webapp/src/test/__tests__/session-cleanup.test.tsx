@@ -67,7 +67,7 @@ vi.mock('@project/shared', async () => {
 });
 
 // Import pb after mocking to get the mocked version
-import pb from '@/lib/pocketbase';
+import pb from '@/lib/pocketbase-client';
 
 // Mock localStorage
 const mockLocalStorage = {

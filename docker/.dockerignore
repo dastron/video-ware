@@ -62,6 +62,9 @@ docs
 pb/pb_data
 **/pb_data
 
+# PocketBase binary (downloaded during build)
+pb/pocketbase
+
 # Yarn
 .yarn/cache
 .yarn/install-state.gz

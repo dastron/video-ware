@@ -101,7 +101,6 @@ jobs:
             #### Worker Configuration
             | Variable | Default | Description |
             |----------|---------|-------------|
-            | \`WORKER_CONCURRENCY\` | \`2\` | Concurrent worker processes |
             | \`WORKER_MAX_RETRIES\` | \`3\` | Max retry attempts |
             | \`WORKER_PROVIDER\` | \`ffmpeg\` | Media provider (\`ffmpeg\` or \`google\`) |
             
@@ -133,7 +132,6 @@ jobs:
                 environment:
                   - POCKETBASE_ADMIN_EMAIL=admin@example.com
                   - POCKETBASE_ADMIN_PASSWORD=your-secure-password
-                  - WORKER_CONCURRENCY=2
                   - LOG_LEVEL=info
                 healthcheck:
                   test: ["CMD", "curl", "-f", "http://localhost/health"]

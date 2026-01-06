@@ -11,7 +11,7 @@ import React, {
 import type { Upload } from '@project/shared';
 import { UploadService } from '@/services/upload';
 import { UploadMutator } from '@project/shared/mutator';
-import pb from '@/lib/pocketbase';
+import pb from '@/lib/pocketbase-client';
 import type { RecordSubscription } from 'pocketbase';
 
 interface UploadProgress {

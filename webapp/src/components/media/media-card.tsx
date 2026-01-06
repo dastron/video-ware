@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Film, Clock, Maximize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import pb from '@/lib/pocketbase';
+import pb from '@/lib/pocketbase-client';
 import { SpriteAnimator } from '../sprite/sprite-animator';
 
 interface MediaCardProps {

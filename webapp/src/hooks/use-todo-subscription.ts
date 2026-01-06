@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useCallback, useState } from 'react';
-import pb from '@/lib/pocketbase';
+import pb from '@/lib/pocketbase-client';
 import { useAuth } from '@/hooks/use-auth';
 import type { RecordSubscription } from 'pocketbase';
 import type { Todo } from '@project/shared';

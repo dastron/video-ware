@@ -9,7 +9,7 @@ import React, {
 } from 'react';
 import type { Workspace, WorkspaceMember } from '@project/shared';
 import { WorkspaceService } from '@/services/workspace';
-import pb from '@/lib/pocketbase';
+import pb from '@/lib/pocketbase-client';
 import { useAuth } from '@/hooks/use-auth';
 
 interface WorkspaceContextType {

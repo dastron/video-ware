@@ -9,7 +9,7 @@ import React, {
 } from 'react';
 import type { User, UserInput } from '@project/shared';
 import { parseAuthError, globalLoadingManager } from '@project/shared';
-import pb from '@/lib/pocketbase';
+import pb from '@/lib/pocketbase-client';
 import { createAuthService } from '@/services';
 
 interface AuthContextType {

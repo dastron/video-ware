@@ -39,9 +39,20 @@ next-pb/
    - PocketBase: http://localhost:8090
 
 3. **Create Admin Account:**
+   
+   **Option A - Auto-create (recommended):**
+   ```bash
+   export POCKETBASE_ADMIN_EMAIL=admin@example.com
+   export POCKETBASE_ADMIN_PASSWORD=your-secure-password
+   yarn setup
+   ```
+   The superuser will be created automatically during setup.
+   
+   **Option B - Manual creation:**
    ```bash
    yarn pb:admin
    ```
+   Follow the prompts to create your admin account.
 
 4. **Build Shared Package:**
    ```bash

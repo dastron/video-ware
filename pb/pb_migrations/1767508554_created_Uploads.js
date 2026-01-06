@@ -76,7 +76,7 @@ migrate((app) => {
       name: "WorkspaceRef",
       type: "relation",
       required: true,
-      collectionId: "Workspaces",
+      collectionId: "pbc_3456483467",
       maxSelect: 1,
       minSelect: 0,
       cascadeDelete: false,

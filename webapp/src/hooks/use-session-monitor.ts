@@ -2,7 +2,7 @@
 
 import { useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
-import pb from '@/lib/pocketbase';
+import pb from '@/lib/pocketbase-client';
 import { createAuthService } from '@/services';
 
 /**

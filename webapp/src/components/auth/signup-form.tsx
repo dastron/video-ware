@@ -92,6 +92,7 @@ export function SignupForm({ onSuccess, redirectTo }: SignupFormProps) {
       // Set field-specific errors
       const emailError = getFieldError(error, 'email');
       const passwordError = getFieldError(error, 'password');
+      const passwordConfirmError = getFieldError(error, 'passwordConfirm');
       const nameError = getFieldError(error, 'name');
 
       if (emailError) {
@@ -100,12 +101,23 @@ export function SignupForm({ onSuccess, redirectTo }: SignupFormProps) {
       if (passwordError) {
         setError('password', { type: 'manual', message: passwordError });
       }
+      if (passwordConfirmError) {
+        setError('passwordConfirm', {
+          type: 'manual',
+          message: passwordConfirmError,
+        });
+      }
       if (nameError) {
         setError('name', { type: 'manual', message: nameError });
       }
 
       // Set general error if no field-specific errors
-      if (!emailError && !passwordError && !nameError) {
+      if (
+        !emailError &&
+        !passwordError &&
+        !passwordConfirmError &&
+        !nameError
+      ) {
         setError('root', {
           type: 'manual',
           message: parsedError.message,

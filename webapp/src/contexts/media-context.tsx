@@ -10,7 +10,7 @@ import React, {
 } from 'react';
 import type { Media } from '@project/shared';
 import { MediaService } from '@/services/media';
-import pb from '@/lib/pocketbase';
+import pb from '@/lib/pocketbase-client';
 import type { RecordSubscription } from 'pocketbase';
 
 interface MediaWithPreviews extends Media {

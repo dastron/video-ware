@@ -10,7 +10,7 @@ import React, {
 } from 'react';
 import type { Todo, TodoInput, TodoUpdate } from '@project/shared';
 import { TodoMutator } from '@project/shared/mutator';
-import pb from '@/lib/pocketbase';
+import pb from '@/lib/pocketbase-client';
 import { useAuth } from '@/hooks/use-auth';
 import type { ListResult, RecordSubscription } from 'pocketbase';
 

@@ -83,7 +83,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
-            POCKETBASE_VERSION=0.32.4
+            POCKETBASE_VERSION=0.35.0
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master

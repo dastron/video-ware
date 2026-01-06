@@ -122,7 +122,7 @@ describe('Navigation Logout Functionality Property Tests', () => {
     vi.clearAllMocks();
 
     // Get the mocked modules
-    const pocketbaseModule = await import('@/lib/pocketbase');
+    const pocketbaseModule = await import('@/lib/pocketbase-client');
     mockPb = pocketbaseModule.default;
 
     // Reset mock state

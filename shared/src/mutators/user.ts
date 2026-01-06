@@ -12,6 +12,30 @@ export class UserMutator extends BaseMutator<User, UserInput> {
     return this.pb.collection('Users');
   }
 
+  /**
+   * Override create to handle passwordConfirm for PocketBase auth collections
+   * PocketBase requires passwordConfirm when creating users in auth collections
+   */
+  async create(input: UserInput): Promise<User> {
+    try {
+      // Validate the input using the schema
+      const validated = UserInputSchema.parse(input);
+
+      // Extract passwordConfirm before removing it from the data
+      const { passwordConfirm, ...dataWithoutConfirm } = validated;
+
+      // Create the user with passwordConfirm (required by PocketBase for auth collections)
+      const record = await this.getCollection().create({
+        ...dataWithoutConfirm,
+        passwordConfirm, // Include passwordConfirm for PocketBase
+      } as Record<string, unknown>);
+
+      return await this.processRecord(record);
+    } catch (error) {
+      return this.errorWrapper(error);
+    }
+  }
+
   protected async validateInput(input: UserInput): Promise<UserInput> {
     // Validate the input using the schema
     const validated = UserInputSchema.parse(input);

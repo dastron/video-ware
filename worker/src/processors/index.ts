@@ -53,6 +53,6 @@ export function getProcessor(
 }
 
 // Export processor implementations
-export { FFmpegProcessor } from './transcode/ffmpeg';
-export { GoogleTranscoderProcessor } from './transcode/google-transcoder';
-export { GoogleVideoIntelligenceProcessor } from './intelligence/google-intelligence';
+export { FFmpegProcessor } from './transcode/ffmpeg.js';
+export { GoogleTranscoderProcessor } from './transcode/google-transcoder.js';
+export { GoogleVideoIntelligenceProcessor } from './intelligence/google-intelligence.js';

@@ -10,7 +10,7 @@ import React, {
 } from 'react';
 import type { Task } from '@project/shared';
 import { TaskMutator } from '@project/shared/mutator';
-import pb from '@/lib/pocketbase';
+import pb from '@/lib/pocketbase-client';
 import type { RecordSubscription } from 'pocketbase';
 
 interface TaskProgress {

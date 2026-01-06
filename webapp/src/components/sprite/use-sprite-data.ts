@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Media, File } from '@project/shared';
-import pb from '@/lib/pocketbase';
+import pb from '@/lib/pocketbase-client';
 
 export interface SpriteConfig {
   cols: number;

@@ -47,6 +47,14 @@ next-pb/
    yarn setup
    ```
    This downloads and configures PocketBase for your platform automatically.
+   
+   **Optional:** Set environment variables to auto-create a superuser:
+   ```bash
+   export POCKETBASE_ADMIN_EMAIL=admin@example.com
+   export POCKETBASE_ADMIN_PASSWORD=your-secure-password
+   yarn setup
+   ```
+   If credentials are provided, the superuser will be created automatically.
 
 3. **Start development servers:**
    ```bash
@@ -54,7 +62,7 @@ next-pb/
    ```
    This starts both Next.js (port 3000) and PocketBase (port 8090) concurrently.
 
-4. **Create PocketBase admin account:**
+4. **Create PocketBase admin account (if not auto-created):**
    ```bash
    yarn pb:admin
    ```

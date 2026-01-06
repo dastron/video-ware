@@ -5,7 +5,7 @@ const path = require('path');
 const https = require('https');
 const { execSync } = require('child_process');
 
-const POCKETBASE_VERSION = '0.32.4'; // Latest stable version as of 2024
+const POCKETBASE_VERSION = '0.35.0'; // Latest stable version as of 2025
 const PLATFORM_MAP = {
   'darwin': 'darwin',
   'linux': 'linux',
@@ -122,6 +122,10 @@ async function setupPocketBase() {
     
     console.log('✅ PocketBase setup completed!');
     console.log(`📍 PocketBase binary location: ${executablePath}`);
+    
+    // Create superuser if credentials are provided
+    await createSuperuser(pbDir, executableName);
+    
     console.log('');
     console.log('🚀 Quick start:');
     console.log('  yarn pb:dev     - Start PocketBase in development mode');
@@ -132,6 +136,44 @@ async function setupPocketBase() {
   } catch (error) {
     console.error('❌ Error setting up PocketBase:', error.message);
     process.exit(1);
+  }
+}
+
+/**
+ * Creates a PocketBase superuser if credentials are provided via environment variables
+ */
+async function createSuperuser(pbDir, executableName) {
+  const adminEmail = process.env.POCKETBASE_ADMIN_EMAIL || 'admin@example.com';
+  const adminPassword = process.env.POCKETBASE_ADMIN_PASSWORD || 'your-secure-password';
+  
+  // Skip if using default insecure password
+  if (adminPassword === 'your-secure-password') {
+    console.log('⚠️  Using default admin password. Set POCKETBASE_ADMIN_PASSWORD to create superuser.');
+    return;
+  }
+  
+  try {
+    console.log('👤 Creating PocketBase superuser...');
+    const executablePath = path.join(pbDir, executableName);
+    const pbDataDir = path.join(pbDir, 'pb_data');
+    
+    // Ensure pb_data directory exists
+    if (!fs.existsSync(pbDataDir)) {
+      fs.mkdirSync(pbDataDir, { recursive: true });
+    }
+    
+    // Run superuser upsert command
+    // This works even if PocketBase isn't running - it modifies the database directly
+    execSync(
+      `cd "${pbDir}" && ./${executableName} superuser upsert "${adminEmail}" "${adminPassword}" --dir="${pbDataDir}"`,
+      { stdio: 'inherit' }
+    );
+    
+    console.log(`✅ Superuser created: ${adminEmail}`);
+  } catch (error) {
+    console.warn('⚠️  Could not create superuser:', error.message);
+    console.warn('   You can create it manually later with:');
+    console.warn(`   cd ${pbDir} && ./${executableName} superuser upsert EMAIL PASSWORD`);
   }
 }
 

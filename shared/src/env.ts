@@ -10,6 +10,19 @@ export const envSchema = z.object({
   // ===========================================
   // PocketBase Configuration
   // ===========================================
+  /**
+   * Server-side PocketBase URL
+   *
+   * Used by:
+   * - Next.js API routes and Server Actions
+   * - Worker processes
+   * - Any server-side code
+   *
+   * Always points directly to PocketBase (http://localhost:8090) because
+   * server-side code bypasses nginx and connects directly to PocketBase.
+   *
+   * Default: http://localhost:8090
+   */
   POCKETBASE_URL: z.string().default('http://localhost:8090'),
   POCKETBASE_ADMIN_EMAIL: z.string().email().default('admin@example.com'),
   POCKETBASE_ADMIN_PASSWORD: z.string().default('your-secure-password'),
@@ -18,6 +31,21 @@ export const envSchema = z.object({
   // Next.js Configuration
   // (Prefix with NEXT_PUBLIC_ for client-side access)
   // ===========================================
+  /**
+   * Client-side PocketBase URL
+   *
+   * Used by:
+   * - Client Components ('use client')
+   * - Browser-side code
+   * - Any code that runs in the browser
+   *
+   * In production/staging: "/" (routes through nginx)
+   * In development: "http://localhost:8090" (direct connection)
+   *
+   * Client-side requests go: Browser → Nginx → PocketBase
+   *
+   * Default: http://localhost:8090 (for development)
+   */
   NEXT_PUBLIC_POCKETBASE_URL: z.string().default('http://localhost:8090'),
   NEXTAUTH_SECRET: z.string().default('your-nextauth-secret-here'),
   NEXTAUTH_URL: z.string().url().default('http://localhost:3000'),
@@ -51,7 +79,7 @@ export const envSchema = z.object({
   /** Directory for worker temporary data and processing files */
   WORKER_DATA_DIR: z.string().default('/app/data'),
   /** Number of concurrent worker processes */
-  WORKER_CONCURRENCY: z.coerce.number().min(1).max(10).default(2),
+  /** WORKER_CONCURRENCY: z.coerce.number().min(1).max(10).default(2), */
   /** Maximum retry attempts for failed tasks */
   WORKER_MAX_RETRIES: z.coerce.number().min(0).max(10).default(3),
   /** Media processing provider selection */

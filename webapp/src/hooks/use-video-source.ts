@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { Media, MediaClip, File } from '@project/shared';
-import pb from '@/lib/pocketbase';
+import pb from '@/lib/pocketbase-client';
 
 export interface VideoSource {
   src: string;
@@ -53,7 +53,7 @@ export function useVideoSource(media: Media, clip?: MediaClip): VideoSource {
   const src = useMemo(() => {
     if (!proxyFile?.blob) return '';
     try {
-      return pb.files.getURL(proxyFile as any, proxyFile.blob as any);
+      return pb.files.getURL(proxyFile, proxyFile.blob as any);
     } catch (error) {
       console.error('Failed to get proxy URL:', error);
       return '';
@@ -63,7 +63,7 @@ export function useVideoSource(media: Media, clip?: MediaClip): VideoSource {
   const poster = useMemo(() => {
     if (!thumbnailFile?.blob) return '';
     try {
-      return pb.files.getURL(thumbnailFile as any, thumbnailFile.blob as any);
+      return pb.files.getURL(thumbnailFile, thumbnailFile.blob as any);
     } catch (error) {
       console.error('Failed to get thumbnail URL:', error);
       return '';

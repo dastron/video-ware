@@ -172,8 +172,8 @@ export class UploadService {
         fps: 1,
         cols: 10,
         rows: 10,
-        tileWidth: 160,
-        tileHeight: 90,
+        tileWidth: 320,
+        tileHeight: 180,
       },
       thumbnail: {
         timestamp: 'midpoint',

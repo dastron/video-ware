@@ -13,11 +13,13 @@ echo "Setting environment variable defaults..."
 # PocketBase Configuration (Requirements 4.1)
 export PB_DATA_DIR="${PB_DATA_DIR:-/app/pb/pb_data}"
 export PB_PUBLIC_DIR="${PB_PUBLIC_DIR:-/app/webapp/.next}"
+# POCKETBASE_URL is for server-side code and worker (bypasses nginx, connects directly)
 export POCKETBASE_URL="${POCKETBASE_URL:-http://localhost:8090}"
+export POCKETBASE_ADMIN_EMAIL="${POCKETBASE_ADMIN_EMAIL:-admin@example.com}"
+export POCKETBASE_ADMIN_PASSWORD="${POCKETBASE_ADMIN_PASSWORD:-your-secure-password}"
 
 # Worker Configuration (Requirements 4.2)
 export WORKER_DATA_DIR="${WORKER_DATA_DIR:-/app/data}"
-export WORKER_CONCURRENCY="${WORKER_CONCURRENCY:-2}"
 export WORKER_MAX_RETRIES="${WORKER_MAX_RETRIES:-3}"
 export WORKER_PROVIDER="${WORKER_PROVIDER:-ffmpeg}"
 export WORKER_POLL_INTERVAL="${WORKER_POLL_INTERVAL:-5000}"
@@ -73,7 +75,48 @@ echo "  - PB_PUBLIC_DIR: $PB_PUBLIC_DIR"
 echo "  - WORKER_DATA_DIR: $WORKER_DATA_DIR"
 
 # =============================================================================
-# Step 4: Setup signal handlers for graceful shutdown (Requirements 13.4)
+# Step 4: Verify FFmpeg installation (for worker)
+# =============================================================================
+echo ""
+echo "Verifying FFmpeg installation..."
+
+if command -v ffmpeg >/dev/null 2>&1 && command -v ffprobe >/dev/null 2>&1; then
+    FFMPEG_VERSION=$(ffmpeg -version 2>/dev/null | head -n1 | awk '{print $3}' || echo "unknown")
+    FFPROBE_VERSION=$(ffprobe -version 2>/dev/null | head -n1 | awk '{print $3}' || echo "unknown")
+    echo "  ✅ FFmpeg found: $FFMPEG_VERSION"
+    echo "  ✅ FFprobe found: $FFPROBE_VERSION"
+else
+    echo "  ⚠️  Warning: FFmpeg or FFprobe not found in PATH"
+    echo "  ⚠️  Worker media processing may fail"
+fi
+
+# =============================================================================
+# Step 5: Create PocketBase superuser (Requirements 4.1)
+# =============================================================================
+echo ""
+echo "Creating PocketBase superuser..."
+
+# Only create superuser if password is not the default insecure one
+if [ "$POCKETBASE_ADMIN_PASSWORD" != "your-secure-password!" ]; then
+    echo "  Email: $POCKETBASE_ADMIN_EMAIL"
+    echo "  Creating superuser account..."
+    
+    # Run superuser upsert command
+    # This works even if PocketBase isn't running - it modifies the database directly
+    if /app/pb/pocketbase superuser upsert "$POCKETBASE_ADMIN_EMAIL" "$POCKETBASE_ADMIN_PASSWORD" --dir="$PB_DATA_DIR" 2>/dev/null; then
+        echo "  ✅ Superuser created successfully"
+    else
+        echo "  ⚠️  Could not create superuser (this is normal if it already exists)"
+        echo "  ℹ️  Superuser will be created on first PocketBase startup if needed"
+    fi
+else
+    echo "  ⚠️  Using default admin password - superuser creation skipped"
+    echo "  ℹ️  Set POCKETBASE_ADMIN_PASSWORD environment variable to auto-create superuser"
+    echo "  ℹ️  Superuser will be created on first PocketBase startup"
+fi
+
+# =============================================================================
+# Step 6: Setup signal handlers for graceful shutdown (Requirements 13.4)
 # =============================================================================
 # Note: Signal handling is done by supervisord, but we set up the timeout
 export GRACEFUL_SHUTDOWN_TIMEOUT="${GRACEFUL_SHUTDOWN_TIMEOUT:-30}"
@@ -81,7 +124,7 @@ echo ""
 echo "Graceful shutdown timeout: ${GRACEFUL_SHUTDOWN_TIMEOUT}s"
 
 # =============================================================================
-# Step 5: Start supervisord
+# Step 7: Start supervisord
 # =============================================================================
 echo ""
 echo "Starting services with Supervisor..."
