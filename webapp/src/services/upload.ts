@@ -9,7 +9,8 @@ import {
   ProcessingProvider,
   type ProcessUploadPayload,
 } from '@project/shared';
-import type { Upload, Task } from '@project/shared';
+import type { Upload, Task, UploadInput } from '@project/shared';
+import type { UploadProgress } from '@/types/upload-manager';
 
 /**
  * File validation result
@@ -34,7 +35,7 @@ export interface UploadServiceConfig {
 /**
  * Default configuration
  */
-const DEFAULT_CONFIG: Required<UploadServiceConfig> = {
+const DEFAULT_CONFIG: Omit<Required<UploadServiceConfig>, 'storageConfig'> = {
   allowedTypes: ['video/mp4', 'video/webm', 'video/quicktime'],
   maxSize: 8 * 1024 * 1024 * 1024, // 8GB
   defaultProvider: ProcessingProvider.FFMPEG,
@@ -57,6 +58,114 @@ export class UploadService {
     this.taskMutator = new TaskMutator(pb);
     this.fileMutator = new FileMutator(pb);
     this.config = { ...DEFAULT_CONFIG, ...config };
+  }
+
+  /**
+   * Upload a file via the Next.js API (server-side storage backend).
+   *
+   * This keeps all `@project/shared/storage` code (and thus `fs` / AWS SDK)
+   * on the server, avoiding Next.js client-bundle failures.
+   */
+  private async uploadViaServer(
+    uploadId: string,
+    workspaceId: string,
+    userId: string,
+    file: File,
+    onProgress?: (progress: UploadProgress) => void
+  ): Promise<Upload> {
+    return await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      const startTime = Date.now();
+
+      xhr.upload.addEventListener('progress', (event) => {
+        if (!event.lengthComputable || !onProgress) return;
+        const elapsed = (Date.now() - startTime) / 1000; // seconds
+        const speed = elapsed > 0 ? event.loaded / elapsed : 0;
+        const remaining = speed > 0 ? (event.total - event.loaded) / speed : 0;
+
+        onProgress({
+          loaded: event.loaded,
+          total: event.total,
+          percentage: (event.loaded / event.total) * 100,
+          speed,
+          estimatedTimeRemaining: remaining,
+        });
+      });
+
+      xhr.addEventListener('load', () => {
+        try {
+          if (xhr.status < 200 || xhr.status >= 300) {
+            // Try to parse error message from response
+            let errorMessage = `Upload failed with status ${xhr.status}`;
+            try {
+              const errorResponse = JSON.parse(xhr.responseText) as {
+                error?: string;
+              };
+              if (errorResponse.error) {
+                errorMessage = errorResponse.error;
+              }
+            } catch {
+              // Use default error message
+            }
+            reject(new Error(errorMessage));
+            return;
+          }
+          const parsed = JSON.parse(xhr.responseText) as { upload: Upload };
+          if (!parsed.upload) {
+            reject(new Error('Invalid server response: missing upload data'));
+            return;
+          }
+          resolve(parsed.upload);
+        } catch (err) {
+          reject(
+            new Error(
+              err instanceof Error
+                ? err.message
+                : 'Upload failed: invalid server response'
+            )
+          );
+        }
+      });
+
+      xhr.addEventListener('error', () => {
+        reject(
+          new Error(
+            'Upload failed due to network error. Please check your connection and try again.'
+          )
+        );
+      });
+
+      xhr.addEventListener('abort', () => {
+        reject(new Error('Upload was cancelled'));
+      });
+
+      xhr.addEventListener('timeout', () => {
+        reject(new Error('Upload timed out. Please try again.'));
+      });
+
+      const token = this.pb.authStore.token;
+      if (!token) {
+        reject(new Error('User must be authenticated to upload files'));
+        return;
+      }
+
+      // Use streaming-friendly upload: send raw file body to PUT endpoint.
+      // This avoids `req.formData()` buffering multi-GB payloads in memory on the server.
+      xhr.open('PUT', '/api/uploads/upload');
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      xhr.setRequestHeader('x-upload-id', uploadId);
+      xhr.setRequestHeader('x-workspace-id', workspaceId);
+      xhr.setRequestHeader('x-user-id', userId);
+      xhr.setRequestHeader('x-file-name', file.name);
+      if (file.type) {
+        xhr.setRequestHeader('Content-Type', file.type);
+      }
+
+      // Set timeout (30 minutes for large files)
+      xhr.timeout = 30 * 60 * 1000;
+
+      xhr.send(file);
+    });
   }
 
   /**
@@ -88,10 +197,76 @@ export class UploadService {
   }
 
   /**
-   * Initiate an upload with file validation and task enqueueing
+   * Create an upload record with status "queued"
+   * This is called before file transfer begins
    * @param workspaceId The workspace ID
    * @param file The file to upload
-   * @param userId Optional user ID (defaults to current authenticated user)
+   * @param userId The user ID
+   * @returns The created upload record
+   */
+  async createUploadRecord(
+    workspaceId: string,
+    file: File,
+    userId: string
+  ): Promise<Upload> {
+    // Validate file
+    const validation = this.validateFile(file);
+    if (!validation.valid) {
+      throw new Error(validation.error);
+    }
+
+    // Create upload record with status "queued"
+    const uploadInput: UploadInput = {
+      name: file.name,
+      size: file.size,
+      status: UploadStatus.QUEUED,
+      bytesUploaded: 0,
+      WorkspaceRef: workspaceId,
+      UserRef: userId,
+    };
+
+    return this.uploadMutator.create(uploadInput);
+  }
+
+  /**
+   * Start an upload - updates status to "uploading" and begins file transfer
+   * @param uploadId The upload record ID
+   * @param file The file to upload
+   * @param onProgress Optional progress callback
+   * @returns The updated upload record
+   */
+  async startUpload(
+    uploadId: string,
+    file: File,
+    workspaceId: string,
+    userId: string,
+    onProgress?: (progress: UploadProgress) => void
+  ): Promise<Upload> {
+    // Get the upload record
+    const upload = await this.uploadMutator.getById(uploadId);
+    if (!upload) {
+      throw new Error(`Upload not found: ${uploadId}`);
+    }
+
+    // Update status to uploading
+    await this.uploadMutator.updateStatus(uploadId, UploadStatus.UPLOADING);
+
+    // Perform file upload via server-side storage endpoint (S3/local)
+    return await this.uploadViaServer(
+      uploadId,
+      workspaceId,
+      userId,
+      file,
+      onProgress
+    );
+  }
+
+  /**
+   * Initiate an upload with file validation and task enqueueing
+   * This is a convenience method that combines createUploadRecord, startUpload, and completeUpload
+   * @param workspaceId The workspace ID
+   * @param file The file to upload
+   * @param userId The user ID
    * @param onProgress Optional progress callback
    * @returns The created upload record
    * @throws Error if validation fails or upload creation fails
@@ -100,48 +275,28 @@ export class UploadService {
     workspaceId: string,
     file: File,
     userId: string,
-    _onProgress?: (progress: number) => void
+    onProgress?: (progress: UploadProgress | number) => void
   ): Promise<Upload> {
-    // Validate file
-    const validation = this.validateFile(file);
-    if (!validation.valid) {
-      throw new Error(validation.error);
-    }
-
     try {
-      // Get current user ID if not provided (upload mutator will also handle this, but we need it for task creation)
-      const currentUserId =
-        userId || this.pb.authStore.record?.id || this.pb.authStore.model?.id;
-      if (!currentUserId) {
-        throw new Error('User must be authenticated to create uploads');
-      }
+      // Create upload record
+      const upload = await this.createUploadRecord(workspaceId, file, userId);
 
-      // Create upload record with file (UserRef will be set automatically by mutator if not provided)
-      const upload = await this.uploadMutator.createWithFile(
-        {
-          name: file.name,
-          size: file.size,
-          status: UploadStatus.UPLOADING,
-          WorkspaceRef: workspaceId,
-          UserRef: userId, // Optional - mutator will use current user if not provided
-        },
-        file
-      );
+      // Wrap progress callback to handle both old and new formats
+      const wrappedProgress = onProgress
+        ? (progress: UploadProgress) => {
+            // Call with UploadProgress object
+            onProgress(progress);
+          }
+        : undefined;
 
-      // Update status to uploaded (file transfer complete)
-      const updatedUpload = await this.uploadMutator.updateStatus(
+      // Start and complete upload
+      return await this.startUpload(
         upload.id,
-        UploadStatus.UPLOADED
-      );
-
-      // Enqueue processing task (use the upload's UserRef to ensure consistency)
-      await this.enqueueProcessingTask(
+        file,
         workspaceId,
-        upload.id,
-        upload.UserRef || currentUserId
+        userId,
+        wrappedProgress
       );
-
-      return updatedUpload;
     } catch (error) {
       // If upload creation failed, throw with context
       if (error instanceof Error) {
@@ -155,7 +310,7 @@ export class UploadService {
    * Enqueue a processing task for an upload
    * @param workspaceId The workspace ID
    * @param uploadId The upload ID
-   * @param userId Optional user ID
+   * @param userId The user ID
    * @returns The created task
    */
   private async enqueueProcessingTask(
@@ -289,7 +444,7 @@ export class UploadService {
  */
 export function createUploadService(
   pb: TypedPocketBase,
-  config?: UploadServiceConfig
+  config: UploadServiceConfig
 ): UploadService {
   return new UploadService(pb, config);
 }

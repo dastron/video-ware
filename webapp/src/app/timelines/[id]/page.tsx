@@ -18,6 +18,7 @@ import {
   Film,
   Clock,
   ListVideo,
+  Download,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -81,28 +82,40 @@ function TimelineEditorPageContent() {
         <div className="flex-1 overflow-auto">
           <div className="container mx-auto px-4 pt-6 pb-8 max-w-7xl">
             {/* Header with Back Button */}
-            <div className="mb-6 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <Button
-                  variant="ghost"
-                  onClick={() => router.push('/timelines')}
-                  className="gap-2"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  Back to Timelines
-                </Button>
+            <div className="mb-6">
+              <Button
+                variant="ghost"
+                onClick={() => router.push('/timelines')}
+                className="gap-2 mb-4"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to Timelines
+              </Button>
+              <div className="flex items-center justify-between">
                 <TimelineHeaderInfo />
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      router.push(`/timelines/${timelineId}/renders`)
+                    }
+                    className="gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    View Renders
+                  </Button>
+                  {!isClipBrowserOpen && (
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setIsClipBrowserOpen(true)}
+                      title="Open Clip Browser"
+                    >
+                      <PanelRight className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
-              {!isClipBrowserOpen && (
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setIsClipBrowserOpen(true)}
-                  title="Open Clip Browser"
-                >
-                  <PanelRight className="h-4 w-4" />
-                </Button>
-              )}
             </div>
 
             {/* Timeline Editor */}

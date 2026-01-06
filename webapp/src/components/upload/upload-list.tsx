@@ -30,6 +30,8 @@ interface UploadListProps {
   onCancel?: (uploadId: string) => Promise<void>;
   isLoading?: boolean;
   className?: string;
+  title?: string;
+  description?: string;
 }
 
 export function UploadList({
@@ -39,6 +41,8 @@ export function UploadList({
   onCancel,
   isLoading = false,
   className,
+  title = 'Uploads',
+  description,
 }: UploadListProps) {
   const formatBytes = (bytes: number): string => {
     if (bytes < 1024) return `${bytes} B`;
@@ -105,10 +109,15 @@ export function UploadList({
     <Card className={className}>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <span>Uploads</span>
-            <Badge variant="secondary">{uploads.length}</Badge>
-          </CardTitle>
+          <div className="flex flex-col gap-1">
+            <CardTitle className="flex items-center gap-2">
+              <span>{title}</span>
+              <Badge variant="secondary">{uploads.length}</Badge>
+            </CardTitle>
+            {description && (
+              <p className="text-sm text-muted-foreground">{description}</p>
+            )}
+          </div>
         </div>
       </CardHeader>
 

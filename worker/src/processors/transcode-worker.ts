@@ -4,7 +4,9 @@ import type {
   TypedPocketBase,
   ProcessUploadPayload,
   ProcessUploadResult,
+  ProbeOutput,
 } from '@project/shared';
+import { StorageBackend } from '@project/shared/storage';
 import {
   UploadMutator,
   MediaMutator,
@@ -23,10 +25,19 @@ import {
   formatTaskErrorLog,
   shouldRetry,
   sleep,
+  StorageBackendType,
 } from '@project/shared';
+import {
+  createStorageBackend,
+  LocalStorageBackend,
+} from '@project/shared/storage';
 import { getProcessor } from './index.js';
-import { readFileSync } from 'node:fs';
+import { readFileSync, createWriteStream } from 'node:fs';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { TASK_RETRY_CONFIG } from './base-worker.js';
+import { cleanupTempDir, getTempFilePath } from '../utils/temp-files.js';
+import { loadStorageConfig } from '@project/shared/config';
 
 /**
  * Worker for processing upload/transcode tasks (PROCESS_UPLOAD)
@@ -43,6 +54,7 @@ export class TranscodeWorker extends BaseWorker {
   private mediaMutator: MediaMutator;
   private mediaClipMutator: MediaClipMutator;
   private fileMutator: FileMutator;
+  private storageBackend: StorageBackend | null = null;
 
   constructor(pb: TypedPocketBase) {
     super(pb);
@@ -52,17 +64,102 @@ export class TranscodeWorker extends BaseWorker {
     this.fileMutator = new FileMutator(pb);
   }
 
+  /**
+   * Initialize storage backend lazily
+   */
+  private async getStorageBackend(): Promise<StorageBackend> {
+    if (!this.storageBackend) {
+      const config = loadStorageConfig();
+      this.storageBackend = await createStorageBackend(config);
+      console.log(
+        `[TranscodeWorker] Initialized storage backend: ${config.type}`
+      );
+    }
+    return this.storageBackend;
+  }
+
+  /**
+   * Resolve file path from Upload record storage metadata
+   * Downloads file from external storage to temp location if needed
+   * @param upload - Upload record with storage metadata
+   * @returns Local file path to process
+   */
+  private async resolveFilePath(upload: {
+    id: string;
+    storageBackend?: StorageBackendType | StorageBackendType[];
+    externalPath?: string;
+  }): Promise<string> {
+    // Normalize storageBackend to single value
+    const backend = Array.isArray(upload.storageBackend)
+      ? upload.storageBackend[0]
+      : upload.storageBackend;
+
+    // If no storage backend specified, assume legacy PocketBase file
+    if (!backend || !upload.externalPath) {
+      console.log(`[TranscodeWorker] Using legacy PocketBase file reference`);
+      return upload.id; // Return upload ID as file reference
+    }
+
+    const storageBackend = await this.getStorageBackend();
+
+    // For local storage, return the path directly
+    if (backend === StorageBackendType.LOCAL) {
+      console.log(
+        `[TranscodeWorker] Using local storage key: ${upload.externalPath}`
+      );
+
+      if (!(storageBackend instanceof LocalStorageBackend)) {
+        throw new Error(
+          `Storage backend mismatch: expected LocalStorageBackend, got ${storageBackend.type}`
+        );
+      }
+
+      // Convert storage key to absolute filesystem path
+      const absolutePath = storageBackend.resolvePath(upload.externalPath);
+      const exists = await storageBackend.exists(upload.externalPath);
+      if (!exists) {
+        throw new Error(
+          `Local file missing for upload ${upload.id}: ${upload.externalPath} (resolved to ${absolutePath})`
+        );
+      }
+
+      console.log(
+        `[TranscodeWorker] Resolved local file path: ${absolutePath}`
+      );
+      return absolutePath;
+    }
+
+    // For S3 storage, download to temp location
+    if (backend === StorageBackendType.S3) {
+      console.log(
+        `[TranscodeWorker] Downloading from S3: ${upload.externalPath}`
+      );
+
+      // Extract filename from path
+      const filename = upload.externalPath.split('/').pop() || 'original';
+      const tempPath = getTempFilePath(upload.id, filename);
+
+      // Download file from S3 to temp location
+      const stream = await storageBackend.download(upload.externalPath);
+      const writeStream = createWriteStream(tempPath);
+
+      // storageBackend.download() returns a Web ReadableStream; convert to Node stream for pipeline()
+      const nodeReadable = Readable.fromWeb(
+        stream as unknown as ReadableStream<Uint8Array>
+      );
+      await pipeline(nodeReadable, writeStream);
+
+      console.log(`[TranscodeWorker] Downloaded to temp location: ${tempPath}`);
+      return tempPath;
+    }
+
+    throw new Error(`Unknown storage backend: ${backend}`);
+  }
+
   async processTask(task: Task): Promise<void> {
     // Parse payload
     const payload = task.payload as unknown as ProcessUploadPayload;
-    const {
-      uploadId,
-      originalFileRef,
-      provider,
-      sprite,
-      thumbnail,
-      transcode,
-    } = payload;
+    const { uploadId, provider, sprite, thumbnail, transcode } = payload;
 
     console.log(
       `[TranscodeWorker] Processing upload task ${task.id} for upload ${uploadId}`
@@ -77,320 +174,407 @@ export class TranscodeWorker extends BaseWorker {
     // Update upload status to processing
     await this.uploadMutator.updateStatus(uploadId, UploadStatus.PROCESSING);
 
-    // Get the upload record to access workspace
+    // Get the upload record to access workspace and storage metadata
     const upload = await this.uploadMutator.getById(uploadId);
     if (!upload) {
       throw new Error(`Upload ${uploadId} not found`);
     }
 
-    // IDEMPOTENCY CHECK 1: Check if Media already exists for this Upload
-    console.log(
-      `[TranscodeWorker] Checking for existing Media record (idempotency check)`
-    );
-    const existingMedia = await this.mediaMutator.getByUpload(uploadId);
+    let resolvedFilePath: string | null = null;
 
-    if (
-      existingMedia &&
-      existingMedia.thumbnailFileRef &&
-      existingMedia.spriteFileRef &&
-      (!transcode?.enabled || existingMedia.proxyFileRef)
-    ) {
+    try {
+      // Resolve file path from storage metadata
       console.log(
-        `[TranscodeWorker] Media record already exists with all assets: ${existingMedia.id}`
+        `[TranscodeWorker] Resolving file path from storage metadata`
       );
+      resolvedFilePath = await this.resolveFilePath(upload);
+      console.log(`[TranscodeWorker] Resolved file path: ${resolvedFilePath}`);
+
+      // Use resolved path for processing (rest of the method stays the same)
+      const fileRefToProcess = resolvedFilePath;
+
+      // IDEMPOTENCY CHECK 1: Check if Media already exists for this Upload
       console.log(
-        `[TranscodeWorker] Skipping processing - upload already complete`
+        `[TranscodeWorker] Checking for existing Media record (idempotency check)`
+      );
+      const existingMedia = await this.mediaMutator.getByUpload(uploadId);
+
+      if (
+        existingMedia &&
+        existingMedia.thumbnailFileRef &&
+        existingMedia.spriteFileRef &&
+        (!transcode?.enabled || existingMedia.proxyFileRef)
+      ) {
+        console.log(
+          `[TranscodeWorker] Media record already exists with all assets: ${existingMedia.id}`
+        );
+        console.log(
+          `[TranscodeWorker] Skipping processing - upload already complete`
+        );
+
+        // Just update the upload status to ready and mark task as success
+        await this.uploadMutator.updateStatus(uploadId, UploadStatus.READY);
+
+        const result: ProcessUploadResult = {
+          mediaId: existingMedia.id,
+          thumbnailFileId: existingMedia.thumbnailFileRef,
+          spriteFileId: existingMedia.spriteFileRef,
+          proxyFileId: existingMedia.proxyFileRef,
+          processorVersion: `cached:${existingMedia.version || 1}`,
+          probeOutput:
+            existingMedia.mediaData as unknown as ProcessUploadResult['probeOutput'],
+        };
+
+        await this.markSuccess(
+          task.id,
+          result as unknown as Record<string, unknown>
+        );
+        return;
+      }
+
+      // Get the processor based on provider
+      const processorProvider = provider || ProcessingProvider.FFMPEG;
+      const processor = getProcessor(processorProvider, this.pb);
+
+      console.log(
+        `[TranscodeWorker] Using processor: ${processor.provider} v${processor.version}`
       );
 
-      // Just update the upload status to ready and mark task as success
+      // Step 1: Probe the media file
+      console.log(`[TranscodeWorker] Probing media file: ${fileRefToProcess}`);
+      await this.updateProgress(task.id, 20);
+      const probeOutput = await processor.probe(fileRefToProcess);
+
+      // Prepare configs for deterministic naming
+      const thumbnailConfig = thumbnail || {
+        timestamp: 'midpoint',
+        width: 640,
+        height: 360,
+      };
+
+      // Calculate dynamic sprite config based on duration
+      // Target 100 frames (10x10) max
+      const MAX_SPRITE_FRAMES = 100;
+      const spriteCols = 10;
+      const spriteRows = 10;
+      const duration = probeOutput.duration || 1;
+
+      // Calculate FPS needed to get approx MAX_SPRITE_FRAMES valid frames
+      let spriteFps = 1;
+      if (duration > MAX_SPRITE_FRAMES) {
+        spriteFps = MAX_SPRITE_FRAMES / duration;
+      } else {
+        spriteFps = 1;
+      }
+
+      const spriteConfig = sprite || {
+        fps: spriteFps,
+        cols: spriteCols,
+        rows: spriteRows,
+        tileWidth: 160,
+        tileHeight: 90,
+      };
+
+      // Generate deterministic file names
+      const thumbnailFileName = this.generateDeterministicFileName(
+        uploadId,
+        'thumbnail',
+        thumbnailConfig as unknown as Record<string, unknown>
+      );
+      const spriteFileName = this.generateDeterministicFileName(
+        uploadId,
+        'sprite',
+        spriteConfig as unknown as Record<string, unknown>
+      );
+      const proxyFileName = transcode?.enabled
+        ? this.generateDeterministicFileName(
+            uploadId,
+            'proxy',
+            transcode as unknown as Record<string, unknown>
+          )
+        : undefined;
+
+      // IDEMPOTENCY CHECK 2: Check for existing derived assets with matching config
+      console.log(`[TranscodeWorker] Checking for existing derived assets`);
+      const existingFiles = await this.fileMutator.getByUpload(uploadId);
+
+      let thumbnailFile = existingFiles.items.find(
+        (f) => f.fileType === FileType.THUMBNAIL && f.name === thumbnailFileName
+      );
+      let spriteFile = existingFiles.items.find(
+        (f) => f.fileType === FileType.SPRITE && f.name === spriteFileName
+      );
+      let proxyFile = proxyFileName
+        ? existingFiles.items.find(
+            (f) => f.fileType === FileType.PROXY && f.name === proxyFileName
+          )
+        : undefined;
+
+      // Step 2: Generate proxy (transcode) if enabled
+      if (transcode?.enabled && proxyFileName) {
+        if (proxyFile && proxyFile.fileStatus === FileStatus.AVAILABLE) {
+          console.log(
+            `[TranscodeWorker] Proxy already exists: ${proxyFile.id}, skipping transcoding`
+          );
+        } else {
+          console.log(`[TranscodeWorker] Transcoding media`);
+          await this.updateProgress(task.id, 30);
+
+          if (!processor.transcode) {
+            throw new Error(
+              `Processor ${processor.provider} does not support transcoding`
+            );
+          }
+
+          const transcodedPath = await processor.transcode(
+            fileRefToProcess,
+            transcode,
+            proxyFileName,
+            uploadId
+          );
+
+          // Check proxy file size (PocketBase limit is 8GB)
+          const MAX_PROXY_SIZE = 8 * 1024 * 1024 * 1024; // 8GB in bytes
+          const proxySize = this.getFileSize(transcodedPath);
+
+          if (proxySize > MAX_PROXY_SIZE) {
+            console.warn(
+              `[TranscodeWorker] Proxy file exceeds 8GB limit: ${proxySize} bytes`
+            );
+            console.warn(
+              `[TranscodeWorker] This proxy file cannot be stored in PocketBase`
+            );
+            console.warn(
+              `[TranscodeWorker] Consider adjusting transcode quality/resolution settings`
+            );
+
+            // Log warning about original file size if available
+            if (upload.size && upload.size > MAX_PROXY_SIZE) {
+              console.warn(
+                `[TranscodeWorker] Original file is very large: ${upload.size} bytes`
+              );
+              console.warn(
+                `[TranscodeWorker] Recommend using lower resolution or higher compression`
+              );
+            }
+
+            throw new Error(
+              `Proxy file size (${proxySize} bytes) exceeds PocketBase 8GB limit. ` +
+                `Adjust transcode settings to reduce file size.`
+            );
+          }
+
+          console.log(
+            `[TranscodeWorker] Proxy file size: ${proxySize} bytes (${(proxySize / (1024 * 1024 * 1024)).toFixed(2)} GB)`
+          );
+
+          // Probe the proxy file to get metadata
+          console.log(`[TranscodeWorker] Probing proxy file...`);
+          let proxyProbeOutput: ProbeOutput | undefined;
+          try {
+            proxyProbeOutput = await processor.probe(transcodedPath);
+          } catch (e) {
+            console.warn(
+              'Failed to probe proxy file, continuing without probe metadata',
+              e
+            );
+            proxyProbeOutput = undefined;
+          }
+
+          // Prepare metadata to store in File.meta
+          const proxyFileMeta = proxyProbeOutput
+            ? {
+                probe: proxyProbeOutput,
+                processor: {
+                  provider: processor.provider,
+                  version: processor.version,
+                },
+                transcodeConfig: transcode,
+              }
+            : {
+                processor: {
+                  provider: processor.provider,
+                  version: processor.version,
+                },
+                transcodeConfig: transcode,
+              };
+
+          // Create proxy file record
+          proxyFile = await this.fileMutator.create({
+            name: proxyFileName,
+            size: proxySize,
+            fileStatus: FileStatus.AVAILABLE,
+            fileType: FileType.PROXY,
+            fileSource: transcodedPath.startsWith('gs://')
+              ? FileSource.GCS
+              : FileSource.POCKETBASE,
+            file: new File([readFileSync(transcodedPath)], proxyFileName, {
+              type: 'video/mp4',
+            }),
+            s3Key: transcodedPath,
+            WorkspaceRef: upload.WorkspaceRef,
+            UploadRef: uploadId,
+            meta: proxyFileMeta as unknown as Record<string, unknown>,
+          });
+        }
+      }
+
+      // Step 3: Generate thumbnail (if not exists)
+      if (thumbnailFile && thumbnailFile.fileStatus === FileStatus.AVAILABLE) {
+        console.log(
+          `[TranscodeWorker] Thumbnail already exists: ${thumbnailFile.id}, skipping generation`
+        );
+      } else {
+        console.log(`[TranscodeWorker] Generating thumbnail`);
+        await this.updateProgress(task.id, 40);
+        const thumbnailPath = await processor.generateThumbnail(
+          fileRefToProcess,
+          thumbnailConfig,
+          uploadId
+        );
+
+        // Create thumbnail file record
+        thumbnailFile = await this.fileMutator.create({
+          name: thumbnailFileName,
+          size: this.getFileSize(thumbnailPath),
+          fileStatus: FileStatus.AVAILABLE,
+          fileType: FileType.THUMBNAIL,
+          fileSource: thumbnailPath.startsWith('gs://')
+            ? FileSource.GCS
+            : FileSource.POCKETBASE,
+          file: new File([readFileSync(thumbnailPath)], thumbnailFileName, {
+            type: 'image/jpeg',
+          }),
+          s3Key: thumbnailPath,
+          WorkspaceRef: upload.WorkspaceRef,
+          UploadRef: uploadId,
+        });
+      }
+
+      // Step 4: Generate sprite sheet (if not exists)
+      if (spriteFile && spriteFile.fileStatus === FileStatus.AVAILABLE) {
+        console.log(
+          `[TranscodeWorker] Sprite already exists: ${spriteFile.id}, skipping generation`
+        );
+      } else {
+        console.log(`[TranscodeWorker] Generating sprite sheet`);
+        await this.updateProgress(task.id, 60);
+        const spritePath = await processor.generateSprite(
+          fileRefToProcess,
+          spriteConfig,
+          uploadId
+        );
+
+        // Create sprite file record
+        spriteFile = await this.fileMutator.create({
+          name: spriteFileName,
+          size: this.getFileSize(spritePath),
+          fileStatus: FileStatus.AVAILABLE,
+          fileType: FileType.SPRITE,
+          fileSource: spritePath.startsWith('gs://')
+            ? FileSource.GCS
+            : FileSource.POCKETBASE,
+          file: new File([readFileSync(spritePath)], spriteFileName, {
+            type: 'image/jpeg',
+          }),
+          s3Key: spritePath,
+          WorkspaceRef: upload.WorkspaceRef,
+          UploadRef: uploadId,
+          meta: { spriteConfig } as unknown as Record<string, unknown>,
+        });
+      }
+
+      await this.updateProgress(task.id, 70);
+
+      // Step 5: Create or update Media record (idempotent)
+      console.log(`[TranscodeWorker] Creating/updating Media record`);
+      await this.updateProgress(task.id, 80);
+
+      let media = existingMedia;
+
+      if (media) {
+        console.log(
+          `[TranscodeWorker] Media record already exists: ${media.id}, updating...`
+        );
+        // Update existing media record
+        media = await this.mediaMutator.update(media.id, {
+          duration: probeOutput.duration,
+          mediaData: probeOutput as unknown as Record<string, unknown>,
+          thumbnailFileRef: thumbnailFile.id,
+          spriteFileRef: spriteFile.id,
+          proxyFileRef: proxyFile?.id,
+          version: (media.version || 0) + 1,
+        } as Partial<typeof media>);
+      } else {
+        // Create new Media record
+        console.log(`[TranscodeWorker] Creating new Media record`);
+        media = await this.mediaMutator.create({
+          WorkspaceRef: upload.WorkspaceRef,
+          UploadRef: uploadId,
+          mediaType: MediaType.VIDEO,
+          duration: probeOutput.duration,
+          mediaData: probeOutput as unknown as Record<string, unknown>,
+          thumbnailFileRef: thumbnailFile.id,
+          spriteFileRef: spriteFile.id,
+          proxyFileRef: proxyFile?.id,
+          version: 1,
+        });
+      }
+
+      // Step 6: Create initial full-range MediaClip (if not exists - idempotent)
+      console.log(`[TranscodeWorker] Checking for full-range MediaClip`);
+      await this.updateProgress(task.id, 90);
+
+      const existingClips = await this.mediaClipMutator.getByMedia(media.id);
+      const hasFullClip = existingClips.items.some(
+        (clip) => clip.type === ClipType.FULL
+      );
+
+      if (!hasFullClip) {
+        console.log(`[TranscodeWorker] Creating full-range MediaClip`);
+        await this.mediaClipMutator.create({
+          WorkspaceRef: upload.WorkspaceRef,
+          MediaRef: media.id,
+          type: ClipType.FULL,
+          start: 0,
+          end: probeOutput.duration,
+          duration: probeOutput.duration,
+        });
+      } else {
+        console.log(
+          `[TranscodeWorker] Full-range MediaClip already exists, skipping`
+        );
+      }
+
+      // Step 7: Update Upload status to ready
+      console.log(`[TranscodeWorker] Updating Upload status to ready`);
       await this.uploadMutator.updateStatus(uploadId, UploadStatus.READY);
 
+      // Step 8: Mark task as successful
       const result: ProcessUploadResult = {
-        mediaId: existingMedia.id,
-        thumbnailFileId: existingMedia.thumbnailFileRef,
-        spriteFileId: existingMedia.spriteFileRef,
-        proxyFileId: existingMedia.proxyFileRef,
-        processorVersion: `cached:${existingMedia.version || 1}`,
-        probeOutput:
-          existingMedia.mediaData as unknown as ProcessUploadResult['probeOutput'],
+        mediaId: media.id,
+        thumbnailFileId: thumbnailFile.id,
+        spriteFileId: spriteFile.id,
+        proxyFileId: proxyFile?.id,
+        processorVersion: `${processor.provider}:${processor.version}`,
+        probeOutput,
       };
 
       await this.markSuccess(
         task.id,
         result as unknown as Record<string, unknown>
       );
-      return;
-    }
-
-    // Get the processor based on provider
-    const processorProvider = provider || ProcessingProvider.FFMPEG;
-    const processor = getProcessor(processorProvider, this.pb);
-
-    console.log(
-      `[TranscodeWorker] Using processor: ${processor.provider} v${processor.version}`
-    );
-
-    // Step 1: Probe the media file
-    console.log(`[TranscodeWorker] Probing media file: ${originalFileRef}`);
-    await this.updateProgress(task.id, 20);
-    const probeOutput = await processor.probe(originalFileRef);
-
-    // Prepare configs for deterministic naming
-    const thumbnailConfig = thumbnail || {
-      timestamp: 'midpoint',
-      width: 640,
-      height: 360,
-    };
-
-    // Calculate dynamic sprite config based on duration
-    // Target 100 frames (10x10) max
-    const MAX_SPRITE_FRAMES = 100;
-    const spriteCols = 10;
-    const spriteRows = 10;
-    const duration = probeOutput.duration || 1;
-
-    // Calculate FPS needed to get approx MAX_SPRITE_FRAMES valid frames
-    let spriteFps = 1;
-    if (duration > MAX_SPRITE_FRAMES) {
-      spriteFps = MAX_SPRITE_FRAMES / duration;
-    } else {
-      spriteFps = 1;
-    }
-
-    const spriteConfig = sprite || {
-      fps: spriteFps,
-      cols: spriteCols,
-      rows: spriteRows,
-      tileWidth: 160,
-      tileHeight: 90,
-    };
-
-    // Generate deterministic file names
-    const thumbnailFileName = this.generateDeterministicFileName(
-      uploadId,
-      'thumbnail',
-      thumbnailConfig as unknown as Record<string, unknown>
-    );
-    const spriteFileName = this.generateDeterministicFileName(
-      uploadId,
-      'sprite',
-      spriteConfig as unknown as Record<string, unknown>
-    );
-    const proxyFileName = transcode?.enabled
-      ? this.generateDeterministicFileName(
-          uploadId,
-          'proxy',
-          transcode as unknown as Record<string, unknown>
-        )
-      : undefined;
-
-    // IDEMPOTENCY CHECK 2: Check for existing derived assets with matching config
-    console.log(`[TranscodeWorker] Checking for existing derived assets`);
-    const existingFiles = await this.fileMutator.getByUpload(uploadId);
-
-    let thumbnailFile = existingFiles.items.find(
-      (f) => f.fileType === FileType.THUMBNAIL && f.name === thumbnailFileName
-    );
-    let spriteFile = existingFiles.items.find(
-      (f) => f.fileType === FileType.SPRITE && f.name === spriteFileName
-    );
-    let proxyFile = proxyFileName
-      ? existingFiles.items.find(
-          (f) => f.fileType === FileType.PROXY && f.name === proxyFileName
-        )
-      : undefined;
-
-    // Step 2: Generate proxy (transcode) if enabled
-    if (transcode?.enabled && proxyFileName) {
-      if (proxyFile && proxyFile.fileStatus === FileStatus.AVAILABLE) {
-        console.log(
-          `[TranscodeWorker] Proxy already exists: ${proxyFile.id}, skipping transcoding`
-        );
-      } else {
-        console.log(`[TranscodeWorker] Transcoding media`);
-        await this.updateProgress(task.id, 30);
-
-        if (!processor.transcode) {
-          throw new Error(
-            `Processor ${processor.provider} does not support transcoding`
-          );
-        }
-
-        const transcodedPath = await processor.transcode(
-          originalFileRef,
-          transcode,
-          proxyFileName,
-          uploadId
-        );
-
-        // Create proxy file record
-        proxyFile = await this.fileMutator.create({
-          name: proxyFileName,
-          size: this.getFileSize(transcodedPath),
-          fileStatus: FileStatus.AVAILABLE,
-          fileType: FileType.PROXY,
-          fileSource: transcodedPath.startsWith('gs://')
-            ? FileSource.GCS
-            : FileSource.POCKETBASE,
-          file: new File([readFileSync(transcodedPath)], proxyFileName, {
-            type: 'video/mp4',
-          }),
-          s3Key: transcodedPath,
-          WorkspaceRef: upload.WorkspaceRef,
-          UploadRef: uploadId,
-        });
-      }
-    }
-
-    // Step 3: Generate thumbnail (if not exists)
-    if (thumbnailFile && thumbnailFile.fileStatus === FileStatus.AVAILABLE) {
+    } finally {
+      // Clean up temporary files
       console.log(
-        `[TranscodeWorker] Thumbnail already exists: ${thumbnailFile.id}, skipping generation`
+        `[TranscodeWorker] Cleaning up temporary files for upload ${uploadId}`
       );
-    } else {
-      console.log(`[TranscodeWorker] Generating thumbnail`);
-      await this.updateProgress(task.id, 40);
-      const thumbnailPath = await processor.generateThumbnail(
-        originalFileRef,
-        thumbnailConfig,
-        uploadId
-      );
-
-      // Create thumbnail file record
-      thumbnailFile = await this.fileMutator.create({
-        name: thumbnailFileName,
-        size: this.getFileSize(thumbnailPath),
-        fileStatus: FileStatus.AVAILABLE,
-        fileType: FileType.THUMBNAIL,
-        fileSource: thumbnailPath.startsWith('gs://')
-          ? FileSource.GCS
-          : FileSource.POCKETBASE,
-        file: new File([readFileSync(thumbnailPath)], thumbnailFileName, {
-          type: 'image/jpeg',
-        }),
-        s3Key: thumbnailPath,
-        WorkspaceRef: upload.WorkspaceRef,
-        UploadRef: uploadId,
-      });
+      cleanupTempDir(uploadId);
     }
-
-    // Step 4: Generate sprite sheet (if not exists)
-    if (spriteFile && spriteFile.fileStatus === FileStatus.AVAILABLE) {
-      console.log(
-        `[TranscodeWorker] Sprite already exists: ${spriteFile.id}, skipping generation`
-      );
-    } else {
-      console.log(`[TranscodeWorker] Generating sprite sheet`);
-      await this.updateProgress(task.id, 60);
-      const spritePath = await processor.generateSprite(
-        originalFileRef,
-        spriteConfig,
-        uploadId
-      );
-
-      // Create sprite file record
-      spriteFile = await this.fileMutator.create({
-        name: spriteFileName,
-        size: this.getFileSize(spritePath),
-        fileStatus: FileStatus.AVAILABLE,
-        fileType: FileType.SPRITE,
-        fileSource: spritePath.startsWith('gs://')
-          ? FileSource.GCS
-          : FileSource.POCKETBASE,
-        file: new File([readFileSync(spritePath)], spriteFileName, {
-          type: 'image/jpeg',
-        }),
-        s3Key: spritePath,
-        WorkspaceRef: upload.WorkspaceRef,
-        UploadRef: uploadId,
-        meta: { spriteConfig } as unknown as Record<string, unknown>,
-      });
-    }
-
-    await this.updateProgress(task.id, 70);
-
-    // Step 5: Create or update Media record (idempotent)
-    console.log(`[TranscodeWorker] Creating/updating Media record`);
-    await this.updateProgress(task.id, 80);
-
-    let media = existingMedia;
-
-    if (media) {
-      console.log(
-        `[TranscodeWorker] Media record already exists: ${media.id}, updating...`
-      );
-      // Update existing media record
-      media = await this.mediaMutator.update(media.id, {
-        duration: probeOutput.duration,
-        mediaData: probeOutput as unknown as Record<string, unknown>,
-        thumbnailFileRef: thumbnailFile.id,
-        spriteFileRef: spriteFile.id,
-        proxyFileRef: proxyFile?.id,
-        version: (media.version || 0) + 1,
-      } as Partial<typeof media>);
-    } else {
-      // Create new Media record
-      console.log(`[TranscodeWorker] Creating new Media record`);
-      media = await this.mediaMutator.create({
-        WorkspaceRef: upload.WorkspaceRef,
-        UploadRef: uploadId,
-        mediaType: MediaType.VIDEO,
-        duration: probeOutput.duration,
-        mediaData: probeOutput as unknown as Record<string, unknown>,
-        thumbnailFileRef: thumbnailFile.id,
-        spriteFileRef: spriteFile.id,
-        proxyFileRef: proxyFile?.id,
-        version: 1,
-      });
-    }
-
-    // Step 6: Create initial full-range MediaClip (if not exists - idempotent)
-    console.log(`[TranscodeWorker] Checking for full-range MediaClip`);
-    await this.updateProgress(task.id, 90);
-
-    const existingClips = await this.mediaClipMutator.getByMedia(media.id);
-    const hasFullClip = existingClips.items.some(
-      (clip) => clip.type === ClipType.FULL
-    );
-
-    if (!hasFullClip) {
-      console.log(`[TranscodeWorker] Creating full-range MediaClip`);
-      await this.mediaClipMutator.create({
-        WorkspaceRef: upload.WorkspaceRef,
-        MediaRef: media.id,
-        type: ClipType.FULL,
-        start: 0,
-        end: probeOutput.duration,
-        duration: probeOutput.duration,
-      });
-    } else {
-      console.log(
-        `[TranscodeWorker] Full-range MediaClip already exists, skipping`
-      );
-    }
-
-    // Step 7: Update Upload status to ready
-    console.log(`[TranscodeWorker] Updating Upload status to ready`);
-    await this.uploadMutator.updateStatus(uploadId, UploadStatus.READY);
-
-    // Step 8: Mark task as successful
-    const result: ProcessUploadResult = {
-      mediaId: media.id,
-      thumbnailFileId: thumbnailFile.id,
-      spriteFileId: spriteFile.id,
-      proxyFileId: proxyFile?.id,
-      processorVersion: `${processor.provider}:${processor.version}`,
-      probeOutput,
-    };
-
-    await this.markSuccess(
-      task.id,
-      result as unknown as Record<string, unknown>
-    );
   }
 
   /**
-   * Override error handling to also update upload status
+   * Override error handling to also update upload status and cleanup temp files
    */
   protected async handleError(task: Task, error: unknown): Promise<void> {
     const uploadError = UploadError.fromError(error);
@@ -400,6 +584,12 @@ export class TranscodeWorker extends BaseWorker {
       `[TranscodeWorker] Task ${task.id} failed:`,
       uploadError.message
     );
+
+    // Clean up temporary files
+    console.log(
+      `[TranscodeWorker] Cleaning up temporary files for upload ${payload.uploadId}`
+    );
+    cleanupTempDir(payload.uploadId);
 
     // Update upload status to failed
     await this.uploadMutator.updateStatus(

@@ -7,6 +7,7 @@ import type {
 } from '@project/shared';
 import {
   FileMutator,
+  TimelineRenderMutator,
   TaskStatus,
   FileType,
   FileStatus,
@@ -25,10 +26,12 @@ import { readFileSync } from 'node:fs';
  */
 export class RenderTimelineWorker extends BaseWorker {
   private fileMutator: FileMutator;
+  private timelineRenderMutator: TimelineRenderMutator;
 
   constructor(pb: TypedPocketBase) {
     super(pb);
     this.fileMutator = new FileMutator(pb);
+    this.timelineRenderMutator = new TimelineRenderMutator(pb);
   }
 
   async processTask(task: Task): Promise<void> {
@@ -48,8 +51,8 @@ export class RenderTimelineWorker extends BaseWorker {
       progress: 10,
     } as Partial<Task>);
 
-    // Verify timeline exists
-    await timelineMutator.getOne(timelineId);
+    // Get timeline to access version
+    const timeline = await timelineMutator.getOne(timelineId);
 
     // Get the processor
     const processorProvider = provider || ProcessingProvider.FFMPEG;
@@ -159,12 +162,23 @@ export class RenderTimelineWorker extends BaseWorker {
       `[RenderTimelineWorker] Created File record ${fileRecord.id} for rendered timeline`
     );
 
-    // Step 4: Update Timeline record with the render result
+    // Step 4: Create TimelineRender record linking timeline, file, and version
+    const timelineRender = await this.timelineRenderMutator.create({
+      TimelineRef: timelineId,
+      FileRef: fileRecord.id,
+      timelineVersion: timeline.version,
+    });
+
+    console.log(
+      `[RenderTimelineWorker] Created TimelineRender record ${timelineRender.id} for timeline version ${timeline.version}`
+    );
+
+    // Step 5: Update Timeline record with the render result
     await this.pb.collection('Timelines').update(timelineId, {
       renderTaskRef: task.id,
     });
 
-    // Step 5: Success
+    // Step 6: Success
     const result: RenderTimelineResult = {
       fileId: fileRecord.id,
       processorVersion: `${processor.provider}:${processor.version}`,

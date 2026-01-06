@@ -17,12 +17,12 @@
  */
 
 import PocketBase from 'pocketbase';
+import { env } from '@project/shared/env';
 import {
   TaskType,
   TaskMutator,
   type Task,
   type TypedPocketBase,
-  env,
 } from '@project/shared';
 import { TranscodeWorker } from './processors/transcode-worker.js';
 import { IntelligenceWorker } from './processors/intelligence-worker.js';

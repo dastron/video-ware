@@ -9,6 +9,8 @@ export default defineConfig({
     mutator: 'src/mutator.ts',
     env: 'src/env.ts',
     'utils/time': 'src/utils/time.ts',
+    'storage/index': 'src/storage/index.ts',
+    'config/index': 'src/config/index.ts',
   },
   format: ['esm'],
   dts: true,

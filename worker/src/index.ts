@@ -1,5 +1,6 @@
 import express from 'express';
 import { runWorker } from './task-worker.js';
+import { startS3Watcher } from './s3-watcher-startup.js';
 
 const app = express();
 const port = 3001;
@@ -25,5 +26,11 @@ app.listen(port, () => {
   runWorker().catch((error) => {
     console.error('[Worker Service] Fatal error in worker loop:', error);
     process.exit(1);
+  });
+
+  // Start S3 watcher if enabled
+  startS3Watcher().catch((error) => {
+    console.error('[Worker Service] Error starting S3 watcher:', error);
+    // Don't exit - watcher is optional
   });
 });

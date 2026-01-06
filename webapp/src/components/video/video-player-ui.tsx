@@ -1,6 +1,12 @@
 'use client';
 
-import React, { useRef, useEffect, useState, forwardRef, useCallback } from 'react';
+import React, {
+  useRef,
+  useEffect,
+  useState,
+  forwardRef,
+  useCallback,
+} from 'react';
 import { cn } from '@/lib/utils';
 import { Play, Pause, Volume2, VolumeX, Maximize } from 'lucide-react';
 import { Button } from '@/components/ui/button';

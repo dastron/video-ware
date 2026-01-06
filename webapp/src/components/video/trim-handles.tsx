@@ -47,9 +47,10 @@ export function TrimHandles({
     null
   );
   const scrubRafRef = useRef<number | null>(null);
-  const pendingScrubRef = useRef<{ time: number; handle: 'start' | 'end' } | null>(
-    null
-  );
+  const pendingScrubRef = useRef<{
+    time: number;
+    handle: 'start' | 'end';
+  } | null>(null);
   const lastScrubRef = useRef<{ time: number; handle: 'start' | 'end' } | null>(
     null
   );
@@ -244,7 +245,15 @@ export function TrimHandles({
       onChange(newStart, newEnd);
       scheduleScrub(handle === 'start' ? newStart : newEnd, handle);
     },
-    [disabled, startTime, endTime, duration, minDuration, onChange, scheduleScrub]
+    [
+      disabled,
+      startTime,
+      endTime,
+      duration,
+      minDuration,
+      onChange,
+      scheduleScrub,
+    ]
   );
 
   const startPercent = timeToPercent(startTime);

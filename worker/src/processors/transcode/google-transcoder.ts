@@ -60,16 +60,12 @@ export class GoogleTranscoderProcessor implements MediaProcessor {
         // Try to get upload record
         try {
           const upload = await this.pb.collection('Uploads').getOne(fileRef);
-          // TODO: we need a way to know the GCS URI from the upload record
-          // For now, assuming the originalFile might be stored with a full path or we construct it.
-          // This is a placeholder logic.
-          const filename = Array.isArray(upload.originalFile)
-            ? upload.originalFile[0]
-            : upload.originalFile;
-          // Convention: gs://<bucket>/<collection>/<id>/<filename>
-          const bucket = process.env.GOOGLE_CLOUD_STORAGE_BUCKET;
-          if (bucket) {
-            return `gs://${bucket}/${upload.collectionId}/${upload.id}/${filename}`;
+          // With external storage, the Upload record stores `storageBackend` + `externalPath`.
+          // Google Transcoder requires a `gs://` URI; if your `externalPath` isn't a `gs://` URI,
+          // this processor cannot operate on it.
+          const externalPath: string | undefined = upload.externalPath;
+          if (externalPath?.startsWith('gs://')) {
+            return externalPath;
           }
         } catch {
           // ignore
@@ -80,7 +76,8 @@ export class GoogleTranscoderProcessor implements MediaProcessor {
     }
 
     throw new Error(
-      `Cannot resolve ${fileRef} to GCS URI. Ensure file is in GCS and GOOGLE_CLOUD_STORAGE_BUCKET is set.`
+      `Cannot resolve ${fileRef} to a GCS URI. ` +
+        `This processor requires a direct "gs://" source (e.g. Upload.externalPath="gs://...").`
     );
   }
 

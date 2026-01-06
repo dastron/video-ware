@@ -14,6 +14,7 @@ import { UploadMutator } from '@project/shared/mutator';
 import pb from '@/lib/pocketbase-client';
 import type { RecordSubscription } from 'pocketbase';
 import { useAuth } from '@/hooks/use-auth';
+import type { UploadProgress as ClientUploadProgress } from '@/types/upload-manager';
 
 interface UploadProgress {
   uploadId: string;
@@ -134,7 +135,9 @@ export function UploadProvider({ workspaceId, children }: UploadProviderProps) {
 
       try {
         // Progress callback
-        const onProgress = (bytesUploaded: number) => {
+        const onProgress = (progress: number | ClientUploadProgress) => {
+          const bytesUploaded =
+            typeof progress === 'number' ? progress : progress.loaded;
           setUploadProgress((prev) => {
             const newMap = new Map(prev);
             newMap.set(tempId, {

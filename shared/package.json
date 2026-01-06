@@ -32,6 +32,18 @@
     "./utils/time": {
       "import": "./dist/utils/time.js",
       "types": "./dist/utils/time.d.ts"
+    },
+    "./env": {
+      "import": "./dist/env.js",
+      "types": "./dist/env.d.ts"
+    },
+    "./storage": {
+      "import": "./dist/storage/index.js",
+      "types": "./dist/storage/index.d.ts"
+    },
+    "./config": {
+      "import": "./dist/config/index.js",
+      "types": "./dist/config/index.d.ts"
     }
   },
   "files": [
@@ -53,8 +65,11 @@
     "typegen": "pocketbase-typegen --url http://localhost:8090 --out src/types/pocketbase.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.964.0",
+    "@aws-sdk/lib-storage": "^3.964.0",
+    "@aws-sdk/s3-request-presigner": "^3.964.0",
     "pocketbase": "^0.26.5",
-    "pocketbase-zod-schema": "^0.3.2",
+    "pocketbase-zod-schema": "^0.3.3",
     "zod": "^3.25.76"
   },
   "devDependencies": {

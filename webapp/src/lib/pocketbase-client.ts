@@ -8,7 +8,7 @@
  */
 import PocketBase from 'pocketbase';
 import type { TypedPocketBase } from '@project/shared/types';
-import { env } from '@project/shared';
+import { env } from '@project/shared/env';
 
 function resolveUrl(): string {
   // Next.js embeds NEXT_PUBLIC_* vars at build time

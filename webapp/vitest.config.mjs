@@ -30,6 +30,10 @@ export default defineConfig({
         replacement: path.resolve(__dirname, '../shared/src/types.ts'),
       },
       {
+        find: '@project/shared/env',
+        replacement: path.resolve(__dirname, '../shared/src/env.ts'),
+      },
+      {
         find: '@project/shared',
         replacement: path.resolve(__dirname, '../shared'),
       },

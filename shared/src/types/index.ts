@@ -13,6 +13,8 @@ import type { WorkspaceMember } from '../schema/workspace-member';
 import type { Todo } from '../schema/todo';
 import type { Timeline } from '../schema/timeline';
 import type { TimelineClip } from '../schema/timeline-clip';
+import type { TimelineRender } from '../schema/timeline-render';
+import type { WatchedFile } from '../schema/watched-file';
 
 export * from './video-ware.js';
 export * from './task-contracts.js';
@@ -31,6 +33,8 @@ export interface TypedPocketBase extends PocketBase {
   collection(idOrName: 'Todos'): RecordService<Todo>;
   collection(idOrName: 'Timelines'): RecordService<Timeline>;
   collection(idOrName: 'TimelineClips'): RecordService<TimelineClip>;
+  collection(idOrName: 'TimelineRenders'): RecordService<TimelineRender>;
+  collection(idOrName: 'WatchedFiles'): RecordService<WatchedFile>;
 }
 
 // PocketBase response types

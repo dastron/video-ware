@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { useWorkspace } from '@/hooks/use-workspace';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertCircle, Film } from 'lucide-react';
+import { AlertCircle, Film, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { TimelineList } from '@/components/timeline/timeline-list';
 import { TimelineService } from '@/services/timeline';
@@ -138,6 +138,10 @@ function TimelinesPageContent() {
               Create and manage video timelines in {currentWorkspace.name}
             </p>
           </div>
+          <Button onClick={handleCreateTimeline} size="default">
+            <Plus className="h-4 w-4 mr-2" />
+            New Timeline
+          </Button>
         </div>
       </div>
 

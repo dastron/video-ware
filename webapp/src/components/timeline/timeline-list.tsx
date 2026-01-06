@@ -103,23 +103,6 @@ export function TimelineList({
 
   return (
     <div className={cn('space-y-4', className)}>
-      {/* Header with Create Button */}
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <Film className="h-6 w-6" />
-            Timelines
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Create and manage your video timelines
-          </p>
-        </div>
-        <Button onClick={onCreateTimeline} size="default">
-          <Plus className="h-4 w-4 mr-2" />
-          New Timeline
-        </Button>
-      </div>
-
       {/* Empty State */}
       {timelines.length === 0 && (
         <Card className="border-dashed">

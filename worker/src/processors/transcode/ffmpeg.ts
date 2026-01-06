@@ -6,7 +6,13 @@ import type {
   TranscodeConfig,
   RenderTimelinePayload,
 } from '@project/shared';
-import { ProcessingProvider } from '@project/shared';
+import { ProcessingProvider, StorageBackendType } from '@project/shared';
+import {
+  createStorageBackend,
+  LocalStorageBackend,
+  StorageBackend,
+} from '@project/shared/storage';
+import { loadStorageConfig } from '@project/shared/config';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs/promises';
@@ -14,6 +20,9 @@ import * as path from 'path';
 import { fileURLToPath } from 'url';
 import type { TypedPocketBase } from '@project/shared/types';
 import { FFmpegTimelineRenderer } from '../render_timeline/ffmpeg.js';
+import { createWriteStream } from 'node:fs';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 
 const execFileAsync = promisify(execFile);
 
@@ -59,6 +68,7 @@ export class FFmpegProcessor implements MediaProcessor {
 
   private pb: TypedPocketBase | null = null;
   private tempDir: string | null = null;
+  private storageBackend: StorageBackend | null = null;
 
   /**
    * Initialize the processor with optional PocketBase client for file resolution
@@ -66,6 +76,20 @@ export class FFmpegProcessor implements MediaProcessor {
    */
   constructor(pb?: TypedPocketBase) {
     this.pb = pb || null;
+  }
+
+  /**
+   * Initialize storage backend lazily (used when resolving S3-backed sources)
+   */
+  private async getStorageBackend(): Promise<StorageBackend> {
+    if (!this.storageBackend) {
+      const config = loadStorageConfig();
+      this.storageBackend = await createStorageBackend(config);
+      console.log(
+        `[FFmpegProcessor] Initialized storage backend: ${config.type}`
+      );
+    }
+    return this.storageBackend;
   }
 
   /**
@@ -104,6 +128,23 @@ export class FFmpegProcessor implements MediaProcessor {
       return fileRef;
     }
 
+    // If it's a storage key/path and we're using local storage, resolve to an absolute path.
+    if (!path.isAbsolute(fileRef)) {
+      try {
+        const storageBackend = await this.getStorageBackend();
+        if (storageBackend instanceof LocalStorageBackend) {
+          const resolved = storageBackend.resolvePath(fileRef);
+          const exists = await fs
+            .access(resolved)
+            .then(() => true)
+            .catch(() => false);
+          if (exists) return resolved;
+        }
+      } catch {
+        // ignore and fall through to PocketBase resolution
+      }
+    }
+
     // If we don't have PocketBase, we can't resolve remote references
     if (!this.pb) {
       throw new Error(
@@ -112,22 +153,80 @@ export class FFmpegProcessor implements MediaProcessor {
       );
     }
 
+    type UploadStorageRecord = {
+      id: string;
+      name?: string;
+      storageBackend?: StorageBackendType | StorageBackendType[];
+      externalPath?: string;
+    };
+
+    const resolveUploadSource = async (
+      upload: UploadStorageRecord
+    ): Promise<string> => {
+      const backend = Array.isArray(upload.storageBackend)
+        ? upload.storageBackend[0]
+        : upload.storageBackend;
+      const externalPath: string | undefined = upload.externalPath;
+
+      if (!backend || !externalPath) {
+        throw new Error(
+          `Upload ${upload.id} does not have storage metadata (storageBackend/externalPath). ` +
+            `Original files are no longer stored on the Upload record as a PocketBase file.`
+        );
+      }
+
+      if (backend === StorageBackendType.LOCAL) {
+        const storageBackend = await this.getStorageBackend();
+        if (!(storageBackend instanceof LocalStorageBackend)) {
+          throw new Error(
+            `Storage backend mismatch for upload ${upload.id}: expected LocalStorageBackend, got ${storageBackend.type}`
+          );
+        }
+        const resolved = storageBackend.resolvePath(externalPath);
+        const exists = await fs
+          .access(resolved)
+          .then(() => true)
+          .catch(() => false);
+        if (!exists) {
+          throw new Error(
+            `Cannot resolve local storage path for upload ${upload.id}: ${externalPath} (resolved to ${resolved})`
+          );
+        }
+        return resolved;
+      }
+
+      if (backend === StorageBackendType.S3) {
+        const storageBackend = await this.getStorageBackend();
+        const tempDir = await this.getTempDir();
+        const filenameFromKey =
+          externalPath.split('/').pop() || upload.name || 'original';
+        const ext = path.extname(filenameFromKey).slice(1) || 'bin';
+        const localPath = path.join(
+          tempDir,
+          this.generateTempFileName(upload.id, 'original', ext)
+        );
+
+        const stream = await storageBackend.download(externalPath);
+        const nodeReadable = Readable.fromWeb(
+          stream as unknown as ReadableStream<Uint8Array>
+        );
+        await pipeline(nodeReadable, createWriteStream(localPath));
+        return localPath;
+      }
+
+      throw new Error(
+        `Unsupported storage backend for upload ${upload.id}: ${backend}`
+      );
+    };
+
     // Try to resolve as Media ID first (for timeline rendering)
     try {
       const media = await this.pb.collection('Media').getOne(fileRef);
       if (media.UploadRef) {
-        // Get the upload record to access the original file
-        const upload = await this.pb
+        const upload = (await this.pb
           .collection('Uploads')
-          .getOne(media.UploadRef);
-        if (upload.originalFile) {
-          const filename = Array.isArray(upload.originalFile)
-            ? upload.originalFile[0]
-            : upload.originalFile;
-          const fileUrl = this.pb.files.getURL(upload, filename);
-          // Use upload ID as identifier
-          return await this.downloadFile(fileUrl, filename, upload.id);
-        }
+          .getOne(media.UploadRef)) as unknown as UploadStorageRecord;
+        return await resolveUploadSource(upload);
       }
     } catch {
       // Not a Media ID, continue to try other types
@@ -135,15 +234,10 @@ export class FFmpegProcessor implements MediaProcessor {
 
     // Try to resolve as Upload ID
     try {
-      const upload = await this.pb.collection('Uploads').getOne(fileRef);
-      if (upload.originalFile) {
-        const filename = Array.isArray(upload.originalFile)
-          ? upload.originalFile[0]
-          : upload.originalFile;
-        const fileUrl = this.pb.files.getURL(upload, filename);
-        // Use upload ID as identifier
-        return await this.downloadFile(fileUrl, filename, upload.id);
-      }
+      const upload = (await this.pb
+        .collection('Uploads')
+        .getOne(fileRef)) as unknown as UploadStorageRecord;
+      return await resolveUploadSource(upload);
     } catch {
       // Not an upload ID, try File record ID
     }

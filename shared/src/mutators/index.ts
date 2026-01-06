@@ -11,10 +11,12 @@ export { FileMutator } from './file';
 export { MediaMutator } from './media';
 export { MediaClipMutator } from './media-clip';
 export { TaskMutator } from './task';
+export { WatchedFileMutator } from './watched-file';
 
 // Timeline and clip mutators
 export { TimelineMutator } from './timeline';
 export { TimelineClipMutator } from './timeline-clip';
+export { TimelineRenderMutator } from './timeline-render';
 
 // Task payload and result types
 export type { ProcessUploadPayload, ProcessUploadResult } from '../types';

@@ -1,11 +1,14 @@
 'use client';
 
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { useWorkspace } from '@/hooks/use-workspace';
 import { useUpload } from '@/hooks/use-upload';
+import { useUploadQueue } from '@/hooks/use-upload-queue';
 import { UploadProvider } from '@/contexts/upload-context';
-import { FileUploader, UploadList } from '@/components/upload';
+import { UploadList } from '@/components/upload';
+import { UploadDropzone } from '@/components/uploads/upload-dropzone';
+import { UploadPanel } from '@/components/uploads/upload-panel';
 import {
   Card,
   CardContent,
@@ -19,30 +22,20 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
 function UploadsPageContent() {
-  const {
-    uploads,
-    uploadFile,
-    uploadProgress,
-    isLoading,
-    retryUpload,
-    cancelUpload,
-  } = useUpload();
+  const { uploads, uploadProgress, isLoading, retryUpload, cancelUpload } =
+    useUpload();
   const { currentWorkspace } = useWorkspace();
+  const { actions } = useUploadQueue();
 
-  // Wrapper to match FileUploader interface - memoized to prevent re-renders
-  const handleFileSelect = useCallback(
-    async (file: File): Promise<void> => {
-      await uploadFile(file);
+  // Handle files selected from dropzone
+  const handleFilesSelected = useCallback(
+    (files: File[]) => {
+      if (currentWorkspace) {
+        actions.addFiles(files, currentWorkspace.id);
+      }
     },
-    [uploadFile]
+    [currentWorkspace, actions]
   );
-
-  // Check if any uploads are in progress
-  const hasActiveUploads = useMemo(() => {
-    return Array.from(uploadProgress.values()).some(
-      (progress) => progress.percentage < 100
-    );
-  }, [uploadProgress]);
 
   if (!currentWorkspace) {
     return null;
@@ -58,10 +51,10 @@ function UploadsPageContent() {
         </p>
       </div>
 
-      {/* Upload Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* File Uploader */}
-        <div className="lg:col-span-1">
+      {/* Upload Section Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        {/* Left Column: File Uploader */}
+        <div>
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -69,13 +62,20 @@ function UploadsPageContent() {
                 Upload Files
               </CardTitle>
               <CardDescription>
-                Upload video files (MP4, WebM, QuickTime)
+                Drag and drop or browse to upload files
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <FileUploader
-                onFileSelect={handleFileSelect}
-                isUploading={hasActiveUploads}
+              <UploadDropzone
+                onFilesSelected={handleFilesSelected}
+                accept={[
+                  'video/mp4',
+                  'video/webm',
+                  'video/quicktime',
+                  'video/x-msvideo',
+                  'video/x-matroska',
+                ]}
+                maxSize={10 * 1024 * 1024 * 1024} // 10GB
               />
             </CardContent>
           </Card>
@@ -87,10 +87,15 @@ function UploadsPageContent() {
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground space-y-2">
               <p>
-                <strong>Supported formats:</strong> MP4, WebM, QuickTime
+                <strong>Supported formats:</strong> MP4, WebM, QuickTime, AVI,
+                MKV, JPEG, PNG, GIF, WebP
               </p>
               <p>
-                <strong>Maximum size:</strong> 8GB per file
+                <strong>Maximum size:</strong> 10GB per file
+              </p>
+              <p>
+                <strong>Multiple files:</strong> Drag and drop multiple files or
+                folders
               </p>
               <p>
                 <strong>Processing:</strong> Files are automatically processed
@@ -100,25 +105,21 @@ function UploadsPageContent() {
           </Card>
         </div>
 
-        {/* Upload List */}
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Uploads</CardTitle>
-              <CardDescription>
-                Track the status of your uploaded files
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <UploadList
-                uploads={uploads}
-                uploadProgress={uploadProgress}
-                isLoading={isLoading}
-                onRetry={retryUpload}
-                onCancel={cancelUpload}
-              />
-            </CardContent>
-          </Card>
+        {/* Right Column: Upload Queue and Completed Uploads */}
+        <div className="space-y-6">
+          {/* Upload Queue Panel */}
+          <UploadPanel />
+
+          {/* Completed Uploads */}
+          <UploadList
+            uploads={uploads}
+            uploadProgress={uploadProgress}
+            isLoading={isLoading}
+            onRetry={retryUpload}
+            onCancel={cancelUpload}
+            title="Completed Uploads"
+            description="Track the status of your uploaded files"
+          />
         </div>
       </div>
 

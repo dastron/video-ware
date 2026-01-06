@@ -3,12 +3,12 @@ import {
   TextField,
   NumberField,
   SelectField,
-  FileField,
   RelationField,
+  JSONField,
   baseSchema,
 } from 'pocketbase-zod-schema/schema';
 import { z } from 'zod';
-import { UploadStatus } from '../enums';
+import { UploadStatus, StorageBackendType } from '../enums';
 
 // Define the Zod schema
 export const UploadSchema = z
@@ -23,7 +23,17 @@ export const UploadSchema = z
       UploadStatus.READY,
       UploadStatus.FAILED,
     ]),
-    originalFile: FileField({ maxSize: 7000000000 }).optional(),
+    // Storage backend type (local or s3)
+    storageBackend: SelectField([
+      StorageBackendType.LOCAL,
+      StorageBackendType.S3,
+    ]).optional(),
+    // External file path (filesystem path or S3 key)
+    externalPath: TextField().optional(),
+    // Storage-specific metadata (bucket, region, etc.)
+    storageConfig: JSONField().optional(),
+    // Upload progress tracking
+    bytesUploaded: NumberField().optional(),
     WorkspaceRef: RelationField({ collection: 'Workspaces' }),
     UserRef: RelationField({ collection: 'Users' }),
     errorMessage: TextField().optional(),
@@ -43,7 +53,13 @@ export const UploadInputSchema = z.object({
       UploadStatus.READY,
       UploadStatus.FAILED,
     ])
-    .default(UploadStatus.UPLOADING),
+    .default(UploadStatus.QUEUED),
+  storageBackend: z
+    .enum([StorageBackendType.LOCAL, StorageBackendType.S3])
+    .optional(),
+  externalPath: TextField().optional(),
+  storageConfig: JSONField().optional(),
+  bytesUploaded: NumberField().optional(),
   WorkspaceRef: z.string().min(1, 'Workspace is required'),
   UserRef: z.string().min(1, 'User is required'),
   errorMessage: TextField().optional(),

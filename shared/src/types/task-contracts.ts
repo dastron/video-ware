@@ -53,8 +53,12 @@ export interface TranscodeConfig {
 export interface ProcessUploadPayload {
   /** ID of the Upload record being processed */
   uploadId: string;
-  /** Reference to the original file (PocketBase file path or File record ID) */
-  originalFileRef: string;
+  /**
+   * @deprecated Original files are no longer stored as a PocketBase file field.
+   * Workers resolve the source via `Uploads.storageBackend` + `Uploads.externalPath`.
+   * Kept optional for backward compatibility with older queued tasks.
+   */
+  originalFileRef?: string;
   /** Processing provider to use (FFmpeg, Google Cloud, etc.) */
   provider?: ProcessingProvider;
   /** Configuration for sprite sheet generation */

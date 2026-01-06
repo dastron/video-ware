@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/contexts/auth-context';
 import { WorkspaceProvider } from '@/contexts/workspace-context';
+import { UploadQueueProvider } from '@/contexts/upload-queue-context';
 import { NavigationBar } from '@/components/layout/navigation-bar';
 import { Toaster } from '@/components/ui/sonner';
 
@@ -34,9 +35,11 @@ export default function RootLayout({
       >
         <AuthProvider>
           <WorkspaceProvider>
-            <NavigationBar />
-            <main className="min-h-screen">{children}</main>
-            <Toaster />
+            <UploadQueueProvider maxConcurrent={3}>
+              <NavigationBar />
+              <main className="min-h-screen pt-6">{children}</main>
+              <Toaster />
+            </UploadQueueProvider>
           </WorkspaceProvider>
         </AuthProvider>
       </body>
