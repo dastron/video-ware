@@ -28,6 +28,8 @@ jobs:
       contents: read
       packages: write
       security-events: write
+      # Note: packages:write should be sufficient, but if visibility changes fail,
+      # you may need to manually set package visibility in GitHub UI
 
     steps:
       - name: Checkout repository
@@ -85,47 +87,94 @@ jobs:
           build-args: |
             POCKETBASE_VERSION=0.35.0
 
+      - name: Wait for package to be available
+        if: github.event_name == 'release' || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.push_image == 'true')
+        run: |
+          echo "Waiting 10 seconds for package to be available in registry..."
+          sleep 10
+
       - name: Make package public
         if: github.event_name == 'release' || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.push_image == 'true')
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const packageName = '${{ env.IMAGE_NAME }}';
-            const [owner, repo] = packageName.split('/');
+        run: |
+          # Extract package name from repository (e.g., "dastron/video-ware" -> "video-ware")
+          PACKAGE_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2)
+          OWNER="${{ github.repository_owner }}"
+          
+          echo "Setting package visibility to public..."
+          echo "Package: $PACKAGE_NAME"
+          echo "Owner: $OWNER"
+          echo "Repository: ${{ github.repository }}"
+          
+          # Retry logic - sometimes the package needs a moment to be available
+          MAX_RETRIES=3
+          RETRY_DELAY=5
+          
+          for i in $(seq 1 $MAX_RETRIES); do
+            echo ""
+            echo "Attempt $i of $MAX_RETRIES..."
             
-            // For user/organization packages, use the repo name as package name
-            // The API expects just the repository name, not owner/repo
-            try {
-              // Try user-level API first (for personal accounts)
-              await github.request('PATCH /user/packages/container/{package_name}', {
-                package_name: repo,
-                visibility: 'public'
-              });
-              console.log(`✅ Successfully set ${packageName} to public`);
-            } catch (userError) {
-              try {
-                // Try organization-level API (for org accounts)
-                await github.request('PATCH /orgs/{org}/packages/container/{package_name}', {
-                  org: owner,
-                  package_name: repo,
-                  visibility: 'public'
-                });
-                console.log(`✅ Successfully set ${packageName} to public (org method)`);
-              } catch (orgError) {
-                console.log(`⚠️  Could not automatically set package to public via API.`);
-                console.log(`   This might be because:`);
-                console.log(`   - The package doesn't exist yet (first push)`);
-                console.log(`   - API permissions need adjustment`);
-                console.log(`   `);
-                console.log(`   Please manually set it to public:`);
-                console.log(`   1. Go to: https://github.com/${owner}/${repo}/packages`);
-                console.log(`   2. Click on the package`);
-                console.log(`   3. Go to: Package Settings → Change visibility → Public`);
-                console.log(`   `);
-                console.log(`   User API Error: ${userError.message}`);
-                console.log(`   Org API Error: ${orgError.message}`);
-              }
-            }
+            # Try user-level API first (for personal accounts)
+            echo "Trying user-level API..."
+            USER_RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" -X PATCH \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/user/packages/container/${PACKAGE_NAME}" \
+              -d '{"visibility":"public"}' 2>&1)
+            
+            USER_HTTP_CODE=$(echo "$USER_RESPONSE" | grep "HTTP_CODE:" | cut -d':' -f2 || echo "")
+            USER_BODY=$(echo "$USER_RESPONSE" | sed '/HTTP_CODE:/d' | head -n -1)
+            
+            if [ "$USER_HTTP_CODE" = "204" ] || [ "$USER_HTTP_CODE" = "200" ]; then
+              echo "✅ Successfully set package to public via user API (HTTP $USER_HTTP_CODE)"
+              exit 0
+            fi
+            
+            echo "User API returned HTTP $USER_HTTP_CODE"
+            if [ -n "$USER_BODY" ] && [ "$USER_BODY" != "" ]; then
+              echo "Response: $USER_BODY"
+            fi
+            
+            # Try organization-level API (for org accounts)
+            echo "Trying org API..."
+            ORG_RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" -X PATCH \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/orgs/${OWNER}/packages/container/${PACKAGE_NAME}" \
+              -d '{"visibility":"public"}' 2>&1)
+            
+            ORG_HTTP_CODE=$(echo "$ORG_RESPONSE" | grep "HTTP_CODE:" | cut -d':' -f2 || echo "")
+            ORG_BODY=$(echo "$ORG_RESPONSE" | sed '/HTTP_CODE:/d' | head -n -1)
+            
+            if [ "$ORG_HTTP_CODE" = "204" ] || [ "$ORG_HTTP_CODE" = "200" ]; then
+              echo "✅ Successfully set package to public via org API (HTTP $ORG_HTTP_CODE)"
+              exit 0
+            fi
+            
+            echo "Org API returned HTTP $ORG_HTTP_CODE"
+            if [ -n "$ORG_BODY" ] && [ "$ORG_BODY" != "" ]; then
+              echo "Response: $ORG_BODY"
+            fi
+            
+            if [ $i -lt $MAX_RETRIES ]; then
+              echo "Waiting ${RETRY_DELAY} seconds before retry..."
+              sleep $RETRY_DELAY
+            fi
+          done
+          
+          # If all retries fail, show helpful error message
+          echo ""
+          echo "⚠️  Could not automatically set package to public after $MAX_RETRIES attempts."
+          echo ""
+          echo "   Please set it manually:"
+          echo "   1. Visit: https://github.com/${OWNER}/${PACKAGE_NAME}/packages"
+          echo "   2. Click on the package"
+          echo "   3. Package Settings → Change visibility → Public"
+          echo ""
+          echo "   Note: Package name must match exactly: ${PACKAGE_NAME}"
+          echo "   Full image path: ghcr.io/${OWNER}/${PACKAGE_NAME}"
+          # Don't fail the workflow - visibility can be set manually
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
