@@ -74,7 +74,8 @@ export function MediaClipItem({
               isActive && 'text-primary'
             )}
           >
-            {typeof (clip.clipData as Record<string, unknown>)?.label === 'string'
+            {typeof (clip.clipData as Record<string, unknown>)?.label ===
+            'string'
               ? String((clip.clipData as Record<string, unknown>).label)
               : 'Clip'}
           </div>
