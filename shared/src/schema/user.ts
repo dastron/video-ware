@@ -11,10 +11,18 @@ import { z } from 'zod';
 // This will be an auth collection since it has email and password
 export const UserSchema = z
   .object({
-    name: TextField().optional(),
+    name: TextField({ min: 0, max: 255 }).optional(),
     email: EmailField(),
     password: TextField().min(8, 'Password must be at least 8 characters'),
-    avatar: FileField().optional(),
+    avatar: FileField({
+      mimeTypes: [
+        'image/jpeg',
+        'image/png',
+        'image/svg+xml',
+        'image/gif',
+        'image/webp',
+      ],
+    }).optional(),
   })
   .extend(baseSchema);
 

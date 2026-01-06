@@ -33,7 +33,7 @@ export class FileMutator extends BaseMutator<File, FileInput> {
    * @returns The file URL
    */
   getFileUrl(file: File, filename = 'blob'): string {
-    return this.pb.files.getUrl(file, filename);
+    return this.pb.files.getURL(file, filename);
   }
 
   /**

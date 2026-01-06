@@ -14,7 +14,7 @@ export const MediaClipSchema = z
   .object({
     WorkspaceRef: RelationField({ collection: 'Workspaces' }),
     MediaRef: RelationField({ collection: 'Media' }),
-    clipType: TextField(),
+    type: TextField(),
     start: NumberField({ min: 0 }), // seconds
     end: NumberField({ min: 0 }), // seconds
     duration: NumberField({ min: 0 }), // seconds
@@ -26,7 +26,7 @@ export const MediaClipSchema = z
 export const MediaClipInputSchema = z.object({
   WorkspaceRef: z.string().min(1, 'Workspace is required'),
   MediaRef: z.string().min(1, 'Media is required'),
-  clipType: z.enum([
+  type: z.enum([
     ClipType.FULL,
     ClipType.RANGE,
     ClipType.SHOT,

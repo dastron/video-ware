@@ -72,3 +72,7 @@ dist/
 /pb/CHANGELOG.md
 /pb/LICENSE.md
 /pb/pocketbase
+
+# worker
+worker/data
+/data/

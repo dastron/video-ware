@@ -103,7 +103,7 @@ export type MediaClipRecord = {
   duration: number;
   start: number;
   end: number;
-  clipType: ClipType;
+  type: ClipType;
   clipData?: Record<string, unknown>;
   createdBy?: string;
   created: string;

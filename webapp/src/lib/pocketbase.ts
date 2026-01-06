@@ -1,6 +1,7 @@
 // Create PocketBase client instance using local PocketBase package
 import PocketBase from 'pocketbase';
 import type { TypedPocketBase } from '@project/shared/types';
+import { env } from '@project/shared';
 
 export interface PocketBaseClientOptions {
   enableAutoCancellation?: boolean;
@@ -35,13 +36,10 @@ function createPocketBaseClient(
 }
 
 // Create PocketBase client instance
-const pb = createPocketBaseClient(
-  process.env.NEXT_PUBLIC_POCKETBASE_URL || 'http://localhost:8090',
-  {
-    enableAutoCancellation: false,
-    requestTimeout: 30000, // 30 second timeout
-  }
-);
+const pb = createPocketBaseClient(env.NEXT_PUBLIC_POCKETBASE_URL, {
+  enableAutoCancellation: false,
+  requestTimeout: 30000, // 30 second timeout
+});
 
 // Export the client instance
 export default pb;

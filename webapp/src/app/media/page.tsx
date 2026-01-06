@@ -1,27 +1,33 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { useWorkspace } from '@/hooks/use-workspace';
 import { useMedia } from '@/hooks/use-media';
 import { MediaProvider } from '@/contexts/media-context';
-import { MediaGallery } from '@/components/media';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, Film } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { MediaGallery } from '@/components/media';
+import type { Media } from '@project/shared';
 
 function MediaPageContent() {
   const { media, isLoading } = useMedia();
   const { currentWorkspace } = useWorkspace();
+  const router = useRouter();
+
+  const handleMediaClick = (media: Media) => {
+    router.push(`/media/${media.id}`);
+  };
 
   if (!currentWorkspace) {
     return null;
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <div className="container mx-auto px-4 pb-8 max-w-7xl">
       {/* Page Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between">
@@ -41,46 +47,11 @@ function MediaPageContent() {
       </div>
 
       {/* Media Gallery */}
-      <MediaGallery media={media} isLoading={isLoading} />
-
-      {/* Help Section */}
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Thumbnails</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            <p>
-              Each video is automatically processed to generate a thumbnail
-              image for quick preview.
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Sprite Sheets</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            <p>
-              Hover over thumbnails to see a sprite sheet preview of the video
-              timeline.
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Metadata</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            <p>
-              View detailed information including duration, resolution, codec,
-              and frame rate.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      <MediaGallery
+        media={media}
+        isLoading={isLoading}
+        onMediaClick={handleMediaClick}
+      />
     </div>
   );
 }

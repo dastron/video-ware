@@ -14,11 +14,12 @@ import { Badge } from '@/components/ui/badge';
 import {
   ArrowRight,
   Shield,
-  Database,
   Zap,
-  Users,
-  FileText,
   Settings,
+  Upload,
+  Film,
+  Scissors,
+  Play,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -49,13 +50,52 @@ function AuthenticatedView({ user }: { user: User }) {
           Welcome back, {user.name || user.email}! 👋
         </h1>
         <p className="text-xl text-muted-foreground">
-          You&apos;re successfully authenticated and ready to explore the
-          features.
+          Ready to create amazing videos? Upload your media and start editing.
         </p>
       </div>
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Upload className="h-5 w-5" />
+              Upload Video
+            </CardTitle>
+            <CardDescription>
+              Upload your video files to start editing
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link href="/uploads">
+              <Button className="w-full">
+                Go to Uploads
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Film className="h-5 w-5" />
+              Media Library
+            </CardTitle>
+            <CardDescription>
+              Browse and manage your video media collection
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link href="/media">
+              <Button className="w-full">
+                View Media
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
         <Card className="hover:shadow-lg transition-shadow">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -68,47 +108,11 @@ function AuthenticatedView({ user }: { user: User }) {
           </CardHeader>
           <CardContent>
             <Link href="/profile">
-              <Button className="w-full">
+              <Button variant="outline" className="w-full">
                 Manage Profile
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Documentation
-            </CardTitle>
-            <CardDescription>
-              Learn about the features and capabilities
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button variant="outline" className="w-full">
-              View Docs
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Community
-            </CardTitle>
-            <CardDescription>
-              Connect with other users and get support
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button variant="outline" className="w-full">
-              Join Community
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
           </CardContent>
         </Card>
       </div>
@@ -147,13 +151,13 @@ function UnauthenticatedView() {
       <div className="container mx-auto px-4 py-16 max-w-6xl">
         <div className="text-center mb-16">
           <h1 className="text-5xl md:text-6xl font-bold text-foreground mb-6">
-            Next.js + PocketBase
-            <span className="block text-primary">Template</span>
+            VideoWare
+            <span className="block text-primary">Web-Based Video Editor</span>
           </h1>
           <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-3xl mx-auto">
-            A modern full-stack monorepo template that combines Next.js frontend
-            with PocketBase backend, designed for rapid development with
-            built-in authentication and real-time features.
+            Create, edit, and manage your videos with our powerful web-based
+            video editor. Upload your media, trim clips, and export professional
+            videos—all in your browser.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/signup">
@@ -173,34 +177,34 @@ function UnauthenticatedView() {
         {/* Features Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
           <FeatureCard
-            icon={<Shield className="h-8 w-8" />}
-            title="Built-in Authentication"
-            description="Multi-provider authentication with PocketBase, including email/password, OAuth, and more."
+            icon={<Upload className="h-8 w-8" />}
+            title="Easy Upload"
+            description="Drag and drop or browse to upload your video files. Supports multiple formats with automatic processing."
           />
           <FeatureCard
-            icon={<Database className="h-8 w-8" />}
-            title="Type-safe Database"
-            description="End-to-end type safety from database to UI with Zod validation and TypeScript."
+            icon={<Scissors className="h-8 w-8" />}
+            title="Video Editing"
+            description="Trim, cut, and edit your videos with intuitive tools. Create professional content without leaving your browser."
+          />
+          <FeatureCard
+            icon={<Film className="h-8 w-8" />}
+            title="Media Library"
+            description="Organize and manage all your video assets in one place. Quick access to your entire media collection."
+          />
+          <FeatureCard
+            icon={<Play className="h-8 w-8" />}
+            title="Preview & Export"
+            description="Watch your edits in real-time with our built-in player. Export in multiple formats when you're ready."
           />
           <FeatureCard
             icon={<Zap className="h-8 w-8" />}
-            title="Real-time Features"
-            description="WebSocket support for live updates, notifications, and real-time collaboration."
+            title="Fast Processing"
+            description="Cloud-powered video processing ensures quick transcoding and rendering of your projects."
           />
           <FeatureCard
-            icon={<Users className="h-8 w-8" />}
-            title="User Management"
-            description="Complete user management system with profiles, roles, and permissions."
-          />
-          <FeatureCard
-            icon={<FileText className="h-8 w-8" />}
-            title="File Storage"
-            description="Built-in file upload and management with automatic optimization and CDN."
-          />
-          <FeatureCard
-            icon={<Settings className="h-8 w-8" />}
-            title="Admin Dashboard"
-            description="Web-based database and user management with intuitive admin interface."
+            icon={<Shield className="h-8 w-8" />}
+            title="Secure & Private"
+            description="Your videos are stored securely with encryption. Full control over your content and privacy settings."
           />
         </div>
 
@@ -209,11 +213,11 @@ function UnauthenticatedView() {
           <Card className="max-w-2xl mx-auto">
             <CardHeader>
               <CardTitle className="text-2xl">
-                Ready to build something amazing?
+                Ready to start editing?
               </CardTitle>
               <CardDescription className="text-lg">
-                Join thousands of developers who are building modern web
-                applications with our template.
+                Join creators who are making amazing videos with VideoWare. Sign
+                up now and get started in seconds.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -223,13 +227,15 @@ function UnauthenticatedView() {
                     Create Account
                   </Button>
                 </Link>
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="w-full sm:w-auto"
-                >
-                  View Documentation
-                </Button>
+                <Link href="/login">
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="w-full sm:w-auto"
+                  >
+                    Sign In
+                  </Button>
+                </Link>
               </div>
             </CardContent>
           </Card>

@@ -10,7 +10,7 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import * as os from 'os';
+import { fileURLToPath } from 'url';
 import type { TypedPocketBase } from '@project/shared/types';
 
 const execFileAsync = promisify(execFile);
@@ -22,14 +22,28 @@ interface FFprobeOutput {
   streams?: Array<{
     codec_type?: string;
     codec_name?: string;
-    width?: string;
-    height?: string;
+    profile?: string;
+    width?: number;
+    height?: number;
+    display_aspect_ratio?: string;
+    pix_fmt?: string;
+    level?: string | number;
+    color_space?: string;
     avg_frame_rate?: string;
     bit_rate?: string;
+    channels?: number;
+    sample_rate?: string;
   }>;
   format?: {
+    filename?: string;
+    nb_streams?: number;
+    nb_programs?: number;
+    format_name?: string;
+    format_long_name?: string;
     duration?: string;
+    size?: string;
     bit_rate?: string;
+    probe_score?: number;
   };
 }
 
@@ -57,7 +71,13 @@ export class FFmpegProcessor implements MediaProcessor {
    */
   private async getTempDir(): Promise<string> {
     if (!this.tempDir) {
-      const dataDir = path.join(process.cwd(), 'data');
+      // Find worker root (where package.json lives)
+      // ffmpeg.ts is in worker/src/processors/transcode/
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = path.dirname(__filename);
+      const workerRoot = path.resolve(__dirname, '../../../..');
+      const dataDir = path.join(workerRoot, 'data');
+
       await fs.mkdir(dataDir, { recursive: true });
       this.tempDir = await fs.mkdtemp(path.join(dataDir, 'ffmpeg-'));
     }
@@ -98,7 +118,8 @@ export class FFmpegProcessor implements MediaProcessor {
           ? upload.originalFile[0]
           : upload.originalFile;
         const fileUrl = this.pb.files.getURL(upload, filename);
-        return await this.downloadFile(fileUrl, filename);
+        // Use upload ID as identifier
+        return await this.downloadFile(fileUrl, filename, upload.id);
       }
     } catch {
       // Not an upload ID, try File record ID
@@ -111,7 +132,8 @@ export class FFmpegProcessor implements MediaProcessor {
       if (blob) {
         const filename = Array.isArray(blob) ? blob[0] : (blob as string);
         const fileUrl = this.pb.files.getURL(fileRecord, filename);
-        return await this.downloadFile(fileUrl, filename);
+        // Use file record ID as identifier
+        return await this.downloadFile(fileUrl, filename, fileRecord.id);
       }
     } catch {
       // Not a file record ID either
@@ -121,14 +143,46 @@ export class FFmpegProcessor implements MediaProcessor {
   }
 
   /**
+   * Generate a clean temp file name using identifier and operation type
+   * @param identifier - Upload ID or file ID
+   * @param operationType - Type of operation (e.g., 'thumbnail', 'spritesheet', 'proxy', 'original')
+   * @param extension - File extension (e.g., 'jpg', 'mp4')
+   * @param version - Optional version suffix (defaults to 'v1')
+   * @returns Clean file name
+   */
+  private generateTempFileName(
+    identifier: string | undefined,
+    operationType: string,
+    extension: string,
+    version: string = 'v1'
+  ): string {
+    if (identifier) {
+      return `${identifier}_${operationType}_${version}.${extension}`;
+    }
+    // Fallback to timestamp-based naming if no identifier provided
+    return `${operationType}_${Date.now()}_${version}.${extension}`;
+  }
+
+  /**
    * Download a file from a URL to a temporary location
    * @param url - File URL
-   * @param filename - Original filename
+   * @param filename - Original filename (for fallback naming)
+   * @param identifier - Optional identifier (upload ID or file ID) for temp file naming
    * @returns Local file path
    */
-  private async downloadFile(url: string, filename: string): Promise<string> {
+  private async downloadFile(
+    url: string,
+    filename: string,
+    identifier?: string
+  ): Promise<string> {
     const tempDir = await this.getTempDir();
-    const localPath = path.join(tempDir, `${Date.now()}_${filename}`);
+
+    // Extract extension from original filename
+    const ext = path.extname(filename).slice(1) || 'bin';
+    const localPath = path.join(
+      tempDir,
+      this.generateTempFileName(identifier, 'original', ext)
+    );
 
     const response = await fetch(url);
     if (!response.ok) {
@@ -153,8 +207,8 @@ export class FFmpegProcessor implements MediaProcessor {
       const { stdout } = await execFileAsync('ffprobe', [
         '-v',
         'error',
-        '-show_entries',
-        'stream=width,height,codec_name,avg_frame_rate,bit_rate:format=duration,bit_rate',
+        '-show_format',
+        '-show_streams',
         '-of',
         'json',
         inputFile,
@@ -175,7 +229,10 @@ export class FFmpegProcessor implements MediaProcessor {
    */
   private parseProbeOutput(probeData: FFprobeOutput): ProbeOutput {
     const videoStream = probeData.streams?.find(
-      (s) => s.codec_type === 'video' || s.codec_name
+      (s) => s.codec_type === 'video'
+    );
+    const audioStream = probeData.streams?.find(
+      (s) => s.codec_type === 'audio'
     );
 
     if (!videoStream) {
@@ -200,14 +257,41 @@ export class FFmpegProcessor implements MediaProcessor {
         ? parseInt(format.bit_rate, 10)
         : undefined;
 
-    return {
+    const output: ProbeOutput = {
       duration: parseFloat(format.duration || '0'),
-      width: parseInt(videoStream.width || '0', 10),
-      height: parseInt(videoStream.height || '0', 10),
+      width: videoStream.width || 0,
+      height: videoStream.height || 0,
       codec: videoStream.codec_name || 'unknown',
       fps: Math.round(fps * 100) / 100, // Round to 2 decimal places
       bitrate,
+      format: format.format_name,
+      size: format.size ? parseInt(format.size, 10) : undefined,
+      video: {
+        codec: videoStream.codec_name || 'unknown',
+        profile: videoStream.profile,
+        width: videoStream.width || 0,
+        height: videoStream.height || 0,
+        aspectRatio: videoStream.display_aspect_ratio,
+        pixFmt: videoStream.pix_fmt,
+        level: videoStream.level?.toString(),
+        colorSpace: videoStream.color_space,
+      },
     };
+
+    if (audioStream) {
+      output.audio = {
+        codec: audioStream.codec_name || 'unknown',
+        channels: audioStream.channels || 0,
+        sampleRate: audioStream.sample_rate
+          ? parseInt(audioStream.sample_rate, 10)
+          : 0,
+        bitrate: audioStream.bit_rate
+          ? parseInt(audioStream.bit_rate, 10)
+          : undefined,
+      };
+    }
+
+    return output;
   }
 
   /**
@@ -230,11 +314,13 @@ export class FFmpegProcessor implements MediaProcessor {
    * Generate a thumbnail image from the media file using ffmpeg
    * @param fileRef - Reference to the source media file
    * @param config - Thumbnail generation configuration
+   * @param identifier - Optional identifier (upload ID or file ID) for temp file naming
    * @returns Path to the generated thumbnail file
    */
   async generateThumbnail(
     fileRef: string,
-    config: ThumbnailConfig
+    config: ThumbnailConfig,
+    identifier?: string
   ): Promise<string> {
     console.log(
       `[FFmpegProcessor] Generating thumbnail for: ${fileRef}`,
@@ -255,8 +341,12 @@ export class FFmpegProcessor implements MediaProcessor {
       timestamp = config.timestamp;
     }
 
-    // Generate output filename
-    const outputFilename = `thumbnail_${Date.now()}_${config.width}x${config.height}.jpg`;
+    // Generate output filename using identifier
+    const outputFilename = this.generateTempFileName(
+      identifier,
+      'thumbnail',
+      'jpg'
+    );
     const outputPath = path.join(tempDir, outputFilename);
 
     // Build ffmpeg command
@@ -290,9 +380,14 @@ export class FFmpegProcessor implements MediaProcessor {
    * Generate a sprite sheet from the media file using ffmpeg
    * @param fileRef - Reference to the source media file
    * @param config - Sprite sheet generation configuration
+   * @param identifier - Optional identifier (upload ID or file ID) for temp file naming
    * @returns Path to the generated sprite sheet file
    */
-  async generateSprite(fileRef: string, config: SpriteConfig): Promise<string> {
+  async generateSprite(
+    fileRef: string,
+    config: SpriteConfig,
+    identifier?: string
+  ): Promise<string> {
     console.log(
       `[FFmpegProcessor] Generating sprite sheet for: ${fileRef}`,
       config
@@ -301,22 +396,27 @@ export class FFmpegProcessor implements MediaProcessor {
     const inputFile = await this.resolveFileRef(fileRef);
     const tempDir = await this.getTempDir();
 
-    // Calculate total number of frames needed
-    const totalFrames = config.cols * config.rows;
-
-    // Generate output filename
-    const outputFilename = `sprite_${Date.now()}_${config.cols}x${config.rows}.jpg`;
+    // Generate output filename using identifier
+    const outputFilename = this.generateTempFileName(
+      identifier,
+      'spritesheet',
+      'jpg'
+    );
     const outputPath = path.join(tempDir, outputFilename);
 
     // Build ffmpeg command for sprite sheet generation
-    // We'll use the select filter to extract frames at intervals
+    // The tile filter combines multiple input frames into a single tiled output frame
+    // We use -frames:v 1 to specify we want only 1 output frame (the final sprite sheet)
+    // and -update to tell image2 muxer to update the same file instead of creating multiple files
     const args = [
       '-i',
       inputFile,
       '-vf',
       `fps=${config.fps},scale=${config.tileWidth}:${config.tileHeight}:force_original_aspect_ratio=decrease,pad=${config.tileWidth}:${config.tileHeight}:(ow-iw)/2:(oh-ih)/2,tile=${config.cols}x${config.rows}`,
       '-frames:v',
-      totalFrames.toString(),
+      '1', // Tile filter produces a single output frame containing all tiles
+      '-update',
+      '1', // Update the same file for each frame (needed for single file output)
       '-q:v',
       '2', // High quality JPEG
       '-y', // Overwrite output file
@@ -338,12 +438,15 @@ export class FFmpegProcessor implements MediaProcessor {
    * Transcode the media file to a different format using ffmpeg
    * @param fileRef - Reference to the source media file
    * @param config - Transcoding configuration
+   * @param outputFileName - Optional deterministic output filename (overrides identifier-based naming)
+   * @param identifier - Optional identifier (upload ID or file ID) for temp file naming
    * @returns Path to the transcoded file
    */
   async transcode(
     fileRef: string,
     config: TranscodeConfig,
-    outputFileName?: string
+    outputFileName?: string,
+    identifier?: string
   ): Promise<string> {
     console.log(`[FFmpegProcessor] Transcoding file: ${fileRef}`, config);
 
@@ -364,7 +467,7 @@ export class FFmpegProcessor implements MediaProcessor {
       case '1080p':
         resolution = '1920:1080';
         break;
-      case 'original':
+      case 'original': {
         // Get original resolution from probe
         const probeData = await this.runFFprobe(inputFile);
         const videoStream = probeData.streams?.find(
@@ -376,6 +479,7 @@ export class FFmpegProcessor implements MediaProcessor {
           resolution = '1920:1080'; // fallback
         }
         break;
+      }
       default:
         resolution = '1920:1080';
     }
@@ -399,10 +503,9 @@ export class FFmpegProcessor implements MediaProcessor {
       codecArgs.push('-b:v', config.bitrate.toString());
     }
 
-    // Generate output filename
+    // Generate output filename - use provided outputFileName if given, otherwise use identifier-based naming
     const finalOutputFilename =
-      outputFileName ||
-      `transcoded_${Date.now()}_${config.codec}_${config.resolution}.mp4`;
+      outputFileName || this.generateTempFileName(identifier, 'proxy', 'mp4');
     const outputPath = path.join(tempDir, finalOutputFilename);
 
     // Build ffmpeg command

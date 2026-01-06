@@ -96,17 +96,17 @@ export class GoogleTranscoderProcessor implements MediaProcessor {
   async probe(fileRef: string): Promise<ProbeOutput> {
     // NOTE: Video Transcoder is for transcoding. For probing, we use Video Intelligence.
     console.log(`[GoogleTranscoderProcessor] Probing ${fileRef}`);
-    const gcsUri = await this.resolveToGcsUri(fileRef);
+    // const gcsUri = await this.resolveToGcsUri(fileRef);
 
-    const request = {
-      inputUri: gcsUri,
-      features: ['LABEL_DETECTION'], // Minimal feature to check file
-      videoContext: {
-        labelDetectionConfig: {
-          videoConfidenceThreshold: 0.5,
-        },
-      },
-    };
+    // const request = {
+    //   inputUri: gcsUri,
+    //   features: ['LABEL_DETECTION'], // Minimal feature to check file
+    //   videoContext: {
+    //     labelDetectionConfig: {
+    //       videoConfidenceThreshold: 0.5,
+    //     },
+    //   },
+    // };
 
     // In a real implementation we would use Video Intelligence to get duration/dimensions
     // However, Video Intelligence is async operation.
@@ -129,34 +129,35 @@ export class GoogleTranscoderProcessor implements MediaProcessor {
 
   async generateThumbnail(
     fileRef: string,
-    config: ThumbnailConfig
+    _config: ThumbnailConfig,
+    _identifier?: string
   ): Promise<string> {
     console.log(`[GoogleTranscoderProcessor] Generating thumbnail ${fileRef}`);
-    const gcsUri = await this.resolveToGcsUri(fileRef);
     const bucket = process.env.GOOGLE_CLOUD_STORAGE_BUCKET;
     if (!bucket) throw new Error('GOOGLE_CLOUD_STORAGE_BUCKET not set');
 
+    // const gcsUri = await this.resolveToGcsUri(fileRef);
     const outputUri = `gs://${bucket}/thumbnails/`;
-    const outputFilename = `thumbnail_${Date.now()}.jpg`; // Transcoder actually controls naming somewhat based on pattern
+    // const outputFilename = `thumbnail_${Date.now()}.jpg`; // Transcoder actually controls naming somewhat based on pattern
 
-    const job = {
-      inputUri: gcsUri,
-      outputUri: outputUri,
-      config: {
-        // Define sprite sheet task which can act as thumbnail
-        spriteSheets: [
-          {
-            filePrefix: 'thumbnail-',
-            columnCount: 1,
-            rowCount: 1,
-            spriteWidthPixels: config.width,
-            spriteHeightPixels: config.height,
-            startTimeOffset:
-              config.timestamp === 'midpoint' ? '0s' : `${config.timestamp}s`, // TODO: specific time
-          },
-        ],
-      },
-    };
+    // const job = {
+    //   inputUri: gcsUri,
+    //   outputUri: outputUri,
+    //   config: {
+    //     // Define sprite sheet task which can act as thumbnail
+    //     spriteSheets: [
+    //       {
+    //         filePrefix: 'thumbnail-',
+    //         columnCount: 1,
+    //         rowCount: 1,
+    //         spriteWidthPixels: config.width,
+    //         spriteHeightPixels: config.height,
+    //         startTimeOffset:
+    //           config.timestamp === 'midpoint' ? '0s' : `${config.timestamp}s`, // TODO: specific time
+    //       },
+    //     ],
+    //   },
+    // };
 
     // We would submit job and wait.
     // const [operation] = await this.transcoderClient.createJob({parent: parent, job: job});
@@ -165,7 +166,11 @@ export class GoogleTranscoderProcessor implements MediaProcessor {
     return `${outputUri}thumbnail-0000000000.jpeg`;
   }
 
-  async generateSprite(fileRef: string, config: SpriteConfig): Promise<string> {
+  async generateSprite(
+    fileRef: string,
+    _config: SpriteConfig,
+    _identifier?: string
+  ): Promise<string> {
     // Similar implementation to thumbnail but with multiple cols/rows
     console.log(`[GoogleTranscoderProcessor] Generating sprite ${fileRef}`);
     return 'gs://bucket/path/to/sprite.jpg';
@@ -173,8 +178,9 @@ export class GoogleTranscoderProcessor implements MediaProcessor {
 
   async transcode(
     fileRef: string,
-    config: TranscodeConfig,
-    outputFileName?: string
+    _config: TranscodeConfig,
+    _outputFileName?: string,
+    _identifier?: string
   ): Promise<string> {
     console.log(`[GoogleTranscoderProcessor] Transcoding ${fileRef}`);
     return 'gs://bucket/path/to/video.mp4';

@@ -15,12 +15,12 @@ export const MediaSchema = z
     WorkspaceRef: RelationField({ collection: 'Workspaces' }),
     UploadRef: RelationField({ collection: 'Uploads' }),
     mediaType: SelectField([MediaType.VIDEO, MediaType.AUDIO, MediaType.IMAGE]),
-    duration: NumberField({ min: 0 }), // seconds as float
+    duration: NumberField({ required: true }).min(0), // seconds as float
     mediaData: JSONField(), // { codec, fps, width, height, ... }
-    thumbnailFile: RelationField({ collection: 'Files' }).optional(),
-    spriteFile: RelationField({ collection: 'Files' }).optional(),
-    proxyFile: RelationField({ collection: 'Files' }).optional(),
-    processingVersion: NumberField().default(1),
+    thumbnailFileRef: RelationField({ collection: 'Files' }).optional(),
+    spriteFileRef: RelationField({ collection: 'Files' }).optional(),
+    proxyFileRef: RelationField({ collection: 'Files' }).optional(),
+    version: NumberField().default(1),
   })
   .extend(baseSchema);
 
@@ -31,10 +31,10 @@ export const MediaInputSchema = z.object({
   mediaType: z.enum([MediaType.VIDEO, MediaType.AUDIO, MediaType.IMAGE]),
   duration: NumberField({ min: 0 }),
   mediaData: JSONField(),
-  thumbnailFile: z.string().optional(),
-  spriteFile: z.string().optional(),
-  proxyFile: z.string().optional(),
-  processingVersion: NumberField().default(1),
+  thumbnailFileRef: z.string().optional(),
+  spriteFileRef: z.string().optional(),
+  proxyFileRef: z.string().optional(),
+  version: NumberField().default(1),
 });
 
 // Define the collection with workspace-scoped permissions

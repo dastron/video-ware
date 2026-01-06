@@ -149,25 +149,6 @@ describe('Personalized Content Property Tests', () => {
     }
   });
 
-  it('Property 11: Personalized Content - should not display personalized content for unauthenticated users', () => {
-    const testUser = generateRandomUser();
-
-    render(
-      <MockAuthProvider user={null} isAuthenticated={false}>
-        <Home />
-      </MockAuthProvider>
-    );
-
-    // Should not display personalized welcome message
-    expect(
-      screen.queryByText(new RegExp(`Welcome back, ${testUser.name}!`, 'i'))
-    ).not.toBeInTheDocument();
-
-    // Should display generic welcome content instead
-    expect(screen.getByText(/Next\.js \+ PocketBase/i)).toBeInTheDocument();
-    expect(screen.getByText(/Get Started/i)).toBeInTheDocument();
-  });
-
   it('Property 11: Personalized Content - should handle special characters in names', () => {
     // Test users with special characters in names
     const specialUsers = [

@@ -1,6 +1,4 @@
-'use client';
-
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import Image from 'next/image';
 import type { Media } from '@project/shared';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Film, Clock, Maximize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import pb from '@/lib/pocketbase';
+import { SpriteAnimator } from '../sprite/sprite-animator';
 
 interface MediaCardProps {
   media: Media;
@@ -17,8 +16,6 @@ interface MediaCardProps {
 
 export function MediaCard({ media, onClick, className }: MediaCardProps) {
   const [isHovering, setIsHovering] = useState(false);
-  const [spritePosition, setSpritePosition] = useState({ x: 0, y: 0 });
-  const cardRef = useRef<HTMLDivElement>(null);
 
   const formatDuration = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600);
@@ -57,65 +54,30 @@ export function MediaCard({ media, onClick, className }: MediaCardProps) {
 
   // Get thumbnail URL
   const getThumbnailUrl = (): string | null => {
-    if (!media.expand?.thumbnailFile) return null;
-    const file = media.expand.thumbnailFile;
+    if (!media.expand?.thumbnailFileRef) return null;
+    const file = media.expand.thumbnailFileRef;
     if (!file.blob) return null;
 
     try {
-      return pb.files.getUrl(file, file.blob);
+      return pb.files.getURL(file, file.blob);
     } catch (error) {
       console.error('Failed to get thumbnail URL:', error);
       return null;
     }
   };
 
-  // Get sprite URL
-  const getSpriteUrl = (): string | null => {
-    if (!media.expand?.spriteFile) return null;
-    const file = media.expand.spriteFile;
-    if (!file.blob) return null;
-
-    try {
-      return pb.files.getUrl(file, file.blob);
-    } catch (error) {
-      console.error('Failed to get sprite URL:', error);
-      return null;
-    }
-  };
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!cardRef.current || !getSpriteUrl()) return;
-
-    const rect = cardRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const percentX = x / rect.width;
-    const percentY = y / rect.height;
-
-    // Assuming sprite sheet is 10x10 grid (100 frames)
-    const cols = 10;
-    const rows = 10;
-    const frameX = Math.floor(percentX * cols);
-    const frameY = Math.floor(percentY * rows);
-
-    setSpritePosition({ x: frameX, y: frameY });
-  };
-
   const thumbnailUrl = getThumbnailUrl();
-  const spriteUrl = getSpriteUrl();
   const dimensions = getDimensions();
 
   return (
     <Card
-      ref={cardRef}
       className={cn(
-        'overflow-hidden cursor-pointer transition-all hover:shadow-lg',
+        'overflow-hidden cursor-pointer transition-all hover:shadow-lg p-0',
         className
       )}
       onClick={onClick}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
-      onMouseMove={handleMouseMove}
     >
       {/* Thumbnail/Sprite preview */}
       <div className="relative aspect-video bg-gray-100 overflow-hidden">
@@ -128,20 +90,18 @@ export function MediaCard({ media, onClick, className }: MediaCardProps) {
               fill
               className={cn(
                 'object-cover transition-opacity',
-                isHovering && spriteUrl ? 'opacity-0' : 'opacity-100'
+                isHovering ? 'opacity-0' : 'opacity-100'
               )}
               unoptimized
             />
 
             {/* Sprite sheet preview on hover */}
-            {isHovering && spriteUrl && (
-              <div
-                className="absolute inset-0 bg-cover bg-no-repeat transition-all"
-                style={{
-                  backgroundImage: `url(${spriteUrl})`,
-                  backgroundPosition: `${spritePosition.x * -100}% ${spritePosition.y * -100}%`,
-                  backgroundSize: '1000% 1000%', // 10x10 grid
-                }}
+            {isHovering && (
+              <SpriteAnimator
+                media={media}
+                isHovering={isHovering}
+                className="absolute inset-0"
+                fallbackIcon={<div className="h-full w-full" />}
               />
             )}
           </>
@@ -161,7 +121,7 @@ export function MediaCard({ media, onClick, className }: MediaCardProps) {
       </div>
 
       {/* Media info */}
-      <CardContent className="p-4 space-y-2">
+      <CardContent className="px-4 pt-2 pb-2 space-y-1.5">
         {/* Media type badge */}
         <div className="flex items-center gap-2">
           <Badge variant="outline">{media.mediaType}</Badge>

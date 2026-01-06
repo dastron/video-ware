@@ -34,18 +34,18 @@ export function WorkspaceSelector({ className }: WorkspaceSelectorProps) {
   };
 
   if (isLoading) {
-    return <Skeleton className={cn('h-10 w-48', className)} />;
+    return <Skeleton className={cn('h-8 w-32', className)} />;
   }
 
   if (!hasWorkspaces) {
     return (
       <div
         className={cn(
-          'flex items-center gap-2 text-sm text-gray-500',
+          'flex items-center gap-1.5 text-xs text-gray-500',
           className
         )}
       >
-        <Building2 className="h-4 w-4" />
+        <Building2 className="h-3.5 w-3.5" />
         <span>No workspaces</span>
       </div>
     );
@@ -56,8 +56,8 @@ export function WorkspaceSelector({ className }: WorkspaceSelectorProps) {
       value={currentWorkspace?.id || ''}
       onValueChange={handleWorkspaceChange}
     >
-      <SelectTrigger className={cn('w-48', className)}>
-        <Building2 className="h-4 w-4 mr-2" />
+      <SelectTrigger className={cn('h-8 w-32 text-xs', className)}>
+        <Building2 className="h-3.5 w-3.5 mr-1.5" />
         <SelectValue placeholder="Select workspace" />
       </SelectTrigger>
       <SelectContent>
@@ -67,14 +67,7 @@ export function WorkspaceSelector({ className }: WorkspaceSelectorProps) {
 
           return (
             <SelectItem key={workspace.id} value={workspace.id}>
-              <div className="flex flex-col">
-                <span>{workspace.name}</span>
-                {workspace.slug && (
-                  <span className="text-xs text-gray-500">
-                    @{workspace.slug}
-                  </span>
-                )}
-              </div>
+              @{workspace.name}
             </SelectItem>
           );
         })}

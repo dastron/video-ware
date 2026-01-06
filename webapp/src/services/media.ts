@@ -109,10 +109,10 @@ export class MediaService {
     const enriched: MediaWithPreviews = { ...media };
 
     // Get thumbnail URL if thumbnail file exists
-    if (media.thumbnailFile) {
+    if (media.thumbnailFileRef) {
       try {
         const thumbnailFile = await this.fileMutator.getById(
-          media.thumbnailFile
+          media.thumbnailFileRef
         );
         if (thumbnailFile) {
           enriched.thumbnailUrl = this.fileMutator.getFileUrl(thumbnailFile);
@@ -124,9 +124,9 @@ export class MediaService {
     }
 
     // Get sprite URL if sprite file exists
-    if (media.spriteFile) {
+    if (media.spriteFileRef) {
       try {
-        const spriteFile = await this.fileMutator.getById(media.spriteFile);
+        const spriteFile = await this.fileMutator.getById(media.spriteFileRef);
         if (spriteFile) {
           enriched.spriteUrl = this.fileMutator.getFileUrl(spriteFile);
           enriched.spriteFileRecord = spriteFile;
@@ -162,7 +162,7 @@ export class MediaService {
    * @returns True if both thumbnail and sprite are available
    */
   hasPreviewAssets(media: Media): boolean {
-    return !!(media.thumbnailFile && media.spriteFile);
+    return !!(media.thumbnailFileRef && media.spriteFileRef);
   }
 
   /**

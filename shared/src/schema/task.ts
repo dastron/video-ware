@@ -29,7 +29,6 @@ export const TaskSchema = z
     result: JSONField().optional(),
     errorLog: TextField().optional(),
     WorkspaceRef: RelationField({ collection: 'Workspaces' }),
-    UserRef: RelationField({ collection: 'Users' }).optional(),
     provider: SelectField([
       ProcessingProvider.FFMPEG,
       ProcessingProvider.GOOGLE_TRANSCODER,
@@ -66,9 +65,6 @@ export const TaskInputSchema = z.object({
   result: JSONField().optional(),
   errorLog: TextField().optional(),
   WorkspaceRef: z.string().min(1, 'Workspace is required'),
-  UploadRef: z.string().optional(),
-  MediaRef: z.string().optional(),
-  UserRef: z.string().optional(),
   provider: z
     .enum([
       ProcessingProvider.FFMPEG,

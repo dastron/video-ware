@@ -7,6 +7,7 @@ export default defineConfig({
     enums: 'src/enums.ts',
     types: 'src/types.ts',
     mutator: 'src/mutator.ts',
+    env: 'src/env.ts',
   },
   format: ['esm'],
   dts: true,

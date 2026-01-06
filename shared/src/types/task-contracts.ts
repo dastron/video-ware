@@ -68,6 +68,9 @@ export interface ProcessUploadPayload {
 /**
  * Output from media probing (ffprobe or equivalent)
  */
+/**
+ * Output from media probing (ffprobe or equivalent)
+ */
 export interface ProbeOutput {
   /** Duration in seconds */
   duration: number;
@@ -81,6 +84,28 @@ export interface ProbeOutput {
   fps: number;
   /** Bitrate in bits per second (optional) */
   bitrate?: number;
+  /** Container format name */
+  format?: string;
+  /** File size in bytes */
+  size?: number;
+  /** Video stream details */
+  video?: {
+    codec: string;
+    profile?: string;
+    width: number;
+    height: number;
+    aspectRatio?: string;
+    pixFmt?: string;
+    level?: string;
+    colorSpace?: string;
+  };
+  /** Audio stream details (if present) */
+  audio?: {
+    codec: string;
+    channels: number;
+    sampleRate: number;
+    bitrate?: number;
+  };
 }
 
 /**

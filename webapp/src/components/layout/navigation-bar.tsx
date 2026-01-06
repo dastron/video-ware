@@ -10,6 +10,7 @@ import {
   Upload,
   Film,
   Activity,
+  Video,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -87,7 +88,8 @@ export function NavigationBar({ className }: NavigationBarProps) {
         {/* Logo/Brand */}
         <div className="mr-4 flex pl-4">
           <Link href="/" className="mr-6 flex items-center space-x-2">
-            <span className="font-bold text-xl">App</span>
+            <Video className="h-6 w-6 text-primary" />
+            <span className="font-bold text-xl">VideoWare</span>
           </Link>
         </div>
 
@@ -104,60 +106,78 @@ export function NavigationBar({ className }: NavigationBarProps) {
 
           {/* Desktop Auth Navigation */}
           {!isMobile && (
-            <nav className="flex items-center">
+            <nav className="flex items-center gap-2">
               {isLoading ? (
                 <div className="h-8 w-20 animate-pulse bg-muted rounded" />
               ) : isAuthenticated ? (
-                <div className="flex items-center gap-4">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        className="relative h-8 w-8 rounded-full"
+                <>
+                  {/* Prominent Upload and Media links */}
+                  <Button variant="ghost" asChild>
+                    <Link href="/uploads" className="flex items-center gap-2">
+                      <Upload className="h-4 w-4" />
+                      <span>Upload</span>
+                    </Link>
+                  </Button>
+                  <Button variant="ghost" asChild>
+                    <Link href="/media" className="flex items-center gap-2">
+                      <Film className="h-4 w-4" />
+                      <span>Media</span>
+                    </Link>
+                  </Button>
+                  <div className="flex items-center gap-4">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          className="relative h-8 w-8 rounded-full"
+                        >
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage
+                              src={user?.avatar}
+                              alt={user?.name || user?.email}
+                            />
+                            <AvatarFallback>
+                              {getUserInitials(user?.name, user?.email)}
+                            </AvatarFallback>
+                          </Avatar>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        className="w-56"
+                        align="end"
+                        forceMount
                       >
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage
-                            src={user?.avatar}
-                            alt={user?.name || user?.email}
-                          />
-                          <AvatarFallback>
-                            {getUserInitials(user?.name, user?.email)}
-                          </AvatarFallback>
-                        </Avatar>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      className="w-56"
-                      align="end"
-                      forceMount
-                    >
-                      <DropdownMenuLabel className="font-normal">
-                        <div className="flex flex-col space-y-1">
-                          <p className="text-sm font-medium leading-none">
-                            {user?.name || 'User'}
-                          </p>
-                          <p className="text-xs leading-none text-muted-foreground">
-                            {user?.email}
-                          </p>
-                        </div>
-                      </DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      {authenticatedLinks.map((link) => (
-                        <DropdownMenuItem key={link.href} asChild>
-                          <Link href={link.href} className="flex items-center">
-                            <link.icon className="mr-2 h-4 w-4" />
-                            <span>{link.label}</span>
-                          </Link>
+                        <DropdownMenuLabel className="font-normal">
+                          <div className="flex flex-col space-y-1">
+                            <p className="text-sm font-medium leading-none">
+                              {user?.name || 'User'}
+                            </p>
+                            <p className="text-xs leading-none text-muted-foreground">
+                              {user?.email}
+                            </p>
+                          </div>
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        {authenticatedLinks.map((link) => (
+                          <DropdownMenuItem key={link.href} asChild>
+                            <Link
+                              href={link.href}
+                              className="flex items-center"
+                            >
+                              <link.icon className="mr-2 h-4 w-4" />
+                              <span>{link.label}</span>
+                            </Link>
+                          </DropdownMenuItem>
+                        ))}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={handleLogout}>
+                          <LogOut className="mr-2 h-4 w-4" />
+                          <span>Log out</span>
                         </DropdownMenuItem>
-                      ))}
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={handleLogout}>
-                        <LogOut className="mr-2 h-4 w-4" />
-                        <span>Log out</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </>
               ) : (
                 <div className="flex items-center gap-2">
                   <Button variant="ghost" asChild>

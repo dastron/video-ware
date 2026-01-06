@@ -22,6 +22,14 @@ export default defineConfig({
         replacement: path.resolve(__dirname, '../shared/src/schema.ts'),
       },
       {
+        find: '@project/shared/mutator',
+        replacement: path.resolve(__dirname, '../shared/src/mutator.ts'),
+      },
+      {
+        find: '@project/shared/types',
+        replacement: path.resolve(__dirname, '../shared/src/types.ts'),
+      },
+      {
         find: '@project/shared',
         replacement: path.resolve(__dirname, '../shared'),
       },

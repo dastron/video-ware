@@ -19,9 +19,9 @@ export class MediaMutator extends BaseMutator<Media, MediaInput> {
       expand: [
         'WorkspaceRef',
         'UploadRef',
-        'thumbnailFile',
-        'spriteFile',
-        'proxyFile',
+        'thumbnailFileRef',
+        'spriteFileRef',
+        'proxyFileRef',
       ],
       filter: [],
       sort: ['-created'],

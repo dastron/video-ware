@@ -22,10 +22,7 @@
  */
 
 import PocketBase from 'pocketbase';
-import * as path from 'path';
 import { statSync, readFileSync } from 'node:fs';
-import { fileURLToPath } from 'url';
-import dotenv from 'dotenv';
 import {
   TaskType,
   TaskStatus,
@@ -52,17 +49,12 @@ import {
   formatTaskErrorLog,
   type RetryConfig,
   shouldRetry,
+  env,
 } from '@project/shared';
 import { getProcessor } from './processors/index.js';
 
-// Load .env file from project root (two directories up from worker/src/)
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const projectRoot = path.resolve(__dirname, '../..');
-dotenv.config({ path: path.join(projectRoot, '.env') });
-
 // Configuration
-const POCKETBASE_URL = process.env.POCKETBASE_URL || 'http://localhost:8090';
+const POCKETBASE_URL = env.POCKETBASE_URL;
 const POLL_INTERVAL_MS = 5000; // Poll every 5 seconds
 
 // Retry configuration for task processing
@@ -134,8 +126,8 @@ async function createWorkerPocketBase(): Promise<TypedPocketBase> {
   pb.autoCancellation(false);
 
   // Get admin credentials from environment
-  const adminEmail = process.env.POCKETBASE_ADMIN_EMAIL;
-  const adminPassword = process.env.POCKETBASE_ADMIN_PASSWORD;
+  const adminEmail = env.POCKETBASE_ADMIN_EMAIL;
+  const adminPassword = env.POCKETBASE_ADMIN_PASSWORD;
 
   if (!adminEmail || !adminPassword) {
     throw new Error(
@@ -217,9 +209,9 @@ async function processUploadTask(
 
     if (
       existingMedia &&
-      existingMedia.thumbnailFile &&
-      existingMedia.spriteFile &&
-      (!transcode?.enabled || existingMedia.proxyFile)
+      existingMedia.thumbnailFileRef &&
+      existingMedia.spriteFileRef &&
+      (!transcode?.enabled || existingMedia.proxyFileRef)
     ) {
       console.log(
         `[Worker] Media record already exists with all assets: ${existingMedia.id}`
@@ -231,15 +223,18 @@ async function processUploadTask(
 
       const result: ProcessUploadResult = {
         mediaId: existingMedia.id,
-        thumbnailFileId: existingMedia.thumbnailFile,
-        spriteFileId: existingMedia.spriteFile,
-        proxyFileId: existingMedia.proxyFile,
-        processorVersion: `cached:${existingMedia.processingVersion}`,
+        thumbnailFileId: existingMedia.thumbnailFileRef,
+        spriteFileId: existingMedia.spriteFileRef,
+        proxyFileId: existingMedia.proxyFileRef,
+        processorVersion: `cached:${existingMedia.version || 1}`,
         probeOutput:
           existingMedia.mediaData as unknown as ProcessUploadResult['probeOutput'],
       };
 
-      await taskMutator.markSuccess(task.id, result);
+      await taskMutator.markSuccess(
+        task.id,
+        result as unknown as Record<string, unknown>
+      );
       console.log(`[Worker] Task ${task.id} completed (used existing media)`);
       return;
     }
@@ -263,10 +258,32 @@ async function processUploadTask(
       width: 640,
       height: 360,
     };
+
+    // Calculate dynamic sprite config based on duration
+    // Target 100 frames (10x10) max
+    const MAX_SPRITE_FRAMES = 100;
+    const spriteCols = 10;
+    const spriteRows = 10;
+    const duration = probeOutput.duration || 1;
+
+    // Calculate FPS needed to get approx MAX_SPRITE_FRAMES valid frames
+    // fps = total_frames / duration
+    // Clamp to maximum 1fps to avoid excessive density on short videos,
+    // unless you really want smooth hover on 5s video.
+    // Let's cap at 1fps for now for short videos, and lower for long videos.
+    let spriteFps = 1;
+    if (duration > MAX_SPRITE_FRAMES) {
+      spriteFps = MAX_SPRITE_FRAMES / duration;
+    } else {
+      spriteFps = 1;
+      // For very short videos (<10s), we might get fewer than 10 frames.
+      // That's fine.
+    }
+
     const spriteConfig = sprite || {
-      fps: 1,
-      cols: 10,
-      rows: 10,
+      fps: spriteFps,
+      cols: spriteCols,
+      rows: spriteRows,
       tileWidth: 160,
       tileHeight: 90,
     };
@@ -325,7 +342,8 @@ async function processUploadTask(
         const transcodedPath = await processor.transcode(
           originalFileRef,
           transcode,
-          proxyFileName
+          proxyFileName,
+          uploadId
         );
 
         // Create proxy file record
@@ -337,10 +355,9 @@ async function processUploadTask(
           fileSource: transcodedPath.startsWith('gs://')
             ? FileSource.GCS
             : FileSource.POCKETBASE,
-          blob: new File(
-            [readFileSync(transcodedPath)],
-            proxyFileName
-          ) as unknown as File,
+          blob: new File([readFileSync(transcodedPath)], proxyFileName, {
+            type: 'video/mp4',
+          }),
           s3Key: transcodedPath,
           WorkspaceRef: upload.WorkspaceRef,
           UploadRef: uploadId,
@@ -358,7 +375,8 @@ async function processUploadTask(
       await taskMutator.updateProgress(task.id, 40);
       const thumbnailPath = await processor.generateThumbnail(
         originalFileRef,
-        thumbnailConfig
+        thumbnailConfig,
+        uploadId
       );
 
       // Create thumbnail file record
@@ -370,10 +388,9 @@ async function processUploadTask(
         fileSource: thumbnailPath.startsWith('gs://')
           ? FileSource.GCS
           : FileSource.POCKETBASE,
-        blob: new File(
-          [readFileSync(thumbnailPath)],
-          thumbnailFileName
-        ) as unknown as File,
+        blob: new File([readFileSync(thumbnailPath)], thumbnailFileName, {
+          type: 'image/jpeg',
+        }),
         s3Key: thumbnailPath,
         WorkspaceRef: upload.WorkspaceRef,
         UploadRef: uploadId,
@@ -390,7 +407,8 @@ async function processUploadTask(
       await taskMutator.updateProgress(task.id, 60);
       const spritePath = await processor.generateSprite(
         originalFileRef,
-        spriteConfig
+        spriteConfig,
+        uploadId
       );
 
       // Create sprite file record
@@ -402,13 +420,13 @@ async function processUploadTask(
         fileSource: spritePath.startsWith('gs://')
           ? FileSource.GCS
           : FileSource.POCKETBASE,
-        blob: new File(
-          [readFileSync(spritePath)],
-          spriteFileName
-        ) as unknown as File,
+        blob: new File([readFileSync(spritePath)], spriteFileName, {
+          type: 'image/jpeg',
+        }),
         s3Key: spritePath,
         WorkspaceRef: upload.WorkspaceRef,
         UploadRef: uploadId,
+        meta: { spriteConfig } as unknown as Record<string, unknown>,
       });
     }
 
@@ -428,10 +446,10 @@ async function processUploadTask(
       media = await mediaMutator.update(media.id, {
         duration: probeOutput.duration,
         mediaData: probeOutput as unknown as Record<string, unknown>,
-        thumbnailFile: thumbnailFile.id,
-        spriteFile: spriteFile.id,
-        proxyFile: proxyFile?.id,
-        processingVersion: (media.processingVersion || 0) + 1,
+        thumbnailFileRef: thumbnailFile.id,
+        spriteFileRef: spriteFile.id,
+        proxyFileRef: proxyFile?.id,
+        version: (media.version || 0) + 1,
       } as Partial<typeof media>);
     } else {
       // Create new Media record
@@ -442,10 +460,10 @@ async function processUploadTask(
         mediaType: MediaType.VIDEO,
         duration: probeOutput.duration,
         mediaData: probeOutput as unknown as Record<string, unknown>,
-        thumbnailFile: thumbnailFile.id,
-        spriteFile: spriteFile.id,
-        proxyFile: proxyFile?.id,
-        processingVersion: 1,
+        thumbnailFileRef: thumbnailFile.id,
+        spriteFileRef: spriteFile.id,
+        proxyFileRef: proxyFile?.id,
+        version: 1,
       });
     }
 
@@ -455,7 +473,7 @@ async function processUploadTask(
 
     const existingClips = await mediaClipMutator.getByMedia(media.id);
     const hasFullClip = existingClips.items.some(
-      (clip) => clip.clipType === ClipType.FULL
+      (clip) => clip.type === ClipType.FULL
     );
 
     if (!hasFullClip) {
@@ -463,7 +481,7 @@ async function processUploadTask(
       await mediaClipMutator.create({
         WorkspaceRef: upload.WorkspaceRef,
         MediaRef: media.id,
-        clipType: ClipType.FULL,
+        type: ClipType.FULL,
         start: 0,
         end: probeOutput.duration,
         duration: probeOutput.duration,
@@ -486,7 +504,10 @@ async function processUploadTask(
       probeOutput,
     };
 
-    await taskMutator.markSuccess(task.id, result);
+    await taskMutator.markSuccess(
+      task.id,
+      result as unknown as Record<string, unknown>
+    );
     console.log(`[Worker] Task ${task.id} completed successfully`);
   } catch (error) {
     // Handle errors with proper error types
@@ -606,7 +627,10 @@ async function processDetectLabelsTask(
     const result = await processor.detectLabels(fileRef, config);
 
     // Step 2: Mark task as successful
-    await taskMutator.markSuccess(task.id, result);
+    await taskMutator.markSuccess(
+      task.id,
+      result as unknown as Record<string, unknown>
+    );
     console.log(`[Worker] Task ${task.id} completed successfully`);
   } catch (error) {
     console.error(`[Worker] Task ${task.id} failed:`, error);

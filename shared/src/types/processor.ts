@@ -30,29 +30,41 @@ export interface MediaProcessor {
    * Generate a thumbnail image from the media file
    * @param fileRef - Reference to the source media file
    * @param config - Thumbnail generation configuration
+   * @param identifier - Optional identifier (upload ID or file ID) for temp file naming
    * @returns Path or URL to the generated thumbnail file
    */
-  generateThumbnail(fileRef: string, config: ThumbnailConfig): Promise<string>;
+  generateThumbnail(
+    fileRef: string,
+    config: ThumbnailConfig,
+    identifier?: string
+  ): Promise<string>;
 
   /**
    * Generate a sprite sheet from the media file
    * @param fileRef - Reference to the source media file
    * @param config - Sprite sheet generation configuration
+   * @param identifier - Optional identifier (upload ID or file ID) for temp file naming
    * @returns Path or URL to the generated sprite sheet file
    */
-  generateSprite(fileRef: string, config: SpriteConfig): Promise<string>;
+  generateSprite(
+    fileRef: string,
+    config: SpriteConfig,
+    identifier?: string
+  ): Promise<string>;
 
   /**
    * Transcode the media file to a different format (optional)
    * @param fileRef - Reference to the source media file
    * @param config - Transcoding configuration
    * @param outputFileName - Optional deterministic output filename
+   * @param identifier - Optional identifier (upload ID or file ID) for temp file naming
    * @returns Path or URL to the transcoded file
    */
   transcode?(
     fileRef: string,
     config: TranscodeConfig,
-    outputFileName?: string
+    outputFileName?: string,
+    identifier?: string
   ): Promise<string>;
 
   /**

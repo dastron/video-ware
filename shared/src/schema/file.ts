@@ -38,7 +38,7 @@ export const FileSchema = z
       FileSource.POCKETBASE,
       FileSource.GCS,
     ]),
-    blob: FileField().optional(),
+    blob: FileField({ maxSize: 700000000 }).optional(),
     s3Key: TextField().optional(),
     meta: JSONField().optional(),
     WorkspaceRef: RelationField({ collection: 'Workspaces' }),
@@ -49,8 +49,8 @@ export const FileSchema = z
 
 // Define input schema for creating files
 export const FileInputSchema = z.object({
-  name: TextField({ min: 1, max: 255 }),
-  size: NumberField({ min: 0 }),
+  name: TextField(),
+  size: NumberField(),
   fileStatus: z
     .enum([
       FileStatus.PENDING,

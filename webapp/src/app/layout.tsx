@@ -17,8 +17,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Next.js + PocketBase Template',
-  description: 'A modern full-stack template with authentication',
+  title: 'VideoWare - Web-Based Video Editor',
+  description:
+    'Create, edit, and manage your videos with our powerful web-based video editor',
 };
 
 export default function RootLayout({

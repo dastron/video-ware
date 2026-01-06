@@ -78,14 +78,19 @@ export class GoogleVideoIntelligenceProcessor implements MediaProcessor {
 
   async generateThumbnail(
     fileRef: string,
-    config: ThumbnailConfig
+    _config: ThumbnailConfig,
+    _identifier?: string
   ): Promise<string> {
     throw new Error(
       'generateThumbnail not supported by GoogleVideoIntelligenceProcessor'
     );
   }
 
-  async generateSprite(fileRef: string, config: SpriteConfig): Promise<string> {
+  async generateSprite(
+    fileRef: string,
+    _config: SpriteConfig,
+    _identifier?: string
+  ): Promise<string> {
     throw new Error(
       'generateSprite not supported by GoogleVideoIntelligenceProcessor'
     );

@@ -77,12 +77,12 @@ type ErrorType = Error | PocketBaseError | string | unknown;
 
 export interface AuthError {
   type:
-  | 'validation'
-  | 'authentication'
-  | 'network'
-  | 'authorization'
-  | 'server'
-  | 'unknown';
+    | 'validation'
+    | 'authentication'
+    | 'network'
+    | 'authorization'
+    | 'server'
+    | 'unknown';
   message: string;
   field?: string;
   code?: string;

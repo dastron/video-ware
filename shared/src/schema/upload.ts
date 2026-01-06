@@ -14,7 +14,7 @@ import { UploadStatus } from '../enums';
 export const UploadSchema = z
   .object({
     name: TextField().min(1, 'Name is required').max(255, 'Name too long'),
-    size: NumberField().min(0, 'Size must be greater than 0'),
+    size: NumberField({ required: true }).min(0, 'Size must be greater than 0'),
     status: SelectField([
       UploadStatus.QUEUED,
       UploadStatus.UPLOADING,
@@ -23,7 +23,7 @@ export const UploadSchema = z
       UploadStatus.READY,
       UploadStatus.FAILED,
     ]),
-    originalFile: FileField().optional(),
+    originalFile: FileField({ maxSize: 700000000 }).optional(),
     WorkspaceRef: RelationField({ collection: 'Workspaces' }),
     UserRef: RelationField({ collection: 'Users' }).optional(),
     errorMessage: TextField().optional(),

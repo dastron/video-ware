@@ -48,7 +48,6 @@ export class TaskMutator extends BaseMutator<Task, TaskInput> {
       attempts: 1,
       payload: payload as unknown as Record<string, unknown>,
       WorkspaceRef: workspaceId,
-      UploadRef: uploadId,
     });
   }
 
@@ -68,7 +67,10 @@ export class TaskMutator extends BaseMutator<Task, TaskInput> {
    * @param result The task result
    * @returns The updated task
    */
-  async markSuccess(id: string, result: Record<string, unknown>): Promise<Task> {
+  async markSuccess(
+    id: string,
+    result: Record<string, unknown>
+  ): Promise<Task> {
     return this.update(id, {
       status: TaskStatus.SUCCESS,
       progress: 100,
@@ -84,9 +86,12 @@ export class TaskMutator extends BaseMutator<Task, TaskInput> {
    */
   async markFailed(id: string, errorLog: string): Promise<Task> {
     const task = await this.getById(id);
+    // Truncate errorLog to 500 characters to ensure it fits in the database field
+    const truncatedErrorLog =
+      errorLog.length > 500 ? errorLog.substring(0, 497) + '...' : errorLog;
     return this.update(id, {
       status: TaskStatus.FAILED,
-      errorLog,
+      errorLog: truncatedErrorLog,
       attempts: (task?.attempts || 0) + 1,
     } as Partial<Task>);
   }

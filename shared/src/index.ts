@@ -13,3 +13,6 @@ export * from './pocketbase/client.js';
 
 // Export mutators
 export * from './mutator.js';
+
+// Export environment configuration
+export * from './env.js';
