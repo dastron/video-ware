@@ -88,13 +88,11 @@ jobs:
             POCKETBASE_VERSION=0.35.0
 
       - name: Wait for package to be available
-        if: github.event_name == 'release' || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.push_image == 'true')
         run: |
           echo "Waiting 10 seconds for package to be available in registry..."
           sleep 10
 
       - name: Make package public
-        if: github.event_name == 'release' || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.push_image == 'true')
         run: |
           # Extract package name from repository (e.g., "dastron/video-ware" -> "video-ware")
           PACKAGE_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2)
