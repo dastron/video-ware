@@ -23,7 +23,7 @@ export const UploadSchema = z
       UploadStatus.READY,
       UploadStatus.FAILED,
     ]),
-    originalFile: FileField({ maxSize: 700000000 }).optional(),
+    originalFile: FileField({ maxSize: 7000000000 }).optional(),
     WorkspaceRef: RelationField({ collection: 'Workspaces' }),
     UserRef: RelationField({ collection: 'Users' }).optional(),
     errorMessage: TextField().optional(),

@@ -1,10 +1,7 @@
 /// <reference path="../pb_data/types.d.ts" />
 migrate((app) => {
-  // UP MIGRATION
-
-  // Create new collections
-  const collection_Workspaces_create = new Collection({
-    id: "pbc_3456483467",
+  const collection_Workspaces = new Collection({
+    id: "pb_6znl9bq7apv0rcg",
     name: "Workspaces",
     type: "base",
     listRule: "@request.auth.id != \"\"",
@@ -69,13 +66,8 @@ migrate((app) => {
     indexes: [],
   });
 
-  return app.save(collection_Workspaces_create);
-
+  return app.save(collection_Workspaces);
 }, (app) => {
-  // DOWN MIGRATION (ROLLBACK)
-
-  // Delete created collections
-  const collection_Workspaces_rollback = app.findCollectionByNameOrId("Workspaces");
-  return app.delete(collection_Workspaces_rollback);
-
+  const collection_Workspaces = app.findCollectionByNameOrId("Workspaces");
+  return app.delete(collection_Workspaces);
 });

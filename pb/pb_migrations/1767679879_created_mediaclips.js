@@ -1,11 +1,8 @@
 /// <reference path="../pb_data/types.d.ts" />
 migrate((app) => {
-  // UP MIGRATION
-
-  // Create new collections
-  const collection_WorkspaceMembers_create = new Collection({
-    id: "pbc_1253972144",
-    name: "WorkspaceMembers",
+  const collection_MediaClips = new Collection({
+    id: "pb_v0io398cfx6qzc3",
+    name: "MediaClips",
     type: "base",
     listRule: "@request.auth.id != \"\"",
     viewRule: "@request.auth.id != \"\"",
@@ -54,31 +51,54 @@ migrate((app) => {
       name: "WorkspaceRef",
       type: "relation",
       required: true,
-      collectionId: "pbc_3456483467",
+      collectionId: "pb_6znl9bq7apv0rcg",
       maxSelect: 1,
       minSelect: 0,
       cascadeDelete: false,
     },
     {
-      name: "UserRef",
+      name: "MediaRef",
       type: "relation",
       required: true,
-      collectionId: "_pb_users_auth_",
+      collectionId: "pb_1q5cu7dybj36pxm",
       maxSelect: 1,
       minSelect: 0,
       cascadeDelete: false,
+    },
+    {
+      name: "type",
+      type: "text",
+      required: true,
+    },
+    {
+      name: "start",
+      type: "number",
+      required: false,
+      min: 0,
+    },
+    {
+      name: "end",
+      type: "number",
+      required: false,
+      min: 0,
+    },
+    {
+      name: "duration",
+      type: "number",
+      required: false,
+      min: 0,
+    },
+    {
+      name: "clipData",
+      type: "json",
+      required: false,
     },
   ],
     indexes: [],
   });
 
-  return app.save(collection_WorkspaceMembers_create);
-
+  return app.save(collection_MediaClips);
 }, (app) => {
-  // DOWN MIGRATION (ROLLBACK)
-
-  // Delete created collections
-  const collection_WorkspaceMembers_rollback = app.findCollectionByNameOrId("WorkspaceMembers");
-  return app.delete(collection_WorkspaceMembers_rollback);
-
+  const collection_MediaClips = app.findCollectionByNameOrId("MediaClips");
+  return app.delete(collection_MediaClips);
 });

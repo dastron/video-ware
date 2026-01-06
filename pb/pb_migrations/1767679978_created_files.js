@@ -1,10 +1,7 @@
 /// <reference path="../pb_data/types.d.ts" />
 migrate((app) => {
-  // UP MIGRATION
-
-  // Create new collections
-  const collection_Files_create = new Collection({
-    id: "pbc_213045686",
+  const collection_Files = new Collection({
+    id: "pb_48ql3az7t9ok2mu",
     name: "Files",
     type: "base",
     listRule: "@request.auth.id != \"\"",
@@ -54,40 +51,38 @@ migrate((app) => {
       name: "name",
       type: "text",
       required: true,
-      min: 1,
-      max: 255,
     },
     {
       name: "size",
       type: "number",
       required: true,
-      min: 0,
     },
     {
       name: "fileStatus",
       type: "select",
       required: true,
-      values: ["pending", "available", "failed", "deleted"],
       maxSelect: 1,
+      values: ["pending", "available", "failed", "deleted"],
     },
     {
       name: "fileType",
       type: "select",
       required: true,
-      values: ["original", "proxy", "thumbnail", "sprite", "labels_json", "render"],
       maxSelect: 1,
+      values: ["original", "proxy", "thumbnail", "sprite", "labels_json", "render"],
     },
     {
       name: "fileSource",
       type: "select",
       required: true,
-      values: ["s3", "pocketbase"],
       maxSelect: 1,
+      values: ["s3", "pocketbase", "gcs"],
     },
     {
-      name: "blob",
+      name: "file",
       type: "file",
       required: false,
+      maxSize: 7000000000,
     },
     {
       name: "s3Key",
@@ -102,8 +97,17 @@ migrate((app) => {
     {
       name: "WorkspaceRef",
       type: "relation",
-        required: true,
-        collectionId: "pbc_3456483467",
+      required: true,
+      collectionId: "pb_6znl9bq7apv0rcg",
+      maxSelect: 1,
+      minSelect: 0,
+      cascadeDelete: false,
+    },
+    {
+      name: "UploadRef",
+      type: "relation",
+      required: false,
+      collectionId: "pb_9exg70d9rw3imzq",
       maxSelect: 1,
       minSelect: 0,
       cascadeDelete: false,
@@ -112,7 +116,7 @@ migrate((app) => {
       name: "MediaRef",
       type: "relation",
       required: false,
-      collectionId: "pbc_1621831907",
+      collectionId: "pb_1q5cu7dybj36pxm",
       maxSelect: 1,
       minSelect: 0,
       cascadeDelete: false,
@@ -121,13 +125,8 @@ migrate((app) => {
     indexes: [],
   });
 
-  return app.save(collection_Files_create);
-
+  return app.save(collection_Files);
 }, (app) => {
-  // DOWN MIGRATION (ROLLBACK)
-
-  // Delete created collections
-  const collection_Files_rollback = app.findCollectionByNameOrId("Files");
-  return app.delete(collection_Files_rollback);
-
+  const collection_Files = app.findCollectionByNameOrId("Files");
+  return app.delete(collection_Files);
 });

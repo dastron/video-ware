@@ -1,10 +1,7 @@
 /// <reference path="../pb_data/types.d.ts" />
 migrate((app) => {
-  // UP MIGRATION
-
-  // Create new collections
-  const collection_Tasks_create = new Collection({
-    id: "pbc_1524626552",
+  const collection_Tasks = new Collection({
+    id: "pb_rm2tsf1ujhh49zr",
     name: "Tasks",
     type: "base",
     listRule: "@request.auth.id != \"\"",
@@ -69,20 +66,20 @@ migrate((app) => {
       name: "status",
       type: "select",
       required: true,
-      values: ["queued", "running", "success", "failed", "canceled"],
       maxSelect: 1,
+      values: ["queued", "running", "success", "failed", "canceled"],
     },
     {
       name: "progress",
       type: "number",
-      required: true,
+      required: false,
       min: 0,
       max: 100,
     },
     {
       name: "attempts",
       type: "number",
-      required: true,
+      required: false,
       min: 0,
     },
     {
@@ -104,25 +101,7 @@ migrate((app) => {
       name: "WorkspaceRef",
       type: "relation",
       required: true,
-      collectionId: "pbc_3456483467",
-      maxSelect: 1,
-      minSelect: 0,
-      cascadeDelete: false,
-    },
-    {
-      name: "MediaRef",
-      type: "relation",
-      required: false,
-      collectionId: "pbc_1621831907",
-      maxSelect: 1,
-      minSelect: 0,
-      cascadeDelete: false,
-    },
-    {
-      name: "UserRef",
-      type: "relation",
-      required: false,
-      collectionId: "_pb_users_auth_",
+      collectionId: "pb_6znl9bq7apv0rcg",
       maxSelect: 1,
       minSelect: 0,
       cascadeDelete: false,
@@ -131,8 +110,8 @@ migrate((app) => {
       name: "provider",
       type: "select",
       required: false,
-      values: ["ffmpeg", "google_transcoder", "google_video_intelligence", "google_speech"],
       maxSelect: 1,
+      values: ["ffmpeg", "google_transcoder", "google_video_intelligence", "google_speech"],
     },
     {
       name: "version",
@@ -143,13 +122,8 @@ migrate((app) => {
     indexes: [],
   });
 
-  return app.save(collection_Tasks_create);
-
+  return app.save(collection_Tasks);
 }, (app) => {
-  // DOWN MIGRATION (ROLLBACK)
-
-  // Delete created collections
-  const collection_Tasks_rollback = app.findCollectionByNameOrId("Tasks");
-  return app.delete(collection_Tasks_rollback);
-
+  const collection_Tasks = app.findCollectionByNameOrId("Tasks");
+  return app.delete(collection_Tasks);
 });

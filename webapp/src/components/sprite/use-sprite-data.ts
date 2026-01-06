@@ -36,15 +36,15 @@ export function useSpriteData(media: Media) {
     fetchSpriteFile();
   }, [media.spriteFileRef, spriteFile]);
 
-  const config: SpriteConfig = (spriteFile as any)?.meta?.spriteConfig ||
-    (media.mediaData as any)?.spriteConfig || {
+  const config: SpriteConfig = (spriteFile)?.meta?.spriteConfig ||
+    (media.mediaData)?.spriteConfig || {
       cols: 10,
       rows: 10,
       fps: 1,
     };
 
-  const url = spriteFile?.blob
-    ? pb.files.getURL(spriteFile as any, spriteFile.blob as any)
+  const url = spriteFile?.file
+    ? pb.files.getURL(spriteFile, spriteFile.file)
     : null;
 
   return {

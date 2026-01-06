@@ -355,7 +355,7 @@ async function processUploadTask(
           fileSource: transcodedPath.startsWith('gs://')
             ? FileSource.GCS
             : FileSource.POCKETBASE,
-          blob: new File([readFileSync(transcodedPath)], proxyFileName, {
+          file: new File([readFileSync(transcodedPath)], proxyFileName, {
             type: 'video/mp4',
           }),
           s3Key: transcodedPath,
@@ -388,7 +388,7 @@ async function processUploadTask(
         fileSource: thumbnailPath.startsWith('gs://')
           ? FileSource.GCS
           : FileSource.POCKETBASE,
-        blob: new File([readFileSync(thumbnailPath)], thumbnailFileName, {
+          file: new File([readFileSync(thumbnailPath)], thumbnailFileName, {
           type: 'image/jpeg',
         }),
         s3Key: thumbnailPath,
@@ -420,7 +420,7 @@ async function processUploadTask(
         fileSource: spritePath.startsWith('gs://')
           ? FileSource.GCS
           : FileSource.POCKETBASE,
-        blob: new File([readFileSync(spritePath)], spriteFileName, {
+        file: new File([readFileSync(spritePath)], spriteFileName, {
           type: 'image/jpeg',
         }),
         s3Key: spritePath,

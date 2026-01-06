@@ -1,11 +1,8 @@
 /// <reference path="../pb_data/types.d.ts" />
 migrate((app) => {
-  // UP MIGRATION
-
-  // Create new collections
-  const collection_Uploads_create = new Collection({
-    id: "pbc_3372169582",
-    name: "Uploads",
+  const collection_WorkspaceMembers = new Collection({
+    id: "pb_cg58dy19tzyzwb1",
+    name: "WorkspaceMembers",
     type: "base",
     listRule: "@request.auth.id != \"\"",
     viewRule: "@request.auth.id != \"\"",
@@ -51,32 +48,10 @@ migrate((app) => {
       system: false,
     },
     {
-      name: "name",
-      type: "text",
-      required: true,
-    },
-    {
-      name: "size",
-      type: "number",
-      required: true,
-    },
-    {
-      name: "status",
-      type: "select",
-      required: true,
-      values: ["queued", "uploading", "uploaded", "processing", "ready", "failed"],
-      maxSelect: 1,
-    },
-    {
-      name: "originalFile",
-      type: "file",
-      required: false,
-    },
-    {
       name: "WorkspaceRef",
       type: "relation",
       required: true,
-      collectionId: "pbc_3456483467",
+      collectionId: "pb_6znl9bq7apv0rcg",
       maxSelect: 1,
       minSelect: 0,
       cascadeDelete: false,
@@ -84,28 +59,18 @@ migrate((app) => {
     {
       name: "UserRef",
       type: "relation",
-      required: false,
+      required: true,
       collectionId: "_pb_users_auth_",
       maxSelect: 1,
       minSelect: 0,
       cascadeDelete: false,
     },
-    {
-      name: "errorMessage",
-      type: "text",
-      required: false,
-    },
   ],
     indexes: [],
   });
 
-  return app.save(collection_Uploads_create);
-
+  return app.save(collection_WorkspaceMembers);
 }, (app) => {
-  // DOWN MIGRATION (ROLLBACK)
-
-  // Delete created collections
-  const collection_Uploads_rollback = app.findCollectionByNameOrId("Uploads");
-  return app.delete(collection_Uploads_rollback);
-
+  const collection_WorkspaceMembers = app.findCollectionByNameOrId("WorkspaceMembers");
+  return app.delete(collection_WorkspaceMembers);
 });

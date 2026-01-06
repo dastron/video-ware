@@ -56,10 +56,10 @@ export function MediaCard({ media, onClick, className }: MediaCardProps) {
   const getThumbnailUrl = (): string | null => {
     if (!media.expand?.thumbnailFileRef) return null;
     const file = media.expand.thumbnailFileRef;
-    if (!file.blob) return null;
+    if (!file.file) return null;
 
     try {
-      return pb.files.getURL(file, file.blob);
+      return pb.files.getURL(file, file.file);
     } catch (error) {
       console.error('Failed to get thumbnail URL:', error);
       return null;

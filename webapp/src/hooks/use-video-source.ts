@@ -51,9 +51,9 @@ export function useVideoSource(media: Media, clip?: MediaClip): VideoSource {
   }, [media.proxyFileRef, media.thumbnailFileRef, proxyFile, thumbnailFile]);
 
   const src = useMemo(() => {
-    if (!proxyFile?.blob) return '';
+    if (!proxyFile?.file) return '';
     try {
-      return pb.files.getURL(proxyFile, proxyFile.blob as any);
+      return pb.files.getURL(proxyFile, proxyFile.file);
     } catch (error) {
       console.error('Failed to get proxy URL:', error);
       return '';
@@ -61,9 +61,9 @@ export function useVideoSource(media: Media, clip?: MediaClip): VideoSource {
   }, [proxyFile]);
 
   const poster = useMemo(() => {
-    if (!thumbnailFile?.blob) return '';
+    if (!thumbnailFile?.file) return '';
     try {
-      return pb.files.getURL(thumbnailFile, thumbnailFile.blob as any);
+      return pb.files.getURL(thumbnailFile, thumbnailFile.file);
     } catch (error) {
       console.error('Failed to get thumbnail URL:', error);
       return '';

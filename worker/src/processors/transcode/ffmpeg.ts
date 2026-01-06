@@ -128,7 +128,7 @@ export class FFmpegProcessor implements MediaProcessor {
     // Try to resolve as File record ID
     try {
       const fileRecord = await this.pb.collection('Files').getOne(fileRef);
-      const blob = (fileRecord as unknown as Record<string, unknown>).blob;
+      const blob = (fileRecord as unknown as Record<string, unknown>).file;
       if (blob) {
         const filename = Array.isArray(blob) ? blob[0] : (blob as string);
         const fileUrl = this.pb.files.getURL(fileRecord, filename);

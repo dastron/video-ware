@@ -1,5 +1,5 @@
 import PocketBase from 'pocketbase';
-import type { User, RegisterData } from '@project/shared';
+import type { User, RegisterData, UserInput } from '@project/shared';
 import type { TypedPocketBase } from '@project/shared/types';
 import { parseAuthError, withRetry } from '@project/shared';
 import { UserMutator } from '@project/shared/mutator';
@@ -124,7 +124,7 @@ export class AuthService {
   /**
    * Update user profile
    */
-  async updateProfile(userId: string, data: Partial<User>): Promise<User> {
+  async updateProfile(userId: string, data: Partial<UserInput>): Promise<User> {
     try {
       const record = await this.userMutator.update(userId, data);
       return record;

@@ -1,11 +1,8 @@
 /// <reference path="../pb_data/types.d.ts" />
 migrate((app) => {
-  // UP MIGRATION
-
-  // Create new collections
-  const collection_Media_create = new Collection({
-    id: "pbc_1621831907",
-    name: "Media",
+  const collection_Uploads = new Collection({
+    id: "pb_9exg70d9rw3imzq",
+    name: "Uploads",
     type: "base",
     listRule: "@request.auth.id != \"\"",
     viewRule: "@request.auth.id != \"\"",
@@ -51,67 +48,57 @@ migrate((app) => {
       system: false,
     },
     {
+      name: "name",
+      type: "text",
+      required: true,
+    },
+    {
+      name: "size",
+      type: "number",
+      required: true,
+    },
+    {
+      name: "status",
+      type: "select",
+      required: true,
+      maxSelect: 1,
+      values: ["queued", "uploading", "uploaded", "processing", "ready", "failed"],
+    },
+    {
+      name: "originalFile",
+      type: "file",
+      required: false,
+      maxSize: 7000000000,
+    },
+    {
       name: "WorkspaceRef",
       type: "relation",
       required: true,
-      collectionId: "pbc_3456483467",
+      collectionId: "pb_6znl9bq7apv0rcg",
       maxSelect: 1,
       minSelect: 0,
       cascadeDelete: false,
     },
     {
-      name: "UploadRef",
+      name: "UserRef",
       type: "relation",
-      required: true,
-      collectionId: "pbc_3372169582",
+      required: false,
+      collectionId: "_pb_users_auth_",
       maxSelect: 1,
       minSelect: 0,
       cascadeDelete: false,
     },
     {
-      name: "mediaType",
-      type: "select",
-      required: true,
-      values: ["video", "audio", "image"],
-      maxSelect: 1,
-    },
-    {
-      name: "duration",
-      type: "number",
-      required: true,
-      min: 0,
-    },
-    {
-      name: "mediaData",
-      type: "json",
-      required: true,
-    },
-    {
-      name: "thumbnailFile",
+      name: "errorMessage",
       type: "text",
-      required: false,
-    },
-    {
-      name: "spriteFile",
-      type: "text",
-      required: false,
-    },
-    {
-      name: "processingVersion",
-      type: "number",
       required: false,
     },
   ],
     indexes: [],
   });
 
-  return app.save(collection_Media_create);
-
+  return app.save(collection_Uploads);
 }, (app) => {
-  // DOWN MIGRATION (ROLLBACK)
-
-  // Delete created collections
-  const collection_Media_rollback = app.findCollectionByNameOrId("Media");
-  return app.delete(collection_Media_rollback);
-
+  const collection_Uploads = app.findCollectionByNameOrId("Uploads");
+  return app.delete(collection_Uploads);
 });

@@ -60,7 +60,7 @@ export const UserInputSchema = z
     email: TextField(), // Email validation handled by PocketBase
     password: TextField({ min: 8 }),
     passwordConfirm: z.string(),
-    avatar: z.instanceof(File).optional(),
+    avatar: FileField().optional(),
   })
   .refine((data) => data.password === data.passwordConfirm, {
     message: "Passwords don't match",

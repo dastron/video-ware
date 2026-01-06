@@ -668,7 +668,7 @@ migrate((app) => {
           "max": 255,
           "min": 0,
           "name": "name",
-          "pattern": "",
+          "pattern": undefined,
           "presentable": false,
           "primaryKey": false,
           "required": false,
@@ -692,7 +692,7 @@ migrate((app) => {
           "protected": false,
           "required": false,
           "system": false,
-          "thumbs": null,
+          "thumbs": undefined,
           "type": "file"
         },
         {
