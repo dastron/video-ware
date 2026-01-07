@@ -274,7 +274,7 @@ export function TrimHandles({
       <div
         ref={trackRef}
         className={cn(
-          'relative h-10 bg-muted rounded-md overflow-hidden',
+          'relative h-12 sm:h-10 bg-muted rounded-md overflow-hidden touch-none',
           disabled && 'opacity-50 cursor-not-allowed'
         )}
       >
@@ -317,21 +317,24 @@ export function TrimHandles({
           aria-valuetext={formatTime(startTime)}
           tabIndex={disabled ? -1 : 0}
           className={cn(
-            'absolute top-0 bottom-0 w-3 cursor-ew-resize z-20',
-            'bg-primary hover:bg-primary/80 transition-colors',
+            'absolute top-0 bottom-0 w-5 sm:w-3 cursor-ew-resize z-20',
+            'bg-primary hover:bg-primary/80 active:bg-primary/90 transition-colors',
             'flex items-center justify-center',
             'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
-            dragging === 'start' && 'bg-primary/80',
+            'touch-none',
+            dragging === 'start' && 'bg-primary/90 scale-110',
             focusedHandle === 'start' && 'ring-2 ring-ring ring-offset-2'
           )}
-          style={{ left: `calc(${startPercent}% - 6px)` }}
+          style={{
+            left: `calc(${startPercent}% - ${dragging === 'start' ? '11px' : '10px'})`,
+          }}
           onMouseDown={handleDragStart('start')}
           onTouchStart={handleDragStart('start')}
           onKeyDown={handleKeyDown('start')}
           onFocus={() => setFocusedHandle('start')}
           onBlur={() => setFocusedHandle(null)}
         >
-          <div className="w-0.5 h-4 bg-white/80 rounded-full" />
+          <div className="w-0.5 h-5 sm:h-4 bg-white/80 rounded-full" />
         </div>
 
         {/* End handle */}
@@ -344,31 +347,39 @@ export function TrimHandles({
           aria-valuetext={formatTime(endTime)}
           tabIndex={disabled ? -1 : 0}
           className={cn(
-            'absolute top-0 bottom-0 w-3 cursor-ew-resize z-20',
-            'bg-primary hover:bg-primary/80 transition-colors',
+            'absolute top-0 bottom-0 w-5 sm:w-3 cursor-ew-resize z-20',
+            'bg-primary hover:bg-primary/80 active:bg-primary/90 transition-colors',
             'flex items-center justify-center',
             'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
-            dragging === 'end' && 'bg-primary/80',
+            'touch-none',
+            dragging === 'end' && 'bg-primary/90 scale-110',
             focusedHandle === 'end' && 'ring-2 ring-ring ring-offset-2'
           )}
-          style={{ left: `calc(${endPercent}% - 6px)` }}
+          style={{
+            left: `calc(${endPercent}% - ${dragging === 'end' ? '11px' : '10px'})`,
+          }}
           onMouseDown={handleDragStart('end')}
           onTouchStart={handleDragStart('end')}
           onKeyDown={handleKeyDown('end')}
           onFocus={() => setFocusedHandle('end')}
           onBlur={() => setFocusedHandle(null)}
         >
-          <div className="w-0.5 h-4 bg-white/80 rounded-full" />
+          <div className="w-0.5 h-5 sm:h-4 bg-white/80 rounded-full" />
         </div>
       </div>
 
       {/* Time labels */}
-      <div className="flex justify-between mt-1 text-xs text-muted-foreground">
-        <span className="font-mono">{formatTime(startTime)}</span>
-        <span className="font-mono text-foreground">
+      <div className="flex justify-between mt-1 sm:mt-2 text-xs text-muted-foreground gap-2">
+        <span className="font-mono truncate">{formatTime(startTime)}</span>
+        <span className="font-mono text-foreground text-center shrink-0 hidden sm:inline">
           Duration: {formatTime(endTime - startTime)}
         </span>
-        <span className="font-mono">{formatTime(endTime)}</span>
+        <span className="font-mono text-foreground text-center shrink-0 sm:hidden">
+          {formatTime(endTime - startTime)}
+        </span>
+        <span className="font-mono truncate text-right">
+          {formatTime(endTime)}
+        </span>
       </div>
     </div>
   );

@@ -154,22 +154,32 @@ export function InlineClipCreator({
     !validationError && startTime !== 0 && endTime !== media.duration;
 
   return (
-    <div className={cn('space-y-4', className)}>
+    <div className={cn('space-y-3 sm:space-y-4', className)}>
       {/* Header */}
-      <div className="flex items-center justify-between min-h-[2.5rem]">
-        <div className="flex items-center gap-2 text-sm font-medium">
-          <Scissors className="h-4 w-4 text-primary" />
-          <span>Creating New Clip</span>
+      <div className="flex items-center justify-between min-h-[2.5rem] gap-2">
+        <div className="flex items-center gap-2 text-sm font-medium min-w-0">
+          <Scissors className="h-4 w-4 text-primary shrink-0" />
+          <span className="truncate">Creating New Clip</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <Button
             variant="ghost"
             size="sm"
             onClick={onCancel}
             disabled={isCreating}
+            className="hidden sm:flex"
           >
             <X className="h-4 w-4 mr-1" />
             Cancel
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onCancel}
+            disabled={isCreating}
+            className="sm:hidden h-8 w-8"
+          >
+            <X className="h-4 w-4" />
           </Button>
           <Button
             size="sm"
@@ -179,12 +189,12 @@ export function InlineClipCreator({
             {isCreating ? (
               <>
                 <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-2" />
-                Saving...
+                <span className="hidden sm:inline">Saving...</span>
               </>
             ) : (
               <>
-                <Check className="h-4 w-4 mr-1" />
-                Save Clip
+                <Check className="h-4 w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Save Clip</span>
               </>
             )}
           </Button>
@@ -220,16 +230,19 @@ export function InlineClipCreator({
           currentTime={currentVideoTime}
           minDuration={MIN_CLIP_DURATION}
         />
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground hidden sm:block">
           Drag the handles to set clip boundaries. Use arrow keys for
           fine-tuning (hold Shift for larger steps).
+        </p>
+        <p className="text-xs text-muted-foreground sm:hidden">
+          Drag the handles to set clip boundaries.
         </p>
       </div>
 
       {/* Duration Display */}
-      <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-        <span className="text-sm font-medium">Clip Duration:</span>
-        <span className="text-sm font-mono">
+      <div className="flex items-center justify-between p-2 sm:p-3 bg-muted rounded-lg">
+        <span className="text-xs sm:text-sm font-medium">Clip Duration:</span>
+        <span className="text-xs sm:text-sm font-mono">
           {duration > 0 ? formatTime(duration) : '0:00.00'}
         </span>
       </div>

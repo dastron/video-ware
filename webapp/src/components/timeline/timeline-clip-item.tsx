@@ -180,19 +180,42 @@ export function TimelineClipItem({
         onMouseEnter={() => setIsHovering(true)}
         onMouseLeave={() => setIsHovering(false)}
         className={cn(
-          'relative w-48 cursor-move transition-all p-0 overflow-hidden z-10',
+          'relative w-48 cursor-move transition-all overflow-hidden group',
+          'p-0 gap-0', // Remove default Card padding and gap
           isDragging && 'opacity-50 scale-95',
-          'hover:shadow-md',
+          'hover:shadow-lg hover:ring-2 hover:ring-primary/20',
           className
         )}
       >
         {/* Drag Handle */}
-        <div className="absolute top-2 left-2 text-foreground z-10">
-          <GripVertical className="h-4 w-4 drop-shadow-[0_2px_4px_rgba(255,255,255,1),0_0_2px_rgba(255,255,255,0.8)]" />
+        <div className="absolute top-2 left-2 text-foreground/80 z-10">
+          <GripVertical className="h-4 w-4 drop-shadow-md" />
+        </div>
+
+        {/* Action Buttons - Top Right */}
+        <div className="absolute top-2 right-2 z-10 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Button
+            variant="secondary"
+            size="icon"
+            className="h-7 w-7 shadow-md"
+            onClick={handleEditClick}
+            title="Edit Clip"
+          >
+            <Edit className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="destructive"
+            size="icon"
+            className="h-7 w-7 shadow-md"
+            onClick={handleRemove}
+            title="Remove Clip"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
         </div>
 
         {/* Sprite Preview / Thumbnail */}
-        <div className="h-24 bg-muted overflow-hidden">
+        <div className="h-24 bg-muted overflow-hidden relative">
           {media ? (
             <SpriteAnimator
               media={media}
@@ -215,43 +238,27 @@ export function TimelineClipItem({
               </div>
             </div>
           )}
+
+          {/* Duration Badge - Similar to media clip cards */}
+          <div className="absolute bottom-2 left-2 bg-primary/90 text-primary-foreground text-xs px-2 py-0.5 rounded font-medium shadow-md">
+            {formatTime(duration)}
+          </div>
         </div>
 
         {/* Clip Info */}
-        <div className="p-3 space-y-2">
-          <div className="flex items-center justify-between text-xs">
-            <div className="flex items-center gap-1 text-muted-foreground">
-              <Clock className="h-3 w-3" />
-              <span>{formatTime(duration)}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                onClick={handleEditClick}
-              >
-                <Edit className="h-3 w-3" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10"
-                onClick={handleRemove}
-              >
-                <Trash2 className="h-3 w-3" />
-              </Button>
-            </div>
-          </div>
-
+        <div className="p-2.5 space-y-1.5">
           <div className="text-xs space-y-1">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">In:</span>
-              <span className="font-mono">{formatTime(clip.start)}</span>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground font-medium">In:</span>
+              <span className="font-mono text-[11px]">
+                {formatTime(clip.start)}
+              </span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Out:</span>
-              <span className="font-mono">{formatTime(clip.end)}</span>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground font-medium">Out:</span>
+              <span className="font-mono text-[11px]">
+                {formatTime(clip.end)}
+              </span>
             </div>
           </div>
         </div>

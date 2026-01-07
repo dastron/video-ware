@@ -69,10 +69,17 @@ export function MediaCard({ media, onClick, className }: MediaCardProps) {
   const thumbnailUrl = getThumbnailUrl();
   const dimensions = getDimensions();
 
+  // Get title from upload name (check both possible expand paths)
+  const uploadName =
+    (media.expand as any)?.upload?.name ||
+    (media.expand as any)?.UploadRef?.name ||
+    'Untitled Media';
+
   return (
     <Card
       className={cn(
-        'overflow-hidden cursor-pointer transition-all hover:shadow-lg p-0',
+        'overflow-hidden cursor-pointer transition-all hover:shadow-lg',
+        'p-0 gap-0', // Remove default Card padding and gap
         className
       )}
       onClick={onClick}
@@ -80,7 +87,7 @@ export function MediaCard({ media, onClick, className }: MediaCardProps) {
       onMouseLeave={() => setIsHovering(false)}
     >
       {/* Thumbnail/Sprite preview */}
-      <div className="relative aspect-video bg-gray-100 overflow-hidden">
+      <div className="relative aspect-video bg-muted overflow-hidden">
         {thumbnailUrl ? (
           <>
             {/* Static thumbnail */}
@@ -107,13 +114,13 @@ export function MediaCard({ media, onClick, className }: MediaCardProps) {
           </>
         ) : (
           <div className="flex items-center justify-center h-full">
-            <Film className="h-12 w-12 text-gray-400" />
+            <Film className="h-12 w-12 text-muted-foreground" />
           </div>
         )}
 
         {/* Duration badge */}
         <div className="absolute bottom-2 right-2">
-          <Badge variant="secondary" className="bg-black/70 text-white">
+          <Badge variant="secondary" className="bg-black/80 text-white">
             <Clock className="h-3 w-3 mr-1" />
             {formatDuration(media.duration)}
           </Badge>
@@ -121,10 +128,20 @@ export function MediaCard({ media, onClick, className }: MediaCardProps) {
       </div>
 
       {/* Media info */}
-      <CardContent className="px-4 pt-2 pb-2 space-y-1.5">
-        {/* Media type badge */}
-        <div className="flex items-center gap-2">
-          <Badge variant="outline">{media.mediaType}</Badge>
+      <CardContent className="p-3 space-y-2">
+        {/* Title - truncates to fit card width */}
+        <h3
+          className="text-sm font-semibold text-foreground truncate leading-tight"
+          title={uploadName}
+        >
+          {uploadName}
+        </h3>
+
+        {/* Media type and dimensions badges */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <Badge variant="outline" className="text-xs">
+            {media.mediaType}
+          </Badge>
           {dimensions.width && dimensions.height && (
             <Badge variant="outline" className="text-xs">
               <Maximize2 className="h-3 w-3 mr-1" />
@@ -134,16 +151,10 @@ export function MediaCard({ media, onClick, className }: MediaCardProps) {
         </div>
 
         {/* Codec info */}
-        <div className="text-sm text-gray-600">
-          <span className="font-medium">Codec:</span> {getCodec()}
+        <div className="text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">Codec:</span>{' '}
+          {getCodec()}
         </div>
-
-        {/* Upload reference */}
-        {media.expand?.upload && (
-          <div className="text-xs text-gray-500 truncate">
-            {media.expand.upload.name}
-          </div>
-        )}
       </CardContent>
     </Card>
   );

@@ -2,10 +2,11 @@
 
 import React from 'react';
 import { useTimeline } from '@/hooks/use-timeline';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Film, Clock, AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Film, Clock, AlertCircle, Save, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TimelineTrack } from './timeline-track';
 import { TimelineControls } from './timeline-controls';
@@ -15,7 +16,9 @@ interface TimelineEditorProps {
 }
 
 export function TimelineEditor({ className }: TimelineEditorProps) {
-  const { timeline, isLoading, error, hasUnsavedChanges } = useTimeline();
+  const { timeline, isLoading, error, hasUnsavedChanges, saveTimeline } =
+    useTimeline();
+  const [isSaving, setIsSaving] = React.useState(false);
 
   const formatDuration = (seconds: number): string => {
     if (seconds === 0) return '0:00';
@@ -38,15 +41,24 @@ export function TimelineEditor({ className }: TimelineEditorProps) {
     );
   };
 
+  const handleSave = async () => {
+    if (!timeline) return;
+
+    setIsSaving(true);
+    try {
+      await saveTimeline();
+    } catch (error) {
+      console.error('Failed to save timeline:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   if (isLoading && !timeline) {
     return (
       <div className={cn('space-y-4', className)}>
         <Card>
-          <CardHeader>
-            <Skeleton className="h-8 w-64" />
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Skeleton className="h-4 w-32" />
+          <CardContent className="p-6">
             <Skeleton className="h-32 w-full" />
           </CardContent>
         </Card>
@@ -76,18 +88,60 @@ export function TimelineEditor({ className }: TimelineEditorProps) {
 
   return (
     <div className={cn('space-y-4', className)}>
-      {/* Header */}
+      {/* Timeline Track Card - First */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold">Timeline Editor</h3>
+
+            {/* Save Button */}
+            <Button
+              onClick={handleSave}
+              disabled={!hasUnsavedChanges || isSaving || isLoading}
+              variant={hasUnsavedChanges ? 'default' : 'outline'}
+              size="sm"
+            >
+              {isSaving ? (
+                <>
+                  <div className="h-3 w-3 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  Saving...
+                </>
+              ) : hasUnsavedChanges ? (
+                <>
+                  <Save className="h-3 w-3 mr-2" />
+                  Save
+                </>
+              ) : (
+                <>
+                  <Check className="h-3 w-3 mr-2" />
+                  Saved
+                </>
+              )}
+            </Button>
+          </div>
+        </CardHeader>
+
+        <CardContent className="pt-0">
+          <TimelineTrack />
+        </CardContent>
+      </Card>
+
+      {/* Timeline Header Card - Below Track */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Film className="h-6 w-6 text-primary" />
               <div>
-                <CardTitle className="text-2xl">{timeline.name}</CardTitle>
+                <h2 className="text-2xl font-semibold">{timeline.name}</h2>
                 <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
                   <div className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
                     <span>{formatDuration(totalDuration)}</span>
+                  </div>
+                  <div>
+                    {timeline.clips.length}{' '}
+                    {timeline.clips.length === 1 ? 'clip' : 'clips'}
                   </div>
                   <div>Version {timeline.version}</div>
                   {hasUnsavedChanges && (
@@ -98,19 +152,36 @@ export function TimelineEditor({ className }: TimelineEditorProps) {
                 </div>
               </div>
             </div>
-            <TimelineControls />
+
+            {/* Save and Render Buttons */}
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={handleSave}
+                disabled={!hasUnsavedChanges || isSaving || isLoading}
+                variant={hasUnsavedChanges ? 'default' : 'outline'}
+              >
+                {isSaving ? (
+                  <>
+                    <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    Saving...
+                  </>
+                ) : hasUnsavedChanges ? (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Save
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-4 w-4 mr-2" />
+                    Saved
+                  </>
+                )}
+              </Button>
+
+              <TimelineControls />
+            </div>
           </div>
         </CardHeader>
-      </Card>
-
-      {/* Timeline Track */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Timeline Track</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <TimelineTrack />
-        </CardContent>
       </Card>
 
       {/* Empty State */}
@@ -118,8 +189,8 @@ export function TimelineEditor({ className }: TimelineEditorProps) {
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            This timeline has no clips yet. Add clips from your media library to
-            start building your sequence.
+            This timeline has no clips yet. Add clips from the clip browser
+            below to start building your sequence.
           </AlertDescription>
         </Alert>
       )}

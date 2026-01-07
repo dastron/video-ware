@@ -9,16 +9,8 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import {
-  Empty,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-  EmptyDescription,
-} from '@/components/ui/empty';
 import { Upload as UploadIcon } from 'lucide-react';
 import { useUploadQueue } from '@/hooks/use-upload-queue';
 import { UploadItem } from './upload-item';
@@ -98,35 +90,16 @@ export function UploadPanel({ className }: UploadPanelProps) {
 
   return (
     <Card className={className}>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="flex flex-col gap-1">
-            <CardTitle className="flex items-center gap-2">
-              <span>Upload Queue</span>
-              <Badge variant="secondary">{inFlightItems.length}</Badge>
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Files currently being uploaded
+      <CardContent className="pt-0">
+        {!hasAnyUploads ? (
+          <div className="text-center py-3">
+            <UploadIcon className="h-6 w-6 mx-auto mb-1.5 text-muted-foreground/50" />
+            <p className="text-xs text-muted-foreground">
+              Files will appear here while uploading
             </p>
           </div>
-        </div>
-      </CardHeader>
-
-      <CardContent>
-        {!hasAnyUploads ? (
-          <Empty>
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <UploadIcon className="h-6 w-6" />
-              </EmptyMedia>
-              <EmptyTitle>No queued uploads</EmptyTitle>
-              <EmptyDescription>
-                Files will appear here while uploading
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {/* Active uploads */}
             {inFlightActiveItems.length > 0 && (
               <>
@@ -155,7 +128,7 @@ export function UploadPanel({ className }: UploadPanelProps) {
 
             {/* Separator between active and failed */}
             {inFlightActiveItems.length > 0 &&
-              inFlightFailedItems.length > 0 && <Separator className="my-3" />}
+              inFlightFailedItems.length > 0 && <Separator className="my-2" />}
 
             {/* Failed uploads */}
             {inFlightFailedItems.length > 0 && (
@@ -175,7 +148,7 @@ export function UploadPanel({ className }: UploadPanelProps) {
             {(inFlightActiveItems.length > 0 ||
               inFlightFailedItems.length > 0) &&
               inFlightCompletedItems.length > 0 && (
-                <Separator className="my-3" />
+                <Separator className="my-2" />
               )}
 
             {/* Completed uploads */}

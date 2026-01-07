@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { useWorkspace } from '@/hooks/use-workspace';
@@ -9,13 +9,9 @@ import { TimelineEditor } from '@/components/timeline/timeline-editor';
 import { ClipBrowser } from '@/components/timeline/clip-browser';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   AlertCircle,
   ArrowLeft,
-  PanelRightClose,
-  PanelRight,
-  Film,
   Clock,
   ListVideo,
   Download,
@@ -73,85 +69,119 @@ function TimelineEditorPageContent() {
   const params = useParams();
   const router = useRouter();
   const timelineId = params.id as string;
-  const [isClipBrowserOpen, setIsClipBrowserOpen] = useState(true);
+  const [clipBrowserHeight, setClipBrowserHeight] = useState(300);
+  const [isResizing, setIsResizing] = useState(false);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  const handleMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (!isResizing) return;
+
+      // Calculate new height from bottom of viewport
+      const newHeight = window.innerHeight - e.clientY;
+      // Clamp between 200px and 600px
+      const clampedHeight = Math.max(200, Math.min(600, newHeight));
+      setClipBrowserHeight(clampedHeight);
+    },
+    [isResizing]
+  );
+
+  const handleMouseUp = useCallback(() => {
+    setIsResizing(false);
+  }, []);
+
+  useEffect(() => {
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'ns-resize';
+      document.body.style.userSelect = 'none';
+
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      };
+    }
+  }, [isResizing, handleMouseMove, handleMouseUp]);
 
   return (
     <TimelineProvider timelineId={timelineId}>
-      <div className="flex h-[calc(100vh-4rem)]">
-        {/* Main Content */}
-        <div className="flex-1 overflow-auto">
-          <div className="container mx-auto px-4 pt-6 pb-8 max-w-7xl">
-            {/* Header with Back Button */}
-            <div className="mb-6">
-              <Button
-                variant="ghost"
-                onClick={() => router.push('/timelines')}
-                className="gap-2 mb-4"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Back to Timelines
-              </Button>
-              <div className="flex items-center justify-between">
+      <div className="flex flex-col h-[calc(100vh-4rem)]">
+        {/* Main Content - Timeline Editor */}
+        <div
+          className="flex-1 overflow-auto"
+          style={{ height: `calc(100vh - 4rem - ${clipBrowserHeight}px)` }}
+        >
+          <div className="container mx-auto px-4 pt-4 pb-4 max-w-7xl">
+            {/* Timeline Editor - Track First */}
+            <TimelineEditor />
+
+            {/* Header Info and Controls Below Timeline */}
+            <div className="mt-6 space-y-4">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => router.push('/timelines')}
+                  className="gap-2"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  <span className="hidden sm:inline">Back to Timelines</span>
+                  <span className="sm:hidden">Back</span>
+                </Button>
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <TimelineHeaderInfo />
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      router.push(`/timelines/${timelineId}/renders`)
-                    }
-                    className="gap-2"
-                  >
-                    <Download className="h-4 w-4" />
-                    View Renders
-                  </Button>
-                  {!isClipBrowserOpen && (
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setIsClipBrowserOpen(true)}
-                      title="Open Clip Browser"
-                    >
-                      <PanelRight className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    router.push(`/timelines/${timelineId}/renders`)
+                  }
+                  className="gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  <span className="hidden sm:inline">View Renders</span>
+                  <span className="sm:hidden">Renders</span>
+                </Button>
               </div>
             </div>
-
-            {/* Timeline Editor */}
-            <TimelineEditor />
           </div>
         </div>
 
-        {/* Clip Browser Sidebar */}
+        {/* Resize Handle */}
         <div
+          onMouseDown={handleMouseDown}
           className={cn(
-            'flex-shrink-0 border-l bg-background transition-all duration-300',
-            isClipBrowserOpen ? 'w-[32rem]' : 'w-0'
+            'h-1 bg-border hover:bg-primary/50 cursor-ns-resize transition-colors',
+            'relative group',
+            isResizing && 'bg-primary'
           )}
         >
-          {isClipBrowserOpen && (
-            <Card className="h-full rounded-none border-0">
-              <CardHeader className="flex flex-row items-center justify-between py-3 px-4">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 -ml-2"
-                    onClick={() => setIsClipBrowserOpen(false)}
-                    title="Collapse Clip Browser"
-                  >
-                    <PanelRightClose className="h-4 w-4" />
-                  </Button>
-                  <Film className="h-4 w-4" />
-                  Clip Browser
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-0 h-[calc(100%-3.5rem)]">
-                <ClipBrowser className="h-full" />
-              </CardContent>
-            </Card>
-          )}
+          <div className="absolute inset-x-0 -top-1 -bottom-1" />
+          {/* Visual indicator */}
+          <div className="absolute left-1/2 -translate-x-1/2 -top-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="flex flex-col gap-0.5">
+              <div className="h-0.5 w-8 bg-muted-foreground/50 rounded" />
+              <div className="h-0.5 w-8 bg-muted-foreground/50 rounded" />
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom: Clip Browser Cards */}
+        <div
+          className="border-t bg-background overflow-hidden"
+          style={{ height: `${clipBrowserHeight}px` }}
+        >
+          <div className="h-full">
+            <ClipBrowser height={clipBrowserHeight} />
+          </div>
         </div>
       </div>
     </TimelineProvider>

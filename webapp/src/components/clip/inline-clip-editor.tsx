@@ -136,14 +136,14 @@ export function InlineClipEditor({
   const hasChanges = startTime !== clip.start || endTime !== clip.end;
 
   return (
-    <div className={cn('space-y-4', className)}>
+    <div className={cn('space-y-3 sm:space-y-4', className)}>
       {/* Header */}
-      <div className="flex items-center justify-between min-h-[2.5rem]">
+      <div className="flex items-center justify-between min-h-[2.5rem] gap-2">
         <div className="flex items-center gap-2 text-sm font-medium min-w-0">
           <Edit className="h-4 w-4 text-primary shrink-0" />
           <span className="truncate">Editing Clip</span>
           {hasChanges && (
-            <span className="text-xs text-muted-foreground shrink-0">
+            <span className="text-xs text-muted-foreground shrink-0 hidden sm:inline">
               (unsaved changes)
             </span>
           )}
@@ -154,9 +154,19 @@ export function InlineClipEditor({
             size="sm"
             onClick={onCancel}
             disabled={isSaving}
+            className="hidden sm:flex"
           >
             <X className="h-4 w-4 mr-1" />
             Cancel
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onCancel}
+            disabled={isSaving}
+            className="sm:hidden h-8 w-8"
+          >
+            <X className="h-4 w-4" />
           </Button>
           <Button
             size="sm"
@@ -166,12 +176,12 @@ export function InlineClipEditor({
             {isSaving ? (
               <>
                 <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-2" />
-                Saving...
+                <span className="hidden sm:inline">Saving...</span>
               </>
             ) : (
               <>
-                <Check className="h-4 w-4 mr-1" />
-                Save
+                <Check className="h-4 w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Save</span>
               </>
             )}
           </Button>
@@ -210,33 +220,36 @@ export function InlineClipEditor({
           currentTime={currentVideoTime}
           minDuration={MIN_CLIP_DURATION}
         />
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground hidden sm:block">
           Drag the handles to adjust clip boundaries. Use arrow keys for
           fine-tuning (hold Shift for larger steps).
+        </p>
+        <p className="text-xs text-muted-foreground sm:hidden">
+          Drag the handles to adjust clip boundaries.
         </p>
       </div>
 
       {/* Duration Display */}
-      <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-        <span className="text-sm font-medium">Clip Duration:</span>
-        <span className="text-sm font-mono">
+      <div className="flex items-center justify-between p-2 sm:p-3 bg-muted rounded-lg">
+        <span className="text-xs sm:text-sm font-medium">Clip Duration:</span>
+        <span className="text-xs sm:text-sm font-mono">
           {duration > 0 ? formatTime(duration) : '0:00.00'}
         </span>
       </div>
 
       {/* Original vs New comparison */}
       {hasChanges && (
-        <div className="p-3 bg-muted/50 rounded-lg space-y-2 text-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Original:</span>
-            <span className="font-mono">
+        <div className="p-2 sm:p-3 bg-muted/50 rounded-lg space-y-2 text-xs sm:text-sm">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-muted-foreground shrink-0">Original:</span>
+            <span className="font-mono text-right truncate">
               {formatTime(clip.start)} - {formatTime(clip.end)} (
               {formatTime(clip.duration)})
             </span>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">New:</span>
-            <span className="font-mono text-primary">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-muted-foreground shrink-0">New:</span>
+            <span className="font-mono text-primary text-right truncate">
               {formatTime(startTime)} - {formatTime(endTime)} (
               {formatTime(duration)})
             </span>

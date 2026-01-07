@@ -107,21 +107,23 @@ export function UploadList({
 
   return (
     <Card className={className}>
-      <CardHeader>
+      <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <div className="flex flex-col gap-1">
-            <CardTitle className="flex items-center gap-2">
+          <div className="flex flex-col gap-0.5">
+            <CardTitle className="flex items-center gap-2 text-base">
               <span>{title}</span>
-              <Badge variant="secondary">{uploads.length}</Badge>
+              <Badge variant="secondary" className="text-xs">
+                {uploads.length}
+              </Badge>
             </CardTitle>
             {description && (
-              <p className="text-sm text-muted-foreground">{description}</p>
+              <p className="text-xs text-muted-foreground">{description}</p>
             )}
           </div>
         </div>
       </CardHeader>
 
-      <CardContent>
+      <CardContent className="pt-0">
         {uploads.length === 0 ? (
           <Empty>
             <EmptyHeader>
@@ -135,7 +137,7 @@ export function UploadList({
             </EmptyHeader>
           </Empty>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {uploads.map((upload) => {
               const progress = uploadProgress?.get(upload.id);
               const isUploading = upload.status === 'uploading';
@@ -147,7 +149,7 @@ export function UploadList({
                 <div
                   key={upload.id}
                   className={cn(
-                    'flex items-start gap-4 p-4 border rounded-lg',
+                    'flex items-start gap-3 p-3 border rounded-lg',
                     upload.status === 'failed' && 'border-red-200 bg-red-50',
                     isActive && 'border-blue-200 bg-blue-50'
                   )}
@@ -155,11 +157,11 @@ export function UploadList({
                   {/* File icon */}
                   <div className="flex-shrink-0">
                     {isActive ? (
-                      <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
+                      <Loader2 className="h-6 w-6 text-blue-500 animate-spin" />
                     ) : (
                       <FileVideo
                         className={cn(
-                          'h-8 w-8',
+                          'h-6 w-6',
                           upload.status === 'failed'
                             ? 'text-red-500'
                             : 'text-blue-500'
@@ -169,7 +171,7 @@ export function UploadList({
                   </div>
 
                   {/* Upload info */}
-                  <div className="flex-1 min-w-0 space-y-2">
+                  <div className="flex-1 min-w-0 space-y-1.5">
                     {/* File name and status */}
                     <div className="flex items-center gap-2">
                       <p className="font-medium truncate">{upload.name}</p>

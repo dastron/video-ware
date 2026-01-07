@@ -19,8 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Save, Film, Check, AlertCircle } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Film, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import type { OutputSettings } from '@/services/timeline';
 
@@ -28,34 +27,16 @@ interface TimelineControlsProps {
   className?: string;
 }
 
-export function TimelineControls({ className }: TimelineControlsProps) {
-  const {
-    timeline,
-    hasUnsavedChanges,
-    saveTimeline,
-    createRenderTask,
-    isLoading,
-  } = useTimeline();
+export function TimelineControls({
+  className: _className,
+}: TimelineControlsProps) {
+  const { timeline, createRenderTask, isLoading } = useTimeline();
 
-  const [isSaving, setIsSaving] = useState(false);
   const [isRenderDialogOpen, setIsRenderDialogOpen] = useState(false);
   const [isRendering, setIsRendering] = useState(false);
   const [renderFormat, setRenderFormat] = useState('mp4');
   const [renderResolution, setRenderResolution] = useState('1920x1080');
   const [renderCodec, setRenderCodec] = useState('h264');
-
-  const handleSave = async () => {
-    if (!timeline) return;
-
-    setIsSaving(true);
-    try {
-      await saveTimeline();
-    } catch (error) {
-      console.error('Failed to save timeline:', error);
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   const handleRenderClick = () => {
     if (!timeline) return;
@@ -101,41 +82,15 @@ export function TimelineControls({ className }: TimelineControlsProps) {
 
   return (
     <>
-      <div className={cn('flex items-center gap-2', className)}>
-        {/* Save Button */}
-        <Button
-          onClick={handleSave}
-          disabled={!hasUnsavedChanges || isSaving || isLoading}
-          variant={hasUnsavedChanges ? 'default' : 'outline'}
-        >
-          {isSaving ? (
-            <>
-              <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
-              Saving...
-            </>
-          ) : hasUnsavedChanges ? (
-            <>
-              <Save className="h-4 w-4 mr-2" />
-              Save
-            </>
-          ) : (
-            <>
-              <Check className="h-4 w-4 mr-2" />
-              Saved
-            </>
-          )}
-        </Button>
-
-        {/* Render Button */}
-        <Button
-          onClick={handleRenderClick}
-          disabled={isLoading || timeline.clips.length === 0}
-          variant="secondary"
-        >
-          <Film className="h-4 w-4 mr-2" />
-          Render
-        </Button>
-      </div>
+      {/* Render Button */}
+      <Button
+        onClick={handleRenderClick}
+        disabled={isLoading || timeline.clips.length === 0}
+        variant="secondary"
+      >
+        <Film className="h-4 w-4 mr-2" />
+        Render
+      </Button>
 
       {/* Render Settings Dialog */}
       <Dialog open={isRenderDialogOpen} onOpenChange={setIsRenderDialogOpen}>

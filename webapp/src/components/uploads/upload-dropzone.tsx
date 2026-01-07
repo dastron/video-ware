@@ -237,17 +237,6 @@ export function UploadDropzone({
     }
   }, [disabled]);
 
-  /**
-   * Format file size for display
-   */
-  const formatMaxSize = (): string => {
-    if (maxSize < 1024) return `${maxSize} B`;
-    if (maxSize < 1024 * 1024) return `${(maxSize / 1024).toFixed(0)} KB`;
-    if (maxSize < 1024 * 1024 * 1024)
-      return `${(maxSize / (1024 * 1024)).toFixed(0)} MB`;
-    return `${(maxSize / (1024 * 1024 * 1024)).toFixed(0)} GB`;
-  };
-
   return (
     <div className={cn('space-y-3', className)}>
       {/* Error display */}
@@ -273,7 +262,7 @@ export function UploadDropzone({
         onDrop={handleDrop}
         onClick={handleClick}
       >
-        <CardContent className="flex flex-col items-center justify-center py-12 px-6">
+        <CardContent className="flex flex-col items-center justify-center py-4 px-4">
           <input
             ref={fileInputRef}
             type="file"
@@ -285,44 +274,30 @@ export function UploadDropzone({
           />
 
           {/* Icon */}
-          <div className="mb-4">
+          <div className="mb-2">
             {isDragging ? (
-              <Upload className="h-12 w-12 text-blue-500 animate-bounce" />
+              <Upload className="h-6 w-6 text-blue-500 animate-bounce" />
             ) : (
               <div className="flex gap-2">
-                <FileVideo className="h-10 w-10 text-gray-400" />
-                <FileImage className="h-10 w-10 text-gray-400" />
+                <FileVideo className="h-5 w-5 text-gray-400" />
+                <FileImage className="h-5 w-5 text-gray-400" />
               </div>
             )}
           </div>
 
           {/* Text */}
-          <p className="text-lg font-medium mb-2 text-center">
+          <p className="text-sm font-medium mb-0.5 text-center">
             {isDragging ? 'Drop your files here' : 'Drag and drop files'}
           </p>
-          <p className="text-sm text-gray-500 text-center mb-4">
+          <p className="text-xs text-gray-500 text-center mb-2">
             or click to browse
           </p>
-
-          {/* Info */}
-          <div className="text-xs text-gray-400 text-center space-y-1">
-            {accept.length > 0 && (
-              <p>
-                Supported formats:{' '}
-                {accept
-                  .map((type) => type.split('/')[1].toUpperCase())
-                  .join(', ')}
-              </p>
-            )}
-            <p>Maximum size: {formatMaxSize()}</p>
-            {maxFiles && <p>Maximum files: {maxFiles}</p>}
-          </div>
 
           {/* Browse button */}
           {!isDragging && (
             <Button
               variant="outline"
-              className="mt-4"
+              size="sm"
               onClick={(e) => {
                 e.stopPropagation();
                 handleClick();

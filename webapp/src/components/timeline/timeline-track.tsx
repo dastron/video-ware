@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useTimeline } from '@/hooks/use-timeline';
 import { TimelineClipItem } from './timeline-clip-item';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -22,9 +22,28 @@ export function TimelineTrack() {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
   const [isDropZoneActive, setIsDropZoneActive] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Memoize clips to prevent dependency changes on every render
   const clips = React.useMemo(() => timeline?.clips ?? [], [timeline?.clips]);
+
+  // Handle horizontal scroll with vertical mouse wheel
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      // Only handle vertical wheel events
+      if (e.deltaY !== 0) {
+        e.preventDefault();
+        // Scroll horizontally based on vertical wheel movement
+        container.scrollLeft += e.deltaY;
+      }
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => container.removeEventListener('wheel', handleWheel);
+  }, []);
 
   const handleDragStart = useCallback((index: number) => {
     setDraggedIndex(index);
@@ -208,7 +227,11 @@ export function TimelineTrack() {
 
   return (
     <div className="space-y-2">
-      <div className="flex gap-2 overflow-x-auto pb-2">
+      <div
+        ref={scrollContainerRef}
+        className="flex gap-2 overflow-x-auto pb-2 scroll-smooth"
+        style={{ scrollbarWidth: 'thin' }}
+      >
         {clips.map((clip, index) => (
           <React.Fragment key={clip.id}>
             {/* Drop indicator - appears before the card when dragging */}

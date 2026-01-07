@@ -1,15 +1,23 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from 'react';
 import Image from 'next/image';
 import { MediaClipMutator } from '@project/shared/mutator';
 import type { MediaClip, Media } from '@project/shared';
 import { ClipType } from '@project/shared';
 import { useWorkspace } from '@/hooks/use-workspace';
+import { useTimeline } from '@/hooks/use-timeline';
 import pb from '@/lib/pocketbase-client';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
@@ -19,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, Film, Clock, GripVertical, AlertCircle } from 'lucide-react';
+import { Search, Film, Clock, Plus, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
@@ -44,8 +52,7 @@ interface MediaClipWithExpand extends Omit<MediaClip, 'expand'> {
 }
 
 interface ClipBrowserProps {
-  className?: string;
-  onClipDragStart?: (clip: MediaClipWithExpand, e: React.DragEvent) => void;
+  height: number;
 }
 
 const CLIP_TYPE_OPTIONS = [
@@ -59,17 +66,32 @@ const CLIP_TYPE_OPTIONS = [
   { value: ClipType.RECOMMENDATION, label: 'Recommendation' },
 ];
 
-export function ClipBrowser({ className, onClipDragStart }: ClipBrowserProps) {
+// Card dimensions
+const CARD_WIDTH = 200;
+const CARD_HEIGHT = 160;
+const GAP = 12;
+const HEADER_HEIGHT = 60;
+
+export function ClipBrowser({ height }: ClipBrowserProps) {
   const { currentWorkspace } = useWorkspace();
+  const { addClip } = useTimeline();
   const [clips, setClips] = useState<MediaClipWithExpand[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Create mutator instance
   const mediaClipMutator = useMemo(() => new MediaClipMutator(pb), []);
+
+  // Calculate grid dimensions based on available space
+  const gridDimensions = useMemo(() => {
+    const availableHeight = height - HEADER_HEIGHT;
+    const rows = Math.max(1, Math.floor(availableHeight / (CARD_HEIGHT + GAP)));
+    return { rows };
+  }, [height]);
 
   // Debounce search query
   useEffect(() => {
@@ -110,9 +132,38 @@ export function ClipBrowser({ className, onClipDragStart }: ClipBrowserProps) {
     loadClips();
   }, [loadClips]);
 
+  const handleAddClip = useCallback(
+    async (clip: MediaClipWithExpand) => {
+      try {
+        await addClip(clip.MediaRef, clip.start, clip.end, clip.id);
+      } catch (err) {
+        console.error('Failed to add clip:', err);
+      }
+    },
+    [addClip]
+  );
+
+  // Handle horizontal scroll with vertical mouse wheel
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      // Only handle vertical wheel events
+      if (e.deltaY !== 0) {
+        e.preventDefault();
+        // Scroll horizontally based on vertical wheel movement
+        container.scrollLeft += e.deltaY;
+      }
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => container.removeEventListener('wheel', handleWheel);
+  }, []);
+
   if (!currentWorkspace) {
     return (
-      <div className={cn('p-4', className)}>
+      <div className="p-4 h-full flex items-center justify-center">
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
@@ -124,20 +175,20 @@ export function ClipBrowser({ className, onClipDragStart }: ClipBrowserProps) {
   }
 
   return (
-    <div className={cn('flex flex-col h-full', className)}>
-      {/* Search and Filter Controls */}
-      <div className="p-3 space-y-2 border-b">
-        <div className="relative">
+    <div className="h-full flex flex-col">
+      {/* Header with Search and Filter */}
+      <div className="flex items-center gap-3 px-4 py-3 border-b flex-shrink-0">
+        <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search clips..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8"
+            className="pl-8 h-9"
           />
         </div>
         <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-full">
+          <SelectTrigger className="w-[160px] h-9">
             <SelectValue placeholder="Filter by type" />
           </SelectTrigger>
           <SelectContent>
@@ -148,57 +199,81 @@ export function ClipBrowser({ className, onClipDragStart }: ClipBrowserProps) {
             ))}
           </SelectContent>
         </Select>
+        {clips.length > 0 && (
+          <div className="text-sm text-muted-foreground">
+            {clips.length} clip{clips.length !== 1 ? 's' : ''}
+          </div>
+        )}
       </div>
 
-      {/* Clips List */}
-      <ScrollArea className="flex-1">
-        <div className="p-2 space-y-2">
-          {isLoading && clips.length === 0 ? (
-            // Loading skeletons
-            Array.from({ length: 5 }).map((_, i) => (
-              <ClipItemSkeleton key={i} />
-            ))
-          ) : error ? (
-            <Alert variant="destructive">
+      {/* Clips Grid with Horizontal Scroll */}
+      <div
+        ref={scrollContainerRef}
+        className="flex-1 overflow-x-auto overflow-y-hidden px-4 py-3"
+        style={{
+          scrollbarWidth: 'thin',
+        }}
+      >
+        {isLoading && clips.length === 0 ? (
+          // Loading skeletons in grid
+          <div
+            className="inline-grid gap-3 h-full"
+            style={{
+              gridTemplateRows: `repeat(${gridDimensions.rows}, ${CARD_HEIGHT}px)`,
+              gridAutoFlow: 'column',
+              gridAutoColumns: `${CARD_WIDTH}px`,
+            }}
+          >
+            {Array.from({ length: gridDimensions.rows * 3 }).map((_, i) => (
+              <ClipCardSkeleton key={i} />
+            ))}
+          </div>
+        ) : error ? (
+          <div className="h-full flex items-center justify-center">
+            <Alert variant="destructive" className="max-w-md">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>{error}</AlertDescription>
             </Alert>
-          ) : clips.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <Film className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">No clips found</p>
+          </div>
+        ) : clips.length === 0 ? (
+          <div className="h-full flex items-center justify-center text-muted-foreground">
+            <div className="text-center">
+              <Film className="h-12 w-12 mx-auto mb-3 opacity-50" />
+              <p className="text-sm font-medium">No clips found</p>
               {searchQuery && (
                 <p className="text-xs mt-1">Try adjusting your search</p>
               )}
             </div>
-          ) : (
-            clips.map((clip) => (
-              <ClipBrowserItem
+          </div>
+        ) : (
+          <div
+            className="inline-grid gap-3 h-full"
+            style={{
+              gridTemplateRows: `repeat(${gridDimensions.rows}, ${CARD_HEIGHT}px)`,
+              gridAutoFlow: 'column',
+              gridAutoColumns: `${CARD_WIDTH}px`,
+            }}
+          >
+            {clips.map((clip) => (
+              <ClipCard
                 key={clip.id}
                 clip={clip}
-                onDragStart={onClipDragStart}
+                onAddToTimeline={handleAddClip}
               />
-            ))
-          )}
-        </div>
-      </ScrollArea>
-
-      {/* Footer with count */}
-      {clips.length > 0 && (
-        <div className="p-2 border-t text-xs text-muted-foreground text-center">
-          {clips.length} clip{clips.length !== 1 ? 's' : ''}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-interface ClipBrowserItemProps {
+interface ClipCardProps {
   clip: MediaClipWithExpand;
-  onDragStart?: (clip: MediaClipWithExpand, e: React.DragEvent) => void;
+  onAddToTimeline: (clip: MediaClipWithExpand) => void;
 }
 
-function ClipBrowserItem({ clip, onDragStart }: ClipBrowserItemProps) {
+function ClipCard({ clip, onAddToTimeline }: ClipCardProps) {
   const duration = clip.end - clip.start;
   const media = clip.expand?.MediaRef;
   const upload = media?.expand?.UploadRef;
@@ -223,7 +298,7 @@ function ClipBrowserItem({ clip, onDragStart }: ClipBrowserItemProps) {
   const mediaName = upload?.filename || upload?.name || 'Unknown Media';
 
   const handleDragStart = (e: React.DragEvent) => {
-    // Set drag data with clip information
+    // Set drag data for desktop drag-and-drop
     e.dataTransfer.setData(
       'application/json',
       JSON.stringify({
@@ -236,79 +311,97 @@ function ClipBrowserItem({ clip, onDragStart }: ClipBrowserItemProps) {
       })
     );
     e.dataTransfer.effectAllowed = 'copy';
-
-    onDragStart?.(clip, e);
   };
 
   return (
-    <div
+    <Card
       draggable
       onDragStart={handleDragStart}
       className={cn(
-        'flex items-center gap-2 p-2 rounded-md border bg-card',
-        'cursor-grab active:cursor-grabbing',
-        'hover:bg-accent hover:border-accent-foreground/20',
-        'transition-colors'
+        'cursor-grab active:cursor-grabbing relative group',
+        'hover:shadow-md transition-shadow overflow-hidden',
+        'p-0 gap-0' // Override default Card padding and gap
       )}
+      style={{ width: `${CARD_WIDTH}px`, height: `${CARD_HEIGHT}px` }}
     >
-      {/* Drag Handle */}
-      <div className="text-muted-foreground">
-        <GripVertical className="h-4 w-4" />
-      </div>
-
-      {/* Thumbnail */}
-      <div className="relative w-16 h-10 bg-muted rounded overflow-hidden flex-shrink-0">
-        {thumbnailUrl ? (
-          <Image
-            src={thumbnailUrl}
-            alt={`Thumbnail for ${mediaName}`}
-            fill
-            className="object-cover"
-            unoptimized
-          />
-        ) : (
-          <div className="flex items-center justify-center h-full">
-            <Film className="h-4 w-4 text-muted-foreground" />
+      <CardContent className="p-2.5 h-full flex flex-col">
+        {/* Thumbnail */}
+        <div className="relative w-full h-24 bg-muted rounded overflow-hidden mb-2 flex-shrink-0">
+          {thumbnailUrl ? (
+            <Image
+              src={thumbnailUrl}
+              alt={`Thumbnail for ${mediaName}`}
+              fill
+              className="object-cover"
+              unoptimized
+            />
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <Film className="h-6 w-6 text-muted-foreground" />
+            </div>
+          )}
+          {/* Duration Badge */}
+          <div className="absolute bottom-1.5 right-1.5 bg-black/80 text-white text-xs px-2 py-0.5 rounded font-medium">
+            {formatTime(duration)}
           </div>
-        )}
-      </div>
 
-      {/* Clip Info */}
-      <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium truncate" title={mediaName}>
-          {mediaName}
+          {/* Add to Timeline Icon Button - Overlay on thumbnail */}
+          <Button
+            size="icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddToTimeline(clip);
+            }}
+            className="absolute top-1.5 right-1.5 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+            title="Add to Timeline"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
         </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <Clock className="h-3 w-3" />
-            <span>{formatTime(duration)}</span>
+
+        {/* Clip Info */}
+        <div className="flex flex-col gap-1.5 flex-1 min-h-0">
+          <div className="flex items-start justify-between gap-1.5 min-w-0">
+            <h4
+              className="text-xs font-medium text-foreground truncate flex-1 min-w-0 leading-tight"
+              title={mediaName}
+            >
+              {mediaName}
+            </h4>
+            <Badge
+              variant="outline"
+              className="text-[10px] px-1.5 py-0.5 h-auto flex-shrink-0 whitespace-nowrap leading-none"
+            >
+              {clip.type}
+            </Badge>
           </div>
-          <span className="text-muted-foreground/50">•</span>
-          <span>
-            {formatTime(clip.start)} - {formatTime(clip.end)}
-          </span>
-        </div>
-      </div>
 
-      {/* Type Badge */}
-      <Badge variant="outline" className="text-xs flex-shrink-0">
-        {clip.type}
-      </Badge>
-    </div>
+          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground min-w-0">
+            <Clock className="h-3 w-3 flex-shrink-0" />
+            <span className="truncate font-medium">
+              {formatTime(clip.start)} - {formatTime(clip.end)}
+            </span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
-function ClipItemSkeleton() {
+function ClipCardSkeleton() {
   return (
-    <div className="flex items-center gap-2 p-2 rounded-md border">
-      <Skeleton className="h-4 w-4" />
-      <Skeleton className="w-16 h-10 rounded" />
-      <div className="flex-1 space-y-1">
-        <Skeleton className="h-4 w-24" />
-        <Skeleton className="h-3 w-16" />
-      </div>
-      <Skeleton className="h-5 w-12 rounded-full" />
-    </div>
+    <Card
+      className="overflow-hidden"
+      style={{ width: `${CARD_WIDTH}px`, height: `${CARD_HEIGHT}px` }}
+    >
+      <CardContent className="p-2 h-full flex flex-col">
+        <Skeleton className="w-full h-24 rounded mb-2 flex-shrink-0" />
+        <div className="flex-1 flex flex-col gap-1 min-h-0">
+          <Skeleton className="h-3 w-3/4" />
+          <Skeleton className="h-2.5 w-1/2" />
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

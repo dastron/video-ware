@@ -149,18 +149,23 @@ export default function MediaDetailsPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8 max-w-7xl">
       {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={handleBack}>
+      <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleBack}
+            className="shrink-0"
+          >
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-lg sm:text-2xl font-bold flex items-center gap-2 truncate">
               {media.expand?.UploadRef?.name || 'Untitled Media'}
             </h1>
-            <div className="text-sm text-muted-foreground flex items-center gap-4 mt-1">
+            <div className="text-xs sm:text-sm text-muted-foreground flex items-center gap-2 sm:gap-4 mt-1">
               <span className="flex items-center gap-1">
                 <Calendar className="h-3 w-3" />
                 {new Date(media.created).toLocaleDateString()}
@@ -175,6 +180,8 @@ export default function MediaDetailsPage() {
 
         <Button
           variant="outline"
+          size="sm"
+          className="shrink-0 w-full sm:w-auto"
           onClick={() => {
             // Remove clip parameter from URL
             const newSearchParams = new URLSearchParams(
@@ -192,13 +199,13 @@ export default function MediaDetailsPage() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8">
         {/* Main Content - Player */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-4 sm:space-y-6">
           {/* Inline Clip Creator Mode */}
           {isInlineCreateMode && media && (
             <Card className="overflow-hidden">
-              <CardContent className="pt-4 px-6 pb-6">
+              <CardContent className="pt-3 sm:pt-4 px-3 sm:px-6 pb-4 sm:pb-6">
                 <InlineClipCreator
                   media={media}
                   onClipCreated={handleInlineClipCreated}
@@ -211,7 +218,7 @@ export default function MediaDetailsPage() {
           {/* Inline Clip Editor Mode */}
           {editingClip && media && (
             <Card className="overflow-hidden">
-              <CardContent className="pt-4 px-6 pb-6">
+              <CardContent className="pt-3 sm:pt-4 px-3 sm:px-6 pb-4 sm:pb-6">
                 <InlineClipEditor
                   media={media}
                   clip={editingClip}
@@ -225,20 +232,25 @@ export default function MediaDetailsPage() {
           {/* Normal Video Player (when not in inline create/edit mode) */}
           {!isInlineCreateMode && !editingClip && (
             <Card className="overflow-hidden">
-              <CardContent className="pt-4 px-6 pb-6">
-                <div className="space-y-4">
+              <CardContent className="pt-3 sm:pt-4 px-3 sm:px-6 pb-4 sm:pb-6">
+                <div className="space-y-3 sm:space-y-4">
                   {/* Header */}
                   <div className="flex items-center justify-between min-h-[2.5rem]">
                     <div className="flex items-center gap-2 text-sm font-medium">
                       <Eye className="h-4 w-4 text-primary" />
-                      <span>Viewing Media</span>
+                      <span className="hidden sm:inline">Viewing Media</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="sm" disabled>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled
+                        className="hidden sm:flex"
+                      >
                         <X className="h-4 w-4 mr-1" />
                         Cancel
                       </Button>
-                      <Button size="sm" disabled>
+                      <Button size="sm" disabled className="hidden sm:flex">
                         <Check className="h-4 w-4 mr-1" />
                         Save
                       </Button>
@@ -261,7 +273,7 @@ export default function MediaDetailsPage() {
                       <Button
                         variant="outline"
                         onClick={() => handleStartEditClip(activeClip.id)}
-                        className="gap-2"
+                        className="gap-2 w-full sm:w-auto"
                         disabled={activeClip.type === ClipType.FULL}
                       >
                         <Scissors className="h-4 w-4" />
@@ -271,7 +283,7 @@ export default function MediaDetailsPage() {
                       <Button
                         variant="outline"
                         onClick={handleStartInlineCreate}
-                        className="gap-2"
+                        className="gap-2 w-full sm:w-auto"
                       >
                         <Scissors className="h-4 w-4" />
                         Create Clip
@@ -284,7 +296,7 @@ export default function MediaDetailsPage() {
           )}
 
           {/* Metadata Card */}
-          <Card>
+          <Card className="hidden sm:block">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <FileVideo className="h-5 w-5" />
@@ -334,17 +346,17 @@ export default function MediaDetailsPage() {
 
         {/* Sidebar - Clips */}
         <div className="lg:col-span-1">
-          <Card className="h-[calc(100vh-12rem)] min-h-[500px] flex flex-col">
+          <Card className="lg:h-[calc(100vh-12rem)] lg:min-h-[500px] flex flex-col">
             <CardHeader className="pb-3">
-              <CardTitle className="flex items-center justify-between">
+              <CardTitle className="flex items-center justify-between text-base sm:text-lg">
                 <span>Clips</span>
-                <span className="text-sm font-normal text-muted-foreground">
+                <span className="text-xs sm:text-sm font-normal text-muted-foreground">
                   {clips.length} found
                 </span>
               </CardTitle>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col overflow-hidden px-0">
-              <div className="flex-1 overflow-y-auto px-6">
+              <div className="flex-1 overflow-y-auto px-3 sm:px-6 max-h-[400px] lg:max-h-none">
                 <ClipList
                   media={media}
                   clips={clips}

@@ -42,103 +42,65 @@ function UploadsPageContent() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl">
+    <div className="container mx-auto px-4 py-4 sm:py-6 max-w-4xl">
       {/* Page Header */}
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-foreground mb-2">Uploads</h1>
-        <p className="text-lg text-muted-foreground">
-          Upload and manage your media files in {currentWorkspace.name}
+      <div className="mb-4">
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-1">
+          Uploads
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Upload and manage your media files
         </p>
       </div>
 
-      {/* Upload Section Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* Left Column: File Uploader */}
-        <div>
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <UploadIcon className="h-5 w-5" />
-                Upload Files
-              </CardTitle>
-              <CardDescription>
-                Drag and drop or browse to upload files
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <UploadDropzone
-                onFilesSelected={handleFilesSelected}
-                accept={[
-                  'video/mp4',
-                  'video/webm',
-                  'video/quicktime',
-                  'video/x-msvideo',
-                  'video/x-matroska',
-                ]}
-                maxSize={24 * 1024 * 1024 * 1024} // 24GB (chunked upload)
-              />
-            </CardContent>
-          </Card>
-
-          {/* Upload Info */}
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle className="text-sm">Upload Guidelines</CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm text-muted-foreground space-y-2">
-              <p>
-                <strong>Supported formats:</strong> MP4, WebM, QuickTime, AVI,
-                MKV
-              </p>
-              <p>
-                <strong>Maximum size:</strong> 24GB per file
-              </p>
-              <p>
-                <strong>Multiple files:</strong> Upload multiple files
-                simultaneously (max 3 concurrent)
-              </p>
-              <p>
-                <strong>Processing:</strong> Files are automatically processed
-                to generate thumbnails and previews
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Right Column: Upload Queue and Completed Uploads */}
-        <div className="space-y-6">
-          {/* Upload Queue Panel */}
-          <UploadPanel />
-
-          {/* Completed Uploads */}
-          <UploadList
-            uploads={uploads}
-            uploadProgress={uploadProgress}
-            isLoading={isLoading}
-            onRetry={retryUpload}
-            onCancel={cancelUpload}
-            title="Completed Uploads"
-            description="Track the status of your uploaded files"
+      {/* Combined Upload Card */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <UploadIcon className="h-4 w-4" />
+            Upload Files
+          </CardTitle>
+          <CardDescription className="text-xs">
+            MP4, WebM, QuickTime, AVI, MKV • Max 24GB
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {/* Dropzone */}
+          <UploadDropzone
+            onFilesSelected={handleFilesSelected}
+            accept={[
+              'video/mp4',
+              'video/webm',
+              'video/quicktime',
+              'video/x-msvideo',
+              'video/x-matroska',
+            ]}
+            maxSize={24 * 1024 * 1024 * 1024} // 24GB (chunked upload)
           />
-        </div>
+
+          {/* Upload Queue */}
+          <UploadPanel />
+        </CardContent>
+      </Card>
+
+      {/* Completed Uploads */}
+      <div className="mt-4">
+        <UploadList
+          uploads={uploads}
+          uploadProgress={uploadProgress}
+          isLoading={isLoading}
+          onRetry={retryUpload}
+          onCancel={cancelUpload}
+          title="Recent Uploads"
+          description="View your uploaded files"
+        />
       </div>
 
-      {/* Quick Actions */}
-      <div className="mt-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>What&apos;s Next?</CardTitle>
-            <CardDescription>
-              After your files are processed, you can view them in the media
-              gallery
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Link href="/media">
-              <Button>View Media Gallery</Button>
-            </Link>
-          </CardContent>
-        </Card>
+      {/* Quick Action */}
+      <div className="mt-4">
+        <Link href="/media">
+          <Button className="w-full sm:w-auto">View Media Gallery</Button>
+        </Link>
       </div>
     </div>
   );

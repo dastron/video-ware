@@ -166,25 +166,25 @@ export function UploadItem({
       {/* Thumbnail or icon */}
       <div className="flex-shrink-0">
         {thumbnail ? (
-          <div className="w-12 h-12 rounded overflow-hidden bg-gray-100 relative">
+          <div className="w-10 h-10 rounded overflow-hidden bg-gray-100 relative">
             <Image
               src={thumbnail}
               alt={item.fileName}
-              width={48}
-              height={48}
+              width={40}
+              height={40}
               className="object-cover"
               unoptimized
             />
           </div>
         ) : (
-          <div className="w-12 h-12 rounded bg-gray-100 flex items-center justify-center text-gray-400">
+          <div className="w-10 h-10 rounded bg-gray-100 flex items-center justify-center text-gray-400">
             {getFileIcon()}
           </div>
         )}
       </div>
 
       {/* Upload info */}
-      <div className="flex-1 min-w-0 space-y-2">
+      <div className="flex-1 min-w-0 space-y-1.5">
         {/* File name and status */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
