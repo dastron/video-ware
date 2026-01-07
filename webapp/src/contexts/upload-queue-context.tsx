@@ -36,12 +36,12 @@ import {
   restoreQueueState,
   handleStaleUploads,
 } from '@/utils/upload-persistence';
-import { UploadService } from '@/services/upload';
+import { ChunkedUploadService } from '@/services/chunked-upload';
+import type { ChunkProgress } from '@/services/chunked-upload';
 import { useAuth } from '@/hooks/use-auth';
 import { useWorkspace } from '@/hooks/use-workspace';
 import pb from '@/lib/pocketbase-client';
 import { useMemo } from 'react';
-import type { UploadProgress as UploadProgressType } from '@/types/upload-manager';
 
 // Action types for the reducer
 type QueueAction =
@@ -394,6 +394,7 @@ function queueReducer(
 interface UploadQueueContextType {
   state: UploadQueueState;
   actions: UploadManagerActions;
+  chunkProgress: Map<string, ChunkProgress>; // Track chunk progress per upload
 }
 
 // Create context
@@ -415,8 +416,13 @@ export function UploadQueueProvider({
   const { user } = useAuth();
   const { currentWorkspace } = useWorkspace();
 
-  // Create upload service instance
-  const uploadService = useMemo(() => new UploadService(pb), []);
+  // Create chunked upload service instance
+  const uploadService = useMemo(() => new ChunkedUploadService(pb), []);
+
+  // Track chunk progress for each upload
+  const [chunkProgress, setChunkProgress] = useState<
+    Map<string, ChunkProgress>
+  >(new Map());
 
   // Only restore state on client-side (after mount)
   const [restoredState, setRestoredState] =
@@ -566,36 +572,37 @@ export function UploadQueueProvider({
       // Dispatch start action
       dispatch({ type: 'START_UPLOAD', payload: { id: item.id } });
 
-      // Actually start the upload
-      const uploadPromise = uploadService
-        .initiateUpload(
-          currentWorkspace.id,
-          item.file!,
-          user.id,
-          (progress: UploadProgressType | number) => {
-            // Handle progress updates
-            const progressData =
-              typeof progress === 'number'
-                ? {
-                    loaded: progress,
-                    total: item.fileSize,
-                    percentage: (progress / item.fileSize) * 100,
-                    speed: 0,
-                    estimatedTimeRemaining: 0,
-                  }
-                : progress;
+      // Create upload record first
+      uploadService
+        .createUploadRecord(currentWorkspace.id, item.file!, user.id)
+        .then((uploadRecord) => {
+          // Start chunked upload
+          return uploadService.uploadFile(
+            uploadRecord.id,
+            currentWorkspace.id,
+            user.id,
+            item.file!,
+            (chunkProgressData) => {
+              // Update chunk progress
+              setChunkProgress((prev) => {
+                const newMap = new Map(prev);
+                newMap.set(item.id, chunkProgressData);
+                return newMap;
+              });
 
-            dispatch({
-              type: 'UPDATE_PROGRESS',
-              payload: {
-                id: item.id,
-                loaded: progressData.loaded,
-                total: progressData.total,
-                startTime,
-              },
-            });
-          }
-        )
+              // Update overall progress
+              dispatch({
+                type: 'UPDATE_PROGRESS',
+                payload: {
+                  id: item.id,
+                  loaded: chunkProgressData.bytesUploaded,
+                  total: chunkProgressData.totalBytes,
+                  startTime,
+                },
+              });
+            }
+          );
+        })
         .then((upload) => {
           // Upload completed successfully
           dispatch({
@@ -608,6 +615,11 @@ export function UploadQueueProvider({
           });
           activeUploadsRef.current.delete(item.id);
           uploadStartTimes.current.delete(item.id);
+          setChunkProgress((prev) => {
+            const newMap = new Map(prev);
+            newMap.delete(item.id);
+            return newMap;
+          });
         })
         .catch((error) => {
           // Upload failed
@@ -623,16 +635,17 @@ export function UploadQueueProvider({
           });
           activeUploadsRef.current.delete(item.id);
           uploadStartTimes.current.delete(item.id);
+          setChunkProgress((prev) => {
+            const newMap = new Map(prev);
+            newMap.delete(item.id);
+            return newMap;
+          });
         });
 
-      // Store abort function (we'll implement cancellation via XHR abort in the service)
+      // Store abort function for cancellation
       activeUploadsRef.current.set(item.id, {
         abort: () => {
-          // The upload service doesn't expose abort directly, but we can cancel via the mutator
-          // For now, we'll just mark it as cancelled in the queue
-          uploadPromise.catch(() => {
-            // Ignore errors from cancelled uploads
-          });
+          uploadService.cancelUpload(item.id);
         },
       });
     });
@@ -650,6 +663,7 @@ export function UploadQueueProvider({
   const value: UploadQueueContextType = {
     state,
     actions,
+    chunkProgress,
   };
 
   return (

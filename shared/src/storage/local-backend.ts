@@ -225,6 +225,73 @@ export class LocalStorageBackend implements StorageBackend {
   }
 
   /**
+   * Upload a chunk of a file (for chunked uploads)
+   * Appends chunks to the file sequentially
+   */
+  async uploadChunk(
+    chunk: ReadableStream,
+    filePath: string,
+    chunkIndex: number,
+    totalChunks: number,
+    isFirstChunk: boolean,
+    isLastChunk: boolean
+  ): Promise<StorageResult | void> {
+    const fullPath = this.resolvePath(filePath);
+    const directory = path.dirname(fullPath);
+
+    // Ensure directory exists
+    await mkdir(directory, { recursive: true });
+
+    try {
+      // For first chunk, create/overwrite file; for subsequent chunks, append
+      const writeStream = isFirstChunk
+        ? createWriteStream(fullPath)
+        : createWriteStream(fullPath, { flags: 'a' });
+
+      const reader = chunk.getReader();
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          writeStream.write(value);
+        }
+
+        writeStream.end();
+        await new Promise<void>((resolve, reject) => {
+          writeStream.on('finish', resolve);
+          writeStream.on('error', reject);
+        });
+      } finally {
+        reader.releaseLock();
+      }
+
+      // Only return result on last chunk
+      if (isLastChunk) {
+        const stats = await stat(fullPath);
+        return {
+          path: filePath,
+          size: stats.size,
+          lastModified: stats.mtime,
+        };
+      }
+    } catch (error) {
+      // Clean up partial file on error
+      try {
+        await unlink(fullPath);
+      } catch {
+        // Ignore cleanup errors
+      }
+
+      throw new Error(
+        `Failed to upload chunk ${chunkIndex + 1}/${totalChunks} to ${filePath}: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
+  }
+
+  /**
    * Download a file from local storage
    */
   async download(filePath: string): Promise<ReadableStream> {

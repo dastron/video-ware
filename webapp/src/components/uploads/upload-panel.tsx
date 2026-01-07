@@ -30,7 +30,7 @@ interface UploadPanelProps {
 }
 
 export function UploadPanel({ className }: UploadPanelProps) {
-  const { state, actions } = useUploadQueue();
+  const { state, actions, chunkProgress } = useUploadQueue();
   const [lastCompletedCount, setLastCompletedCount] = useState(0);
 
   // Show notification when all uploads complete
@@ -130,16 +130,26 @@ export function UploadPanel({ className }: UploadPanelProps) {
             {/* Active uploads */}
             {inFlightActiveItems.length > 0 && (
               <>
-                {inFlightActiveItems.map((item) => (
-                  <UploadItem
-                    key={item.id}
-                    item={item}
-                    onPause={actions.pauseUpload}
-                    onResume={actions.resumeUpload}
-                    onCancel={actions.cancelUpload}
-                    onRetry={actions.retryUpload}
-                  />
-                ))}
+                {inFlightActiveItems.map((item) => {
+                  const itemChunkProgress = chunkProgress.get(item.id);
+                  return (
+                    <UploadItem
+                      key={item.id}
+                      item={item}
+                      onCancel={actions.cancelUpload}
+                      onRetry={actions.retryUpload}
+                      chunkProgress={
+                        itemChunkProgress
+                          ? {
+                              currentChunk: itemChunkProgress.chunkIndex,
+                              totalChunks: itemChunkProgress.totalChunks,
+                              chunkProgress: itemChunkProgress.chunkProgress,
+                            }
+                          : undefined
+                      }
+                    />
+                  );
+                })}
               </>
             )}
 

@@ -5,6 +5,10 @@ import {
   DeleteObjectCommand,
   HeadObjectCommand,
   ListObjectsV2Command,
+  CreateMultipartUploadCommand,
+  UploadPartCommand,
+  CompleteMultipartUploadCommand,
+  AbortMultipartUploadCommand,
 } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
@@ -26,6 +30,11 @@ export class S3StorageBackend implements StorageBackend {
   readonly type = StorageBackendType.S3;
   private readonly client: S3Client;
   private readonly bucket: string;
+  // Track multipart uploads by file path
+  private readonly multipartUploads: Map<
+    string,
+    { uploadId: string; parts: Array<{ PartNumber: number; ETag: string }> }
+  > = new Map();
 
   constructor(config: S3StorageConfig) {
     this.bucket = config.bucket;
@@ -138,6 +147,141 @@ export class S3StorageBackend implements StorageBackend {
     } catch (error) {
       throw new Error(
         `Failed to upload file to S3 at ${filePath}: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
+  }
+
+  /**
+   * Upload a chunk of a file (for chunked uploads)
+   * Uses S3 multipart upload API
+   */
+  async uploadChunk(
+    chunk: ReadableStream,
+    filePath: string,
+    chunkIndex: number,
+    totalChunks: number,
+    isFirstChunk: boolean,
+    isLastChunk: boolean
+  ): Promise<StorageResult | void> {
+    try {
+      // Convert ReadableStream to Buffer
+      const reader = chunk.getReader();
+      const chunks: Uint8Array[] = [];
+      let totalLength = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        totalLength += value.length;
+      }
+
+      const buffer = Buffer.concat(chunks.map((c) => Buffer.from(c)));
+
+      // Initialize multipart upload on first chunk
+      if (isFirstChunk) {
+        const createResult = await this.client.send(
+          new CreateMultipartUploadCommand({
+            Bucket: this.bucket,
+            Key: filePath,
+          })
+        );
+
+        if (!createResult.UploadId) {
+          throw new Error('Failed to create multipart upload');
+        }
+
+        this.multipartUploads.set(filePath, {
+          uploadId: createResult.UploadId,
+          parts: [],
+        });
+      }
+
+      const uploadData = this.multipartUploads.get(filePath);
+      if (!uploadData) {
+        throw new Error('Multipart upload not initialized');
+      }
+
+      // Upload this part (S3 part numbers are 1-based)
+      const partNumber = chunkIndex + 1;
+      const uploadPartResult = await this.client.send(
+        new UploadPartCommand({
+          Bucket: this.bucket,
+          Key: filePath,
+          UploadId: uploadData.uploadId,
+          PartNumber: partNumber,
+          Body: buffer,
+        })
+      );
+
+      if (!uploadPartResult.ETag) {
+        throw new Error(`Failed to upload part ${partNumber}`);
+      }
+
+      // Store part info
+      uploadData.parts.push({
+        PartNumber: partNumber,
+        ETag: uploadPartResult.ETag,
+      });
+
+      // Complete multipart upload on last chunk
+      if (isLastChunk) {
+        // Sort parts by part number
+        uploadData.parts.sort((a, b) => a.PartNumber - b.PartNumber);
+
+        await this.client.send(
+          new CompleteMultipartUploadCommand({
+            Bucket: this.bucket,
+            Key: filePath,
+            UploadId: uploadData.uploadId,
+            MultipartUpload: {
+              Parts: uploadData.parts,
+            },
+          })
+        );
+
+        // Clean up tracking
+        this.multipartUploads.delete(filePath);
+
+        // Get object metadata
+        const headResult = await this.client.send(
+          new HeadObjectCommand({
+            Bucket: this.bucket,
+            Key: filePath,
+          })
+        );
+
+        console.log(totalLength);
+
+        return {
+          path: filePath,
+          size: headResult.ContentLength || 0,
+          etag: headResult.ETag?.replace(/"/g, ''),
+          lastModified: headResult.LastModified,
+        };
+      }
+    } catch (error) {
+      // Abort multipart upload on error
+      const uploadData = this.multipartUploads.get(filePath);
+      if (uploadData) {
+        try {
+          await this.client.send(
+            new AbortMultipartUploadCommand({
+              Bucket: this.bucket,
+              Key: filePath,
+              UploadId: uploadData.uploadId,
+            })
+          );
+        } catch (abortError) {
+          console.error('Failed to abort multipart upload:', abortError);
+        }
+        this.multipartUploads.delete(filePath);
+      }
+
+      throw new Error(
+        `Failed to upload chunk ${chunkIndex + 1}/${totalChunks} to S3 at ${filePath}: ${
           error instanceof Error ? error.message : String(error)
         }`
       );

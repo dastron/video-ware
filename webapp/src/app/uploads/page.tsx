@@ -75,7 +75,7 @@ function UploadsPageContent() {
                   'video/x-msvideo',
                   'video/x-matroska',
                 ]}
-                maxSize={10 * 1024 * 1024 * 1024} // 10GB
+                maxSize={24 * 1024 * 1024 * 1024} // 24GB (chunked upload)
               />
             </CardContent>
           </Card>
@@ -88,14 +88,14 @@ function UploadsPageContent() {
             <CardContent className="text-sm text-muted-foreground space-y-2">
               <p>
                 <strong>Supported formats:</strong> MP4, WebM, QuickTime, AVI,
-                MKV, JPEG, PNG, GIF, WebP
+                MKV
               </p>
               <p>
-                <strong>Maximum size:</strong> 10GB per file
+                <strong>Maximum size:</strong> 24GB per file
               </p>
               <p>
-                <strong>Multiple files:</strong> Drag and drop multiple files or
-                folders
+                <strong>Multiple files:</strong> Upload multiple files
+                simultaneously (max 3 concurrent)
               </p>
               <p>
                 <strong>Processing:</strong> Files are automatically processed

@@ -105,6 +105,25 @@ export interface StorageBackend {
   ): Promise<StorageResult>;
 
   /**
+   * Upload a chunk of a file (for chunked uploads)
+   * @param chunk - ReadableStream of the chunk data
+   * @param path - Destination path in storage
+   * @param chunkIndex - Index of this chunk (0-based)
+   * @param totalChunks - Total number of chunks
+   * @param isFirstChunk - Whether this is the first chunk
+   * @param isLastChunk - Whether this is the last chunk
+   * @returns Storage result (only on last chunk)
+   */
+  uploadChunk(
+    chunk: ReadableStream,
+    path: string,
+    chunkIndex: number,
+    totalChunks: number,
+    isFirstChunk: boolean,
+    isLastChunk: boolean
+  ): Promise<StorageResult | void>;
+
+  /**
    * Download a file from storage
    * @param path - Path to the file in storage
    * @returns ReadableStream of file contents

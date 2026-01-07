@@ -5,23 +5,20 @@
  *
  * Displays an individual upload item with:
  * - File name, size, and type
- * - Progress bar with percentage, speed, and ETA
- * - Pause/resume/cancel buttons
- * - Retry count and error messages
+ * - Chunked progress bar showing individual chunk uploads
+ * - Cancel/retry buttons
+ * - Error messages
  * - Thumbnail preview for images/videos
  */
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import {
   FileVideo,
   FileImage,
   File as FileIcon,
-  Pause,
-  Play,
   X,
   RefreshCw,
   AlertCircle,
@@ -31,24 +28,28 @@ import {
 import { cn } from '@/lib/utils';
 import type { UploadItem as UploadItemType } from '@/types/upload-manager';
 import { UploadItemStatus } from '@/types/upload-manager';
-import { formatBytes, formatTime, formatSpeed } from '@/utils/upload-progress';
+import { formatBytes } from '@/utils/upload-progress';
+import { ChunkedProgressBar, SimpleProgressBar } from './upload-progress';
 
 interface UploadItemProps {
   item: UploadItemType;
-  onPause?: (id: string) => void;
-  onResume?: (id: string) => void;
   onCancel?: (id: string) => void;
   onRetry?: (id: string) => void;
   className?: string;
+  // Chunk progress (optional, for chunked uploads)
+  chunkProgress?: {
+    currentChunk: number;
+    totalChunks: number;
+    chunkProgress: number;
+  };
 }
 
 export function UploadItem({
   item,
-  onPause,
-  onResume,
   onCancel,
   onRetry,
   className,
+  chunkProgress,
 }: UploadItemProps) {
   const [thumbnail, setThumbnail] = useState<string | null>(
     item.thumbnail || null
@@ -123,8 +124,6 @@ export function UploadItem({
         return 'destructive';
       case UploadItemStatus.UPLOADING:
         return 'secondary';
-      case UploadItemStatus.PAUSED:
-        return 'outline';
       default:
         return 'secondary';
     }
@@ -139,21 +138,19 @@ export function UploadItem({
         return <CheckCircle2 className="h-3 w-3" />;
       case UploadItemStatus.FAILED:
         return <AlertCircle className="h-3 w-3" />;
-      case UploadItemStatus.PAUSED:
-        return <Pause className="h-3 w-3" />;
+
       default:
         return null;
     }
   };
 
   const isUploading = item.status === UploadItemStatus.UPLOADING;
-  const isPaused = item.status === UploadItemStatus.PAUSED;
   const isFailed = item.status === UploadItemStatus.FAILED;
   const isCompleted = item.status === UploadItemStatus.COMPLETED;
   const isQueued = item.status === UploadItemStatus.QUEUED;
   const isCancelled = item.status === UploadItemStatus.CANCELLED;
 
-  const showProgress = isUploading || isPaused;
+  const showProgress = isUploading;
   const showActions = !isCompleted && !isCancelled;
 
   return (
@@ -202,40 +199,31 @@ export function UploadItem({
           </Badge>
         </div>
 
-        {/* Progress bar and stats */}
+        {/* Progress bar */}
         {showProgress && (
-          <div className="space-y-1.5">
-            <Progress value={item.progress.percentage} className="h-1.5" />
-            <div className="flex items-center justify-between text-xs text-gray-600">
+          <div className="space-y-1">
+            {chunkProgress && chunkProgress.totalChunks > 1 ? (
+              <ChunkedProgressBar
+                currentChunk={chunkProgress.currentChunk}
+                totalChunks={chunkProgress.totalChunks}
+                chunkProgress={chunkProgress.chunkProgress}
+                overallProgress={item.progress.percentage}
+              />
+            ) : (
+              <SimpleProgressBar progress={item.progress.percentage} />
+            )}
+            <div className="flex items-center justify-between text-xs text-gray-500">
               <span>
-                {formatBytes(item.progress.loaded)} /{' '}
+                {formatBytes(item.progress.loaded)} of{' '}
                 {formatBytes(item.progress.total)}
               </span>
-              <span>{item.progress.percentage.toFixed(1)}%</span>
             </div>
-            {isUploading && item.progress.speed > 0 && (
-              <div className="flex items-center justify-between text-xs text-gray-500">
-                <span>{formatSpeed(item.progress.speed)}</span>
-                <span>
-                  {item.progress.estimatedTimeRemaining > 0
-                    ? `${formatTime(item.progress.estimatedTimeRemaining)} remaining`
-                    : 'Calculating...'}
-                </span>
-              </div>
-            )}
           </div>
         )}
 
         {/* Queued status */}
         {isQueued && (
           <p className="text-xs text-gray-500">Waiting to start...</p>
-        )}
-
-        {/* Retry count */}
-        {item.retryCount > 0 && (
-          <p className="text-xs text-gray-500">
-            Retry attempt {item.retryCount}
-          </p>
         )}
 
         {/* Error message */}
@@ -250,32 +238,6 @@ export function UploadItem({
       {/* Action buttons */}
       {showActions && (
         <div className="flex-shrink-0 flex items-center gap-1">
-          {/* Pause button */}
-          {isUploading && onPause && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onPause(item.id)}
-              className="h-8 w-8 p-0"
-              title="Pause upload"
-            >
-              <Pause className="h-4 w-4" />
-            </Button>
-          )}
-
-          {/* Resume button */}
-          {isPaused && onResume && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onResume(item.id)}
-              className="h-8 w-8 p-0"
-              title="Resume upload"
-            >
-              <Play className="h-4 w-4" />
-            </Button>
-          )}
-
           {/* Retry button */}
           {isFailed && onRetry && (
             <Button
@@ -290,7 +252,7 @@ export function UploadItem({
           )}
 
           {/* Cancel button */}
-          {(isUploading || isPaused || isQueued) && onCancel && (
+          {(isUploading || isQueued) && onCancel && (
             <Button
               variant="ghost"
               size="sm"
