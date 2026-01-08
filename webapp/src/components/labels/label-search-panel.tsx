@@ -26,7 +26,7 @@ interface LabelSearchPanelProps {
   ) => void;
 }
 
-const ITEMS_PER_PAGE = 20;
+const ITEMS_PER_PAGE = 10;
 
 export function LabelSearchPanel({
   media,
@@ -218,6 +218,7 @@ export function LabelSearchPanel({
       <div className="flex-1 overflow-y-auto p-4">
         <LabelSearchResults
           labels={labels}
+          media={media}
           onJumpToTime={handleJumpToTime}
           onCreateClip={handleCreateClip}
           onAddToTimeline={onAddToTimeline ? handleAddToTimeline : undefined}
