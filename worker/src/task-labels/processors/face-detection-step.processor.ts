@@ -13,27 +13,13 @@ import type { FaceDetectionStepOutput } from '../types/step-outputs';
 import type {
   FaceDetectionResponse,
   LabelClipData,
+  LabelTrackData,
   LabelMediaData,
 } from '../types';
 
 // Re-export types for parent processor
 export type { FaceDetectionStepInput, FaceDetectionStepOutput };
 
-/**
- * Step processor for FACE_DETECTION in detect_labels flow
- *
- * This processor:
- * 1. Checks cache before calling executor
- * 2. Calls FaceDetectionExecutor (FACE_DETECTION)
- * 3. Calls FaceDetectionNormalizer to transform response
- * 4. Batch inserts LabelEntity records
- * 5. Batch inserts LabelTrack records (with keyframes and attributes)
- * 6. Batch inserts LabelClip records (with track references)
- * 7. Updates LabelMedia with aggregated data
- * 8. Stores normalized response to cache
- *
- * Implements cache-aware processing to avoid redundant API calls.
- */
 @Injectable()
 export class FaceDetectionStepProcessor extends BaseStepProcessor<
   FaceDetectionStepInput,
@@ -133,21 +119,22 @@ export class FaceDetectionStepProcessor extends BaseStepProcessor<
       );
 
       // Step 5: Batch insert LabelTrack records (with keyframes and attributes)
-      // TODO: Uncomment when LabelTrackMutator is created (task 2)
-      // const trackIds = await this.batchInsertLabelTracks(
-      //   normalizedData.labelTracks
-      // );
-      const trackIds: string[] = []; // Placeholder until LabelTrackMutator exists
+      // Face detection creates a single "Face" entity, so all tracks reference it
+      const entityId = entityIds.length > 0 ? entityIds[0] : undefined;
+      const { trackIds, trackIdToDbIdMap } = await this.batchInsertLabelTracks(
+        normalizedData.labelTracks,
+        entityId
+      );
       this.logger.debug(
         `Inserted ${trackIds.length} label tracks for media ${input.mediaId}`
       );
 
       // Step 6: Batch insert LabelClip records (with track references)
       // Face detection creates a single "Face" entity, so all clips reference it
-      const entityId = entityIds.length > 0 ? entityIds[0] : undefined;
       const clipIds = await this.batchInsertLabelClips(
         normalizedData.labelClips,
-        entityId
+        entityId,
+        trackIdToDbIdMap
       );
       this.logger.debug(
         `Inserted ${clipIds.length} label clips for media ${input.mediaId}`
@@ -240,61 +227,139 @@ export class FaceDetectionStepProcessor extends BaseStepProcessor<
   /**
    * Batch insert LabelTrack records
    * Inserts in batches of 100 for performance
+   * Handles duplicate trackHash by checking for existing records first
+   * Sets LabelEntityRef on tracks if entityId is provided
+   * Stores keyframes data in the keyframes column
    *
-   * TODO: Uncomment when LabelTrackMutator is created (task 2)
+   * Note: Tracks are already validated and filtered by the normalizer
+   *
+   * @returns Object with trackIds array and trackIdToDbIdMap for linking clips to tracks
    */
-  // private async batchInsertLabelTracks(tracks: Array<any>): Promise<string[]> {
-  //   const trackIds: string[] = [];
-  //   const batchSize = 100;
+  private async batchInsertLabelTracks(
+    tracks: LabelTrackData[],
+    entityId?: string
+  ): Promise<{ trackIds: string[]; trackIdToDbIdMap: Map<string, string> }> {
+    const trackIds: string[] = [];
+    const trackIdToDbIdMap = new Map<string, string>(); // Map trackId -> database ID
+    const batchSize = 100;
 
-  //   for (let i = 0; i < tracks.length; i += batchSize) {
-  //     const batch = tracks.slice(i, i + batchSize);
+    for (let i = 0; i < tracks.length; i += batchSize) {
+      const batch = tracks.slice(i, i + batchSize);
+      let insertedCount = 0;
+      let skippedCount = 0;
+      let errorCount = 0;
 
-  //     for (const track of batch) {
-  //       try {
-  //         const created = await this.labelTrackMutator.create(track);
-  //         trackIds.push(created.id);
-  //       } catch (error) {
-  //         // Log error but continue with other tracks
-  //         this.logger.warn(
-  //           `Failed to insert label track: ${error instanceof Error ? error.message : String(error)}`
-  //         );
-  //       }
-  //     }
+      for (const track of batch) {
+        try {
+          // Check if a track with this trackHash already exists
+          const existing =
+            await this.pocketBaseService.labelTrackMutator.getList(
+              1,
+              1,
+              `trackHash = "${track.trackHash}"`
+            );
 
-  //     this.logger.debug(
-  //       `Inserted batch ${Math.floor(i / batchSize) + 1}: ${batch.length} tracks`
-  //     );
-  //   }
+          if (existing.items.length > 0) {
+            // Track already exists, use existing ID
+            const dbId = existing.items[0].id;
+            trackIds.push(dbId);
+            trackIdToDbIdMap.set(track.trackId, dbId);
+            skippedCount++;
+            this.logger.debug(
+              `Skipped duplicate label track with hash ${track.trackHash}`
+            );
+          } else {
+            // Track doesn't exist, create it
+            // Set LabelEntityRef if entityId is provided (required field)
+            // keyframes are already included in the track data from normalizer
+            const labelEntityRef = entityId || track.LabelEntityRef;
+            if (!labelEntityRef) {
+              this.logger.error(
+                `Cannot create label track without LabelEntityRef for trackId ${track.trackId}`
+              );
+              errorCount++;
+              continue;
+            }
 
-  //   return trackIds;
-  // }
+            const created =
+              await this.pocketBaseService.labelTrackMutator.create({
+                ...track,
+                LabelEntityRef: labelEntityRef,
+                provider: ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
+                keyframes: track.keyframes, // Ensure keyframes are stored
+              });
+            trackIds.push(created.id);
+            trackIdToDbIdMap.set(track.trackId, created.id);
+            insertedCount++;
+          }
+        } catch (error) {
+          // Check if this is a unique constraint error (race condition)
+          if (this.isUniqueConstraintErrorForTrack(error)) {
+            // Try to fetch the existing record
+            try {
+              const existing =
+                await this.pocketBaseService.labelTrackMutator.getList(
+                  1,
+                  1,
+                  `trackHash = "${track.trackHash}"`
+                );
+              if (existing.items.length > 0) {
+                const dbId = existing.items[0].id;
+                trackIds.push(dbId);
+                trackIdToDbIdMap.set(track.trackId, dbId);
+                skippedCount++;
+                this.logger.debug(
+                  `Resolved duplicate label track with hash ${track.trackHash} (race condition)`
+                );
+              } else {
+                // Shouldn't happen, but log it
+                this.logger.warn(
+                  `Unique constraint error for trackHash ${track.trackHash} but record not found`
+                );
+                errorCount++;
+              }
+            } catch (fetchError) {
+              this.logger.error(
+                `Failed to fetch existing label track after unique constraint error: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`
+              );
+              errorCount++;
+            }
+          } else {
+            // Some other error occurred
+            this.logger.error(
+              `Failed to insert label track: ${error instanceof Error ? error.message : String(error)}`
+            );
+            errorCount++;
+          }
+        }
+      }
+
+      this.logger.debug(
+        `Batch ${Math.floor(i / batchSize) + 1}: Inserted ${insertedCount}, skipped ${skippedCount} duplicate tracks, ${errorCount} errors`
+      );
+    }
+
+    return { trackIds, trackIdToDbIdMap };
+  }
 
   /**
    * Batch insert LabelClip records
    * Inserts in batches of 100 for performance
    * Handles duplicate labelHash by checking for existing records first
-   * Filters out invalid clips before insertion
-   * Sets LabelEntityRef on clips if entityId is provided
+   * Sets LabelEntityRef and LabelTrackRef on clips if provided
+   *
+   * Note: Clips are already validated and filtered by the normalizer
    */
   private async batchInsertLabelClips(
     clips: LabelClipData[],
-    entityId?: string
+    entityId?: string,
+    trackIdToDbIdMap?: Map<string, string>
   ): Promise<string[]> {
-    // Filter out invalid clips before processing
-    const validClips = clips.filter((clip) => this.isValidLabelClip(clip));
-
-    if (validClips.length < clips.length) {
-      this.logger.warn(
-        `Filtered out ${clips.length - validClips.length} invalid label clips`
-      );
-    }
-
     const clipIds: string[] = [];
     const batchSize = 100;
 
-    for (let i = 0; i < validClips.length; i += batchSize) {
-      const batch = validClips.slice(i, i + batchSize);
+    for (let i = 0; i < clips.length; i += batchSize) {
+      const batch = clips.slice(i, i + batchSize);
       let insertedCount = 0;
       let skippedCount = 0;
       let errorCount = 0;
@@ -319,10 +384,25 @@ export class FaceDetectionStepProcessor extends BaseStepProcessor<
           } else {
             // Clip doesn't exist, create it
             // Set LabelEntityRef if entityId is provided
+            // Set LabelTrackRef if trackId is found in labelData
+            let labelTrackRef: string | undefined;
+            if (
+              trackIdToDbIdMap &&
+              clip.labelData &&
+              typeof clip.labelData === 'object'
+            ) {
+              const labelData = clip.labelData as Record<string, unknown>;
+              const trackId = labelData.trackId;
+              if (trackId && typeof trackId === 'string') {
+                labelTrackRef = trackIdToDbIdMap.get(trackId);
+              }
+            }
+
             const created =
               await this.pocketBaseService.labelClipMutator.create({
                 ...clip,
                 LabelEntityRef: entityId || clip.LabelEntityRef,
+                LabelTrackRef: labelTrackRef || clip.LabelTrackRef,
                 provider: clip.provider as
                   | ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE
                   | ProcessingProvider.GOOGLE_SPEECH,
@@ -379,82 +459,7 @@ export class FaceDetectionStepProcessor extends BaseStepProcessor<
   }
 
   /**
-   * Check if a label clip is valid before insertion
-   *
-   * @param clip The clip to validate
-   * @returns True if the clip is valid
-   */
-  private isValidLabelClip(clip: LabelClipData): boolean {
-    // Check required fields
-    if (!clip.labelHash || clip.labelHash.trim().length === 0) {
-      return false;
-    }
-    if (!clip.WorkspaceRef || clip.WorkspaceRef.trim().length === 0) {
-      return false;
-    }
-    if (!clip.MediaRef || clip.MediaRef.trim().length === 0) {
-      return false;
-    }
-
-    // Check time values
-    if (
-      typeof clip.start !== 'number' ||
-      clip.start < 0 ||
-      !Number.isFinite(clip.start)
-    ) {
-      return false;
-    }
-    if (
-      typeof clip.end !== 'number' ||
-      clip.end < 0 ||
-      !Number.isFinite(clip.end)
-    ) {
-      return false;
-    }
-
-    // End must be greater than start
-    if (clip.end <= clip.start) {
-      return false;
-    }
-
-    // Check duration (should be positive and match end - start)
-    // Must be at least 0.5 seconds (matching normalizer's MIN_CLIP_DURATION)
-    if (
-      typeof clip.duration !== 'number' ||
-      clip.duration < 0.5 ||
-      !Number.isFinite(clip.duration)
-    ) {
-      return false;
-    }
-
-    // Check confidence (must be between 0 and 1, and at least 0.5)
-    // Matching normalizer's MIN_CLIP_CONFIDENCE
-    if (
-      typeof clip.confidence !== 'number' ||
-      clip.confidence < 0.5 ||
-      clip.confidence > 1 ||
-      !Number.isFinite(clip.confidence)
-    ) {
-      return false;
-    }
-
-    // Check that trackId is not empty (if present in labelData)
-    if (clip.labelData && typeof clip.labelData === 'object') {
-      const labelData = clip.labelData as Record<string, unknown>;
-      const trackId = labelData.trackId;
-      if (
-        trackId !== undefined &&
-        (!trackId || String(trackId).trim().length === 0)
-      ) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  /**
-   * Check if an error is a unique constraint violation
+   * Check if an error is a unique constraint violation for clips
    *
    * @param error The error to check
    * @returns True if the error is a unique constraint violation
@@ -477,6 +482,33 @@ export class FaceDetectionStepProcessor extends BaseStepProcessor<
       message.includes('UNIQUE constraint') ||
       message.includes('validation_not_unique') ||
       message.includes('labelHash')
+    );
+  }
+
+  /**
+   * Check if an error is a unique constraint violation for tracks
+   *
+   * @param error The error to check
+   * @returns True if the error is a unique constraint violation
+   */
+  private isUniqueConstraintErrorForTrack(error: unknown): boolean {
+    if (!error) return false;
+
+    // Check for PocketBase error structure
+    if (typeof error === 'object' && 'data' in error) {
+      const data = (error as { data?: { trackHash?: { code?: string } } }).data;
+      if (data?.trackHash?.code === 'validation_not_unique') {
+        return true;
+      }
+    }
+
+    // Check error message
+    const message = error instanceof Error ? error.message : String(error);
+    return (
+      message.includes('unique constraint') ||
+      message.includes('UNIQUE constraint') ||
+      message.includes('validation_not_unique') ||
+      message.includes('trackHash')
     );
   }
 

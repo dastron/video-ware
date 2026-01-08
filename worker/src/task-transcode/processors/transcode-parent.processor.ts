@@ -1,6 +1,7 @@
 import { Processor } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
-import { Job } from 'bullmq';
+import { Job, Queue } from 'bullmq';
+import { InjectQueue } from '@nestjs/bullmq';
 import { QUEUE_NAMES } from '../../queue/queue.constants';
 import { TranscodeStepType } from '../../queue/types/step.types';
 import { PocketBaseService } from '../../shared/services/pocketbase.service';
@@ -20,7 +21,7 @@ import type {
   SpriteStepInput,
   TranscodeStepInput,
 } from './step-types';
-import { TaskStatus } from '@project/shared';
+import type { ProcessUploadPayload } from '@project/shared';
 
 /**
  * Parent processor for transcode tasks
@@ -29,24 +30,54 @@ import { TaskStatus } from '@project/shared';
 @Processor(QUEUE_NAMES.TRANSCODE)
 export class TranscodeParentProcessor extends BaseParentProcessor {
   protected readonly logger = new Logger(TranscodeParentProcessor.name);
+  protected readonly pocketbaseService: PocketBaseService;
 
   constructor(
-    protected readonly pocketbaseService: PocketBaseService,
+    @InjectQueue(QUEUE_NAMES.TRANSCODE)
+    private readonly transcodeQueue: Queue,
+    pocketbaseService: PocketBaseService,
     private readonly probeStepProcessor: ProbeStepProcessor,
     private readonly thumbnailStepProcessor: ThumbnailStepProcessor,
     private readonly spriteStepProcessor: SpriteStepProcessor,
     private readonly transcodeStepProcessor: TranscodeStepProcessor
   ) {
     super();
+    this.pocketbaseService = pocketbaseService;
+  }
+
+  /**
+   * Get the queue instance for accessing child jobs
+   */
+  protected getQueue(): Queue {
+    return this.transcodeQueue;
+  }
+
+  /**
+   * Get the total number of steps expected for this task
+   * Includes PROBE (always) plus THUMBNAIL, SPRITE, and TRANSCODE if enabled in payload
+   */
+  protected getTotalSteps(parentData: ParentJobData): number {
+    const payload = parentData.task.payload as ProcessUploadPayload;
+    let totalSteps = 1; // PROBE is always included
+
+    // Count enabled steps based on payload (same logic as flow builder)
+    if (payload.thumbnail) totalSteps++;
+    if (payload.sprite) totalSteps++;
+    if (payload.transcode?.enabled) totalSteps++;
+
+    return totalSteps;
   }
 
   protected async processParentJob(job: Job<ParentJobData>): Promise<void> {
     const { task } = job.data;
 
     this.logger.log(`Processing parent job for task ${task.id}`);
-    await this.updateTaskStatus(task.id, TaskStatus.RUNNING);
+
+    // Task status is now managed by the base class event handlers
+    // No need to manually update here as it will be set by onActive event
 
     // Wait for all children to complete
+    // BullMQ automatically handles this - parent job only completes when all children are done
     const childrenValues = await job.getChildrenValues();
 
     this.logger.log(
@@ -55,19 +86,23 @@ export class TranscodeParentProcessor extends BaseParentProcessor {
 
     // Check if any steps failed
     const failedSteps = Object.values(childrenValues).filter(
-      (result: any) => result?.status === 'failed'
+      (result: unknown) =>
+        result &&
+        typeof result === 'object' &&
+        'status' in result &&
+        result.status === 'failed'
     );
 
     if (failedSteps.length > 0) {
+      // Base class will handle the task status update on failure
       this.logger.error(
         `Task ${task.id} has ${failedSteps.length} failed steps`
       );
-      await this.updateTaskStatus(task.id, TaskStatus.FAILED);
       throw new Error(`Task failed with ${failedSteps.length} failed steps`);
     }
 
+    // Task succeeded - base class will handle the status update on completion
     this.logger.log(`Task ${task.id} completed successfully`);
-    await this.updateTaskStatus(task.id, TaskStatus.SUCCESS);
   }
 
   protected async processStepJob(job: Job<StepJobData>): Promise<StepResult> {

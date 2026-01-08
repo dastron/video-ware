@@ -5,7 +5,7 @@ import type { LabelClip, Media } from '@project/shared';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Clock, Play, Scissors, ExternalLink, Plus } from 'lucide-react';
+import { Clock, Plus, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SpriteAnimator } from '../sprite/sprite-animator';
 
@@ -25,7 +25,7 @@ export function LabelSearchResultItem({
   hasDerivedClip = false,
   onJumpToTime,
   onCreateClip,
-  onAddToTimeline,
+  onAddToTimeline: _onAddToTimeline,
   onViewClip,
 }: LabelSearchResultItemProps) {
   const [isHovering, setIsHovering] = useState(false);
@@ -36,21 +36,15 @@ export function LabelSearchResultItem({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const formatDuration = (seconds: number): string => {
-    if (seconds < 60) {
-      return `${seconds.toFixed(1)}s`;
-    }
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}m ${secs}s`;
-  };
-
   const getLabelName = (label: LabelClip): string => {
     const labelData = label.labelData as Record<string, unknown>;
+    const fallbackName = Array.isArray(label.labelType)
+      ? String(label.labelType[0] || 'Label')
+      : String(label.labelType || 'Label');
     return (
       (labelData?.entityDescription as string) ||
       (labelData?.transcript as string)?.substring(0, 50) ||
-      'Unknown Label'
+      fallbackName.charAt(0).toUpperCase() + fallbackName.slice(1).toLowerCase()
     );
   };
 
@@ -62,15 +56,32 @@ export function LabelSearchResultItem({
 
   const labelName = getLabelName(label);
 
+  const handleCardClick = () => {
+    onJumpToTime(label);
+  };
+
+  const handleActionClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (hasDerivedClip && onViewClip) {
+      onViewClip(label.id);
+    } else {
+      onCreateClip(label);
+    }
+  };
+
   return (
     <Card
-      className="hover:shadow-md transition-shadow overflow-hidden p-0"
+      className={cn(
+        'cursor-pointer transition-all overflow-hidden p-0',
+        'hover:shadow-md hover:border-primary/50 border-border'
+      )}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
+      onClick={handleCardClick}
     >
       <CardContent className="p-0 flex items-stretch">
         {/* Sprite Preview */}
-        <div className="w-36 shrink-0 self-stretch min-h-[120px] bg-muted/50 relative overflow-hidden rounded-l-xl border-r border-border/50">
+        <div className="w-32 shrink-0 self-stretch min-h-[80px] bg-muted/50 relative overflow-hidden rounded-l-xl border-r border-border/50">
           <SpriteAnimator
             media={media}
             start={label.start}
@@ -81,30 +92,25 @@ export function LabelSearchResultItem({
         </div>
 
         {/* Content */}
-        <div className="p-4 flex-1 min-w-0 flex flex-col justify-center gap-2">
-          {/* Header with Badge */}
+        <div className="p-4 flex-1 flex flex-col justify-center min-w-0 gap-1.5">
           <div className="flex items-center gap-2">
-            <h4 className="text-sm font-medium truncate flex-1">{labelName}</h4>
             <Badge
               variant="outline"
-              className="text-[10px] shrink-0 capitalize h-5 px-1.5"
+              className="uppercase text-[10px] font-semibold h-5 px-2 shrink-0"
             >
               {label.labelType}
             </Badge>
+            <span className="text-xs font-medium tabular-nums text-muted-foreground">
+              {formatTime(label.start)} - {formatTime(label.end)}
+            </span>
           </div>
 
-          {/* Time, Duration, and Confidence in one row */}
-          <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-            <div className="flex items-center gap-1">
-              <Clock className="h-3 w-3" />
-              <span className="tabular-nums">
-                {formatTime(label.start)} - {formatTime(label.end)}
-              </span>
-            </div>
-            <span className="tabular-nums">
-              {formatDuration(label.duration)}
-            </span>
-            <span className="flex items-center gap-1">
+          <div className="text-sm font-medium line-clamp-2">{labelName}</div>
+
+          <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5" />
+            <span className="tabular-nums">{label.duration.toFixed(1)}s</span>
+            <span className="flex items-center gap-1 ml-2">
               <span>Conf:</span>
               <span
                 className={cn(
@@ -118,53 +124,21 @@ export function LabelSearchResultItem({
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex flex-col gap-2 shrink-0 p-3 border-l border-border/50">
+        {/* Action Icon CTA */}
+        <div className="flex flex-col border-l border-border/50">
           <Button
+            variant="ghost"
             size="sm"
-            variant="outline"
-            onClick={() => onJumpToTime(label)}
-            className="gap-1.5 text-xs h-7 px-2"
+            onClick={handleActionClick}
+            className="h-full rounded-none border-b border-border/50 hover:bg-primary/10"
+            title={hasDerivedClip ? 'View clip' : 'Create clip'}
           >
-            <Play className="h-3 w-3" />
-            Jump
+            {hasDerivedClip && onViewClip ? (
+              <ExternalLink className="h-4 w-4" />
+            ) : (
+              <Plus className="h-4 w-4" />
+            )}
           </Button>
-
-          {hasDerivedClip && onViewClip ? (
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => {
-                onViewClip(label.id);
-              }}
-              className="gap-1.5 text-xs h-7 px-2"
-            >
-              <ExternalLink className="h-3 w-3" />
-              View
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              onClick={() => onCreateClip(label)}
-              className="gap-1.5 text-xs h-7 px-2"
-            >
-              <Scissors className="h-3 w-3" />
-              Create
-            </Button>
-          )}
-
-          {/* Add to Timeline button - only shown when timeline context is available */}
-          {onAddToTimeline && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => onAddToTimeline(label)}
-              className="gap-1.5 text-xs h-7 px-2"
-            >
-              <Plus className="h-3 w-3" />
-              Add
-            </Button>
-          )}
         </div>
       </CardContent>
     </Card>

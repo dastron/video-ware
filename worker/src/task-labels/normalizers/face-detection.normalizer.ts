@@ -49,7 +49,7 @@ export class FaceDetectionNormalizer {
       workspaceRef,
       taskRef,
       version,
-      processor,
+      processor: _processor,
       processorVersion,
     } = input;
 
@@ -214,14 +214,36 @@ export class FaceDetectionNormalizer {
       processors: ['face_detection'],
     };
 
+    // Validate and filter out invalid tracks and clips
+    const validTracks = labelTracks.filter((track) =>
+      this.isValidLabelTrack(track)
+    );
+    const validClips = labelClips.filter((clip) => this.isValidLabelClip(clip));
+
+    if (validTracks.length < labelTracks.length) {
+      this.logger.warn(
+        `Filtered out ${labelTracks.length - validTracks.length} invalid label tracks`
+      );
+    }
+
+    if (validClips.length < labelClips.length) {
+      this.logger.warn(
+        `Filtered out ${labelClips.length - validClips.length} invalid label clips`
+      );
+    }
+
+    // Update counts based on valid data
+    labelMediaUpdate.faceCount = validClips.length;
+    labelMediaUpdate.faceTrackCount = validTracks.length;
+
     this.logger.debug(
-      `Normalized ${labelEntities.length} entities, ${labelTracks.length} tracks, ${labelClips.length} clips`
+      `Normalized ${labelEntities.length} entities, ${validTracks.length} tracks, ${validClips.length} clips`
     );
 
     return {
       labelEntities,
-      labelTracks,
-      labelClips,
+      labelTracks: validTracks,
+      labelClips: validClips,
       labelMediaUpdate,
     };
   }
@@ -346,5 +368,174 @@ export class FaceDetectionNormalizer {
   ): string {
     const hashInput = `${mediaId}:${start.toFixed(3)}:${end.toFixed(3)}:${labelType}`;
     return createHash('sha256').update(hashInput).digest('hex');
+  }
+
+  /**
+   * Check if a label track is valid before insertion
+   *
+   * @param track The track to validate
+   * @returns True if the track is valid
+   */
+  private isValidLabelTrack(track: LabelTrackData): boolean {
+    // Check required fields
+    if (!track.trackHash || track.trackHash.trim().length === 0) {
+      return false;
+    }
+    if (!track.WorkspaceRef || track.WorkspaceRef.trim().length === 0) {
+      return false;
+    }
+    if (!track.MediaRef || track.MediaRef.trim().length === 0) {
+      return false;
+    }
+    if (!track.trackId || track.trackId.trim().length === 0) {
+      return false;
+    }
+
+    // Check time values
+    if (
+      typeof track.start !== 'number' ||
+      track.start < 0 ||
+      !Number.isFinite(track.start)
+    ) {
+      return false;
+    }
+    if (
+      typeof track.end !== 'number' ||
+      track.end < 0 ||
+      !Number.isFinite(track.end)
+    ) {
+      return false;
+    }
+
+    // End must be greater than start
+    if (track.end <= track.start) {
+      return false;
+    }
+
+    // Check duration (should be positive and match end - start)
+    if (
+      typeof track.duration !== 'number' ||
+      track.duration < 0 ||
+      !Number.isFinite(track.duration)
+    ) {
+      return false;
+    }
+
+    // Check confidence (must be between 0 and 1)
+    if (
+      typeof track.confidence !== 'number' ||
+      track.confidence < 0 ||
+      track.confidence > 1 ||
+      !Number.isFinite(track.confidence)
+    ) {
+      return false;
+    }
+
+    // Check keyframes (must be an array)
+    if (!Array.isArray(track.keyframes)) {
+      return false;
+    }
+
+    // Validate each keyframe
+    for (const keyframe of track.keyframes) {
+      if (typeof keyframe !== 'object' || keyframe === null) {
+        return false;
+      }
+      const kf = keyframe as {
+        t?: number;
+        bbox?: { left?: number; top?: number; right?: number; bottom?: number };
+        confidence?: number;
+      };
+      if (typeof kf.t !== 'number' || kf.t < 0 || !Number.isFinite(kf.t)) {
+        return false;
+      }
+      if (!kf.bbox || typeof kf.bbox !== 'object') {
+        return false;
+      }
+      if (
+        typeof kf.confidence !== 'number' ||
+        kf.confidence < 0 ||
+        kf.confidence > 1 ||
+        !Number.isFinite(kf.confidence)
+      ) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  /**
+   * Check if a label clip is valid before insertion
+   *
+   * @param clip The clip to validate
+   * @returns True if the clip is valid
+   */
+  private isValidLabelClip(clip: LabelClipData): boolean {
+    // Check required fields
+    if (!clip.labelHash || clip.labelHash.trim().length === 0) {
+      return false;
+    }
+    if (!clip.WorkspaceRef || clip.WorkspaceRef.trim().length === 0) {
+      return false;
+    }
+    if (!clip.MediaRef || clip.MediaRef.trim().length === 0) {
+      return false;
+    }
+
+    // Check time values
+    if (
+      typeof clip.start !== 'number' ||
+      clip.start < 0 ||
+      !Number.isFinite(clip.start)
+    ) {
+      return false;
+    }
+    if (
+      typeof clip.end !== 'number' ||
+      clip.end < 0 ||
+      !Number.isFinite(clip.end)
+    ) {
+      return false;
+    }
+
+    // End must be greater than start
+    if (clip.end <= clip.start) {
+      return false;
+    }
+
+    // Check duration (should be positive and match end - start)
+    // Must be at least MIN_CLIP_DURATION seconds
+    if (
+      typeof clip.duration !== 'number' ||
+      clip.duration < this.MIN_CLIP_DURATION ||
+      !Number.isFinite(clip.duration)
+    ) {
+      return false;
+    }
+
+    // Check confidence (must be between 0 and 1, and at least MIN_CLIP_CONFIDENCE)
+    if (
+      typeof clip.confidence !== 'number' ||
+      clip.confidence < this.MIN_CLIP_CONFIDENCE ||
+      clip.confidence > 1 ||
+      !Number.isFinite(clip.confidence)
+    ) {
+      return false;
+    }
+
+    // Check that trackId is not empty (if present in labelData)
+    if (clip.labelData && typeof clip.labelData === 'object') {
+      const labelData = clip.labelData as Record<string, unknown>;
+      const trackId = labelData.trackId;
+      if (
+        trackId !== undefined &&
+        (!trackId || String(trackId).trim().length === 0)
+      ) {
+        return false;
+      }
+    }
+
+    return true;
   }
 }

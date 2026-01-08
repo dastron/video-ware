@@ -1,4 +1,4 @@
-import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
+import { Processor } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job, Queue } from 'bullmq';
 import { InjectQueue } from '@nestjs/bullmq';
@@ -6,6 +6,7 @@ import { QUEUE_NAMES } from '../../queue/queue.constants';
 import { DetectLabelsStepType } from '../../queue/types/step.types';
 import { PocketBaseService } from '../../shared/services/pocketbase.service';
 import { ProcessorsConfigService } from '../../config/processors.config';
+import { BaseParentProcessor } from '../../queue/processors/base-parent.processor';
 import {
   UploadToGcsStepProcessor,
   type UploadToGcsStepInput,
@@ -13,27 +14,22 @@ import {
 import {
   LabelDetectionStepProcessor,
   type LabelDetectionStepInput,
-  type LabelDetectionStepOutput,
 } from './label-detection-step.processor';
 import {
   ObjectTrackingStepProcessor,
   type ObjectTrackingStepInput,
-  type ObjectTrackingStepOutput,
 } from './object-tracking-step.processor';
 import {
   FaceDetectionStepProcessor,
   type FaceDetectionStepInput,
-  type FaceDetectionStepOutput,
 } from './face-detection-step.processor';
 import {
   PersonDetectionStepProcessor,
   type PersonDetectionStepInput,
-  type PersonDetectionStepOutput,
 } from './person-detection-step.processor';
 import {
   SpeechTranscriptionStepProcessor,
   type SpeechTranscriptionStepInput,
-  type SpeechTranscriptionStepOutput,
 } from './speech-transcription-step.processor';
 
 import type {
@@ -41,28 +37,6 @@ import type {
   StepJobData,
   StepResult,
 } from '../../queue/types/job.types';
-import { TaskStatus } from '@project/shared';
-
-/**
- * Union type of all possible step inputs
- */
-type DetectLabelsStepInput =
-  | UploadToGcsStepInput
-  | LabelDetectionStepInput
-  | ObjectTrackingStepInput
-  | FaceDetectionStepInput
-  | PersonDetectionStepInput
-  | SpeechTranscriptionStepInput;
-
-/**
- * Union type of all possible step outputs
- */
-type DetectLabelsStepOutput =
-  | LabelDetectionStepOutput
-  | ObjectTrackingStepOutput
-  | FaceDetectionStepOutput
-  | PersonDetectionStepOutput
-  | SpeechTranscriptionStepOutput;
 
 /**
  * Parent processor for detect_labels tasks
@@ -81,13 +55,14 @@ type DetectLabelsStepOutput =
  * - Task succeeds if at least one enabled processor succeeds
  */
 @Processor(QUEUE_NAMES.LABELS)
-export class DetectLabelsParentProcessor extends WorkerHost {
-  private readonly logger = new Logger(DetectLabelsParentProcessor.name);
+export class DetectLabelsParentProcessor extends BaseParentProcessor {
+  protected readonly logger = new Logger(DetectLabelsParentProcessor.name);
+  protected readonly pocketbaseService: PocketBaseService;
 
   constructor(
     @InjectQueue(QUEUE_NAMES.LABELS)
     private readonly labelsQueue: Queue,
-    private readonly pocketbaseService: PocketBaseService,
+    pocketbaseService: PocketBaseService,
     private readonly processorsConfigService: ProcessorsConfigService,
     private readonly uploadToGcsStepProcessor: UploadToGcsStepProcessor,
     // New GCVI processors
@@ -98,32 +73,31 @@ export class DetectLabelsParentProcessor extends WorkerHost {
     private readonly speechTranscriptionStepProcessor: SpeechTranscriptionStepProcessor
   ) {
     super();
+    this.pocketbaseService = pocketbaseService;
   }
 
   /**
-   * Process jobs from the labels queue
-   * Dispatches to appropriate handler based on job name
+   * Get the queue instance for accessing child jobs
    */
-  async process(job: Job<ParentJobData | StepJobData>): Promise<any> {
-    this.logger.log(`Processing job ${job.id} with name: ${job.name}`);
+  protected getQueue(): Queue {
+    return this.labelsQueue;
+  }
 
-    // Handle parent job
-    if (job.name === 'parent') {
-      return this.processParentJob(job as Job<ParentJobData>);
-    }
+  /**
+   * Get the total number of steps expected for this task
+   * Includes UPLOAD_TO_GCS plus all enabled GCVI processors
+   */
+  protected getTotalSteps(_parentData: ParentJobData): number {
+    let totalSteps = 1; // UPLOAD_TO_GCS is always included
 
-    // Skip dependency reference jobs (they don't have stepType in data)
-    // These are created by BullMQ for dependency tracking but shouldn't be processed
-    const stepData = job.data as StepJobData;
-    if (!stepData.stepType) {
-      this.logger.debug(
-        `Skipping job ${job.id} with name ${job.name} - no stepType (dependency reference job)`
-      );
-      return { skipped: true, reason: 'dependency_reference' };
-    }
+    // Count enabled processors
+    if (this.processorsConfigService.enableLabelDetection) totalSteps++;
+    if (this.processorsConfigService.enableObjectTracking) totalSteps++;
+    if (this.processorsConfigService.enableFaceDetection) totalSteps++;
+    if (this.processorsConfigService.enablePersonDetection) totalSteps++;
+    if (this.processorsConfigService.enableSpeechTranscription) totalSteps++;
 
-    // Handle step jobs
-    return this.processStepJob(job as Job<StepJobData>);
+    return totalSteps;
   }
 
   /**
@@ -134,13 +108,13 @@ export class DetectLabelsParentProcessor extends WorkerHost {
    * - Task fails only if all enabled processors fail
    * - Disabled processors are skipped and don't affect success/failure
    */
-  private async processParentJob(job: Job<ParentJobData>): Promise<void> {
+  protected async processParentJob(job: Job<ParentJobData>): Promise<void> {
     const { task, stepResults } = job.data;
 
     this.logger.log(`Processing parent job for task ${task.id}`);
 
-    // Update task status to running
-    await this.updateTaskStatus(task.id, TaskStatus.RUNNING);
+    // Task status is now managed by the base class event handlers
+    // No need to manually update here as it will be set by onActive event
 
     // Wait for all children to complete
     // BullMQ automatically handles this - parent job only completes when all children are done
@@ -325,13 +299,14 @@ export class DetectLabelsParentProcessor extends WorkerHost {
           failedProcessors,
         }
       );
-      await this.updateTaskStatus(task.id, TaskStatus.FAILED);
+      // Base class will handle the task status update on failure
       throw new Error(
         `Detect labels task failed: all enabled processors failed (${failedProcessors.join(', ')})`
       );
     }
 
     // Task succeeded with at least one processor
+    // Base class will handle the task status update on completion
     if (failedProcessors.length === 0) {
       this.logger.log(
         `Task ${task.id} completed successfully with all processors`,
@@ -348,14 +323,12 @@ export class DetectLabelsParentProcessor extends WorkerHost {
         }
       );
     }
-
-    await this.updateTaskStatus(task.id, TaskStatus.SUCCESS);
   }
 
   /**
    * Process step job - dispatches to appropriate step processor
    */
-  private async processStepJob(job: Job<StepJobData>): Promise<StepResult> {
+  protected async processStepJob(job: Job<StepJobData>): Promise<StepResult> {
     const { stepType, input, parentJobId } = job.data;
     const startedAt = new Date();
 
@@ -379,7 +352,7 @@ export class DetectLabelsParentProcessor extends WorkerHost {
     }
 
     try {
-      let output: any;
+      let output: unknown;
 
       // Dispatch to appropriate step processor based on step type
       switch (stepType) {
@@ -475,101 +448,6 @@ export class DetectLabelsParentProcessor extends WorkerHost {
 
       // For processing steps, re-throw to let BullMQ handle retry logic
       throw error;
-    }
-  }
-
-  /**
-   * Update task status in PocketBase
-   */
-  private async updateTaskStatus(
-    taskId: string,
-    status: TaskStatus
-  ): Promise<void> {
-    try {
-      await this.pocketbaseService.taskMutator.update(taskId, { status });
-      this.logger.log(`Updated task ${taskId} status to ${status}`);
-    } catch (error) {
-      this.logger.warn(`Failed to update task ${taskId} status: ${error}`);
-      // Don't throw - task processing should continue even if status update fails
-    }
-  }
-
-  /**
-   * Handle job completion event
-   */
-  @OnWorkerEvent('completed')
-  onCompleted(job: Job) {
-    this.logger.log(`Job ${job.id} (${job.name}) completed`);
-  }
-
-  /**
-   * Handle job failure event
-   */
-  @OnWorkerEvent('failed')
-  async onFailed(job: Job | undefined, error: Error) {
-    if (!job) {
-      this.logger.error(`Job failed: ${error.message}`);
-      return;
-    }
-
-    this.logger.error(`Job ${job.id} (${job.name}) failed: ${error.message}`);
-
-    // Handle step job failures - check if retries are exhausted
-    if (job.name !== 'parent') {
-      const stepData = job.data as StepJobData;
-      const { parentJobId, stepType, taskId } = stepData;
-
-      // Check if this was the final retry attempt
-      const attemptsMade = job.attemptsMade;
-      const maxAttempts = job.opts.attempts || 3;
-
-      if (attemptsMade >= maxAttempts) {
-        this.logger.error(
-          `Step ${stepType} exhausted all ${maxAttempts} retry attempts for task ${taskId}`
-        );
-      }
-    }
-  }
-
-  /**
-   * Handle job progress event
-   * Aggregates progress from child steps and updates parent job progress
-   */
-  @OnWorkerEvent('progress')
-  async onProgress(job: Job, progress: number | object) {
-    // Only handle progress for step jobs
-    if (job.name === 'parent') {
-      return;
-    }
-
-    const stepData = job.data as StepJobData;
-    const { parentJobId, stepType } = stepData;
-
-    if (!parentJobId) {
-      return;
-    }
-
-    try {
-      // Get parent job
-      const parentJob = await this.labelsQueue.getJob(parentJobId);
-      if (!parentJob) {
-        this.logger.warn(
-          `Parent job ${parentJobId} not found for step ${stepType}`
-        );
-        return;
-      }
-
-      // Update parent job progress with current step information
-      await parentJob.updateProgress({
-        currentStep: stepType,
-        currentStepProgress: typeof progress === 'number' ? progress : 0,
-      });
-
-      this.logger.debug(
-        `Updated parent job ${parentJobId} with step ${stepType} progress`
-      );
-    } catch (error) {
-      this.logger.warn(`Failed to update parent progress: ${error}`);
     }
   }
 }

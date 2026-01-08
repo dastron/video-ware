@@ -181,9 +181,8 @@ export function TimelineClipItem({
         onMouseLeave={() => setIsHovering(false)}
         className={cn(
           'relative w-48 cursor-move transition-all overflow-hidden group',
-          'p-0 gap-0', // Remove default Card padding and gap
+          'p-0 gap-0 border-0 shadow-none', // Remove default Card padding, gap, border, and shadow
           isDragging && 'opacity-50 scale-95',
-          'hover:shadow-lg hover:ring-2 hover:ring-primary/20',
           className
         )}
       >
