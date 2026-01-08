@@ -14,7 +14,7 @@ export class TaskEnqueuerService implements OnApplicationBootstrap {
   constructor(
     private readonly configService: ConfigService,
     private readonly pocketbaseService: PocketBaseService,
-    private readonly flowService: FlowService
+    private readonly flowService: FlowService,
   ) {}
 
   onApplicationBootstrap() {
@@ -103,28 +103,8 @@ export class TaskEnqueuerService implements OnApplicationBootstrap {
     if (task.status !== TaskStatus.QUEUED) return;
 
     try {
-      // Route to the appropriate flow creation method based on task type
-      switch (task.type) {
-        case TaskType.PROCESS_UPLOAD:
-          await this.flowService.createTranscodeFlow(task);
-          break;
-
-        case TaskType.DETECT_LABELS:
-        case TaskType.DERIVE_CLIPS:
-        case TaskType.RECOMMEND_CLIPS:
-          await this.flowService.createIntelligenceFlow(task);
-          break;
-
-        case TaskType.RENDER_TIMELINE:
-          await this.flowService.createRenderFlow(task);
-          break;
-
-        default:
-          this.logger.warn(
-            `No flow mapping for task ${task.id} type=${task.type}`
-          );
-          return;
-      }
+      // Create flow using FlowService - it will route to the correct builder based on task type
+      await this.flowService.createFlow(task);
 
       // Mark task as running in PocketBase so it's not re-polled
       await this.markTaskClaimed(task.id);

@@ -6,7 +6,6 @@
 export {
   TranscodeStepType,
   RenderStepType,
-  IntelligenceStepType,
   type StepType,
 } from './step.types';
 

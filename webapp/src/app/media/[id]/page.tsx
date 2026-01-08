@@ -26,11 +26,15 @@ import {
   X,
   Check,
   Tag,
+  Sparkles,
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import type { MediaClip } from '@project/shared';
-import { ClipType } from '@project/shared/enums';
+import type { MediaClip, DetectLabelsPayload } from '@project/shared';
+import { ClipType, TaskType, TaskStatus, ProcessingProvider } from '@project/shared/enums';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { TaskMutator } from '@project/shared/mutator';
+import pb from '@/lib/pocketbase-client';
+import { toast } from 'sonner';
 
 export default function MediaDetailsPage() {
   const params = useParams();
@@ -40,6 +44,7 @@ export default function MediaDetailsPage() {
   const { media, clips, isLoading, error, refresh } = useMediaDetails(id);
   const [isInlineCreateMode, setIsInlineCreateMode] = useState(false);
   const [editingClipId, setEditingClipId] = useState<string | null>(null);
+  const [isDetectingLabels, setIsDetectingLabels] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   // Get clip ID from URL query parameter
@@ -149,6 +154,56 @@ export default function MediaDetailsPage() {
     });
   };
 
+  const handleDetectLabels = async () => {
+    if (!media) return;
+
+    setIsDetectingLabels(true);
+    try {
+      const taskMutator = new TaskMutator(pb);
+      
+      // Get the upload to retrieve the file reference
+      const upload = media.expand?.UploadRef;
+      if (!upload?.externalPath) {
+        throw new Error('Upload file reference not found');
+      }
+
+      // Create detect_labels task payload
+      const payload: DetectLabelsPayload = {
+        mediaId: media.id,
+        fileRef: upload.externalPath,
+        provider: ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
+        config: {
+          detectLabels: true,
+          detectObjects: true,
+          confidenceThreshold: 0.5,
+        },
+      };
+
+      const task = await taskMutator.create({
+        sourceType: 'media',
+        sourceId: media.id,
+        type: TaskType.DETECT_LABELS,
+        status: TaskStatus.QUEUED,
+        progress: 1,
+        attempts: 1,
+        payload: payload as unknown as Record<string, unknown>,
+        WorkspaceRef: media.WorkspaceRef,
+        UserRef: pb.authStore.model?.id || '',
+      });
+
+      toast.success('Label Detection Started', {
+        description: `Task ${task.id} has been queued. Labels will be detected automatically.`,
+      });
+    } catch (error) {
+      console.error('Failed to start label detection:', error);
+      toast.error('Failed to start label detection', {
+        description: error instanceof Error ? error.message : 'An unknown error occurred',
+      });
+    } finally {
+      setIsDetectingLabels(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -206,25 +261,37 @@ export default function MediaDetailsPage() {
           </div>
         </div>
 
-        <Button
-          variant="outline"
-          size="sm"
-          className="shrink-0 w-full sm:w-auto"
-          onClick={() => {
-            // Remove clip parameter from URL
-            const newSearchParams = new URLSearchParams(
-              searchParams.toString()
-            );
-            newSearchParams.delete('clip');
-            router.push(
-              `/media/${id}${newSearchParams.toString() ? `?${newSearchParams.toString()}` : ''}`,
-              { scroll: false }
-            );
-          }}
-          disabled={!activeClipId}
-        >
-          Reset to Full Video
-        </Button>
+        <div className="flex gap-2 shrink-0 w-full sm:w-auto">
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 sm:flex-initial"
+            onClick={handleDetectLabels}
+            disabled={isDetectingLabels}
+          >
+            <Sparkles className="h-4 w-4 mr-2" />
+            {isDetectingLabels ? 'Detecting...' : 'Detect Labels'}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 sm:flex-initial"
+            onClick={() => {
+              // Remove clip parameter from URL
+              const newSearchParams = new URLSearchParams(
+                searchParams.toString()
+              );
+              newSearchParams.delete('clip');
+              router.push(
+                `/media/${id}${newSearchParams.toString() ? `?${newSearchParams.toString()}` : ''}`,
+                { scroll: false }
+              );
+            }}
+            disabled={!activeClipId}
+          >
+            Reset to Full Video
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8">

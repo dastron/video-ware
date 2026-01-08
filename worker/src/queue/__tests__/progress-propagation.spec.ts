@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   TranscodeStepType,
   RenderStepType,
-  IntelligenceStepType,
 } from '../types/step.types';
 import type { StepType } from '../types/step.types';
 import * as fc from 'fast-check';
@@ -94,8 +93,6 @@ describe('Property 11: Progress Propagation', () => {
             RenderStepType.RESOLVE_CLIPS,
             RenderStepType.COMPOSE,
             RenderStepType.UPLOAD,
-            IntelligenceStepType.VIDEO_INTELLIGENCE,
-            IntelligenceStepType.SPEECH_TO_TEXT
           ),
           progress: fc.integer({ min: 0, max: 100 }),
         }),
@@ -283,7 +280,6 @@ describe('Property 11: Progress Propagation', () => {
             TranscodeStepType.SPRITE,
             RenderStepType.RESOLVE_CLIPS,
             RenderStepType.COMPOSE,
-            IntelligenceStepType.VIDEO_INTELLIGENCE
           ),
           progress: fc.integer({ min: 0, max: 100 }),
         }),
@@ -303,7 +299,6 @@ describe('Property 11: Progress Propagation', () => {
           const allStepTypes = [
             ...Object.values(TranscodeStepType),
             ...Object.values(RenderStepType),
-            ...Object.values(IntelligenceStepType),
           ];
           expect(allStepTypes).toContain(parentProgress.currentStep);
         }

@@ -2,10 +2,15 @@ import { Injectable, Logger } from '@nestjs/common';
 import { FlowProducer } from 'bullmq';
 import { ConfigService } from '@nestjs/config';
 import type { Task } from '@project/shared';
+import { TaskType } from '@project/shared';
+import { TranscodeFlowBuilder, RenderFlowBuilder, LabelsFlowBuilder } from './flows';
+import type { FlowDefinition } from './flows';
 
 /**
  * Service for creating BullMQ job flows with parent-child relationships
  * Uses FlowProducer to orchestrate multi-step task processing
+ * 
+ * Flow definitions are created by flow builders based on task type
  */
 @Injectable()
 export class FlowService {
@@ -24,681 +29,56 @@ export class FlowService {
   }
 
   /**
-   * Create a transcode flow for PROCESS_UPLOAD tasks
-   * Builds a parent-child job hierarchy with steps: PROBE, THUMBNAIL, SPRITE, TRANSCODE, FINALIZE
+   * Create and add a flow based on task type
+   * 
+   * @param task - Task record containing type and payload
+   * @returns Parent job ID
    */
-  async createTranscodeFlow(task: Task): Promise<string> {
-    this.logger.log(`Creating transcode flow for task ${task.id}`);
+  async createFlow(task: Task): Promise<string> {
+    this.logger.log(`Creating flow for task ${task.id} (type: ${task.type})`);
 
-    const payload = task.payload as any; // ProcessUploadPayload
-    const { uploadId } = payload;
+    const flowDefinition = this.buildFlowForTask(task);
+    const result = await this.flowProducer.add(flowDefinition);
 
-    // Import step types and job options
-    const { TranscodeStepType } = await import('./types/step.types');
-    const { getStepJobOptions } = await import('./config/step-options');
-    const { QUEUE_NAMES } = await import('./queue.constants');
-
-    // Build base job data
-    const baseJobData = {
-      taskId: task.id,
-      workspaceId: task.WorkspaceRef,
-      attemptNumber: 0,
-    };
-
-    // Create parent job with children
-    const flow = {
-      name: 'parent',
-      queueName: QUEUE_NAMES.TRANSCODE,
-      data: {
-        ...baseJobData,
-        task,
-        stepResults: {},
-      },
-      children: [] as any[],
-    };
-
-    // PROBE step (always required)
-    const probeOptions = getStepJobOptions(TranscodeStepType.PROBE);
-    flow.children.push({
-      name: TranscodeStepType.PROBE,
-      queueName: QUEUE_NAMES.TRANSCODE,
-      data: {
-        ...baseJobData,
-        stepType: TranscodeStepType.PROBE,
-        parentJobId: '', // Will be set by BullMQ
-        input: {
-          type: 'probe',
-          uploadId,
-          filePath: '', // Will be resolved by processor
-        },
-      },
-      opts: {
-        attempts: probeOptions.attempts,
-        backoff: {
-          type: 'exponential',
-          delay: probeOptions.backoff,
-        },
-      },
-    });
-
-    // THUMBNAIL step (if configured)
-    if (payload.thumbnail) {
-      const thumbnailOptions = getStepJobOptions(TranscodeStepType.THUMBNAIL);
-      flow.children.push({
-        name: TranscodeStepType.THUMBNAIL,
-        queueName: QUEUE_NAMES.TRANSCODE,
-        data: {
-          ...baseJobData,
-          stepType: TranscodeStepType.THUMBNAIL,
-          parentJobId: '',
-          input: {
-            type: 'thumbnail',
-            uploadId,
-            filePath: '', // Will be resolved by processor
-            config: payload.thumbnail,
-          },
-        },
-        opts: {
-          attempts: thumbnailOptions.attempts,
-          backoff: {
-            type: 'exponential',
-            delay: thumbnailOptions.backoff,
-          },
-        },
-      });
-    }
-
-    // SPRITE step (if configured)
-    if (payload.sprite) {
-      const spriteOptions = getStepJobOptions(TranscodeStepType.SPRITE);
-      flow.children.push({
-        name: TranscodeStepType.SPRITE,
-        queueName: QUEUE_NAMES.TRANSCODE,
-        data: {
-          ...baseJobData,
-          stepType: TranscodeStepType.SPRITE,
-          parentJobId: '',
-          input: {
-            type: 'sprite',
-            uploadId,
-            filePath: '', // Will be resolved by processor
-            config: payload.sprite,
-          },
-        },
-        opts: {
-          attempts: spriteOptions.attempts,
-          backoff: {
-            type: 'exponential',
-            delay: spriteOptions.backoff,
-          },
-        },
-      });
-    }
-
-    // TRANSCODE step (if enabled)
-    if (payload.transcode?.enabled) {
-      const transcodeOptions = getStepJobOptions(TranscodeStepType.TRANSCODE);
-      flow.children.push({
-        name: TranscodeStepType.TRANSCODE,
-        queueName: QUEUE_NAMES.TRANSCODE,
-        data: {
-          ...baseJobData,
-          stepType: TranscodeStepType.TRANSCODE,
-          parentJobId: '',
-          input: {
-            type: 'transcode',
-            uploadId,
-            filePath: '', // Will be resolved by processor
-            provider: payload.provider || 'ffmpeg',
-            config: payload.transcode,
-          },
-        },
-        opts: {
-          attempts: transcodeOptions.attempts,
-          backoff: {
-            type: 'exponential',
-            delay: transcodeOptions.backoff,
-          },
-        },
-      });
-    }
-
-    // Add the flow to BullMQ
-    const result = await this.flowProducer.add(flow);
-
-    this.logger.log(
-      `Created transcode flow for task ${task.id}, parent job: ${result.job.id}`
-    );
+    this.logger.log(`Flow created for task ${task.id}, parent job: ${result.job.id}`);
 
     return result.job.id!;
   }
 
   /**
-   * Create a render flow for RENDER_TIMELINE tasks
-   * Builds a parent-child job hierarchy with steps: RESOLVE_CLIPS, COMPOSE, UPLOAD, CREATE_RECORDS
+   * Add a pre-built flow to BullMQ
+   * Generic method that accepts any flow definition
+   * 
+   * @param flowDefinition - Flow definition with parent and child jobs
+   * @returns Parent job ID
    */
-  async createRenderFlow(task: Task): Promise<string> {
-    this.logger.log(`Creating render flow for task ${task.id}`);
+  async addFlow(flowDefinition: FlowDefinition): Promise<string> {
+    this.logger.log(`Adding flow to BullMQ: ${flowDefinition.name}`);
 
-    const payload = task.payload as any; // RenderTimelinePayload
-    const { timelineId, version, editList, outputSettings } = payload;
+    const result = await this.flowProducer.add(flowDefinition);
 
-    // Import step types and job options
-    const { RenderStepType } = await import('./types/step.types');
-    const { getStepJobOptions } = await import('./config/step-options');
-    const { QUEUE_NAMES } = await import('./queue.constants');
-
-    // Build base job data
-    const baseJobData = {
-      taskId: task.id,
-      workspaceId: task.WorkspaceRef,
-      attemptNumber: 0,
-    };
-
-    // Create parent job with children
-    const flow = {
-      name: 'parent',
-      queueName: QUEUE_NAMES.RENDER,
-      data: {
-        ...baseJobData,
-        task,
-        stepResults: {},
-      },
-      children: [] as any[],
-    };
-
-    // RESOLVE_CLIPS step (always required, runs first)
-    const resolveClipsOptions = getStepJobOptions(RenderStepType.RESOLVE_CLIPS);
-    flow.children.push({
-      name: RenderStepType.RESOLVE_CLIPS,
-      queueName: QUEUE_NAMES.RENDER,
-      data: {
-        ...baseJobData,
-        stepType: RenderStepType.RESOLVE_CLIPS,
-        parentJobId: '', // Will be set by BullMQ
-        input: {
-          type: 'resolve_clips',
-          timelineId,
-          editList,
-        },
-      },
-      opts: {
-        attempts: resolveClipsOptions.attempts,
-        backoff: {
-          type: 'exponential',
-          delay: resolveClipsOptions.backoff,
-        },
-      },
-    });
-
-    // COMPOSE step (depends on RESOLVE_CLIPS)
-    const composeOptions = getStepJobOptions(RenderStepType.COMPOSE);
-    flow.children.push({
-      name: RenderStepType.COMPOSE,
-      queueName: QUEUE_NAMES.RENDER,
-      data: {
-        ...baseJobData,
-        stepType: RenderStepType.COMPOSE,
-        parentJobId: '',
-        input: {
-          type: 'compose',
-          timelineId,
-          editList,
-          clipMediaMap: {}, // Will be populated from RESOLVE_CLIPS output
-          outputSettings,
-          tempDir: '', // Will be created by processor
-        },
-      },
-      opts: {
-        attempts: composeOptions.attempts,
-        backoff: {
-          type: 'exponential',
-          delay: composeOptions.backoff,
-        },
-      },
-      children: [
-        {
-          name: RenderStepType.RESOLVE_CLIPS,
-          queueName: QUEUE_NAMES.RENDER,
-        },
-      ],
-    });
-
-    // UPLOAD step (depends on COMPOSE)
-    const uploadOptions = getStepJobOptions(RenderStepType.UPLOAD);
-    flow.children.push({
-      name: RenderStepType.UPLOAD,
-      queueName: QUEUE_NAMES.RENDER,
-      data: {
-        ...baseJobData,
-        stepType: RenderStepType.UPLOAD,
-        parentJobId: '',
-        input: {
-          type: 'upload',
-          timelineId,
-          workspaceId: task.WorkspaceRef,
-          outputPath: '', // Will be populated from COMPOSE output
-          format: outputSettings.format,
-        },
-      },
-      opts: {
-        attempts: uploadOptions.attempts,
-        backoff: {
-          type: 'exponential',
-          delay: uploadOptions.backoff,
-        },
-      },
-      children: [
-        {
-          name: RenderStepType.COMPOSE,
-          queueName: QUEUE_NAMES.RENDER,
-        },
-      ],
-    });
-
-    // CREATE_RECORDS step (depends on UPLOAD, runs last)
-    const createRecordsOptions = getStepJobOptions(
-      RenderStepType.CREATE_RECORDS
-    );
-    flow.children.push({
-      name: RenderStepType.CREATE_RECORDS,
-      queueName: QUEUE_NAMES.RENDER,
-      data: {
-        ...baseJobData,
-        stepType: RenderStepType.CREATE_RECORDS,
-        parentJobId: '',
-        input: {
-          type: 'create_records',
-          timelineId,
-          workspaceId: task.WorkspaceRef,
-          timelineName: '', // Will be resolved by processor
-          version,
-          outputPath: '', // Will be populated from COMPOSE output
-          storagePath: '', // Will be populated from UPLOAD output
-          probeOutput: {}, // Will be populated from COMPOSE output
-          format: outputSettings.format,
-          tempDir: '', // Will be populated from COMPOSE output
-        },
-      },
-      opts: {
-        attempts: createRecordsOptions.attempts,
-        backoff: {
-          type: 'exponential',
-          delay: createRecordsOptions.backoff,
-        },
-      },
-      children: [
-        {
-          name: RenderStepType.UPLOAD,
-          queueName: QUEUE_NAMES.RENDER,
-        },
-      ],
-    });
-
-    // Add the flow to BullMQ
-    const result = await this.flowProducer.add(flow);
-
-    this.logger.log(
-      `Created render flow for task ${task.id}, parent job: ${result.job.id}`
-    );
+    this.logger.log(`Flow added, parent job: ${result.job.id}`);
 
     return result.job.id!;
   }
 
   /**
-   * Create an intelligence flow for DETECT_LABELS tasks
-   * Builds a parent-child job hierarchy with parallel steps: VIDEO_INTELLIGENCE, SPEECH_TO_TEXT
-   * Then runs STORE_RESULTS to combine and persist the results
+   * Build flow definition based on task type
    */
-  async createIntelligenceFlow(task: Task): Promise<string> {
-    this.logger.log(`Creating intelligence flow for task ${task.id}`);
+  private buildFlowForTask(task: Task): FlowDefinition {
+    switch (task.type) {
+      case TaskType.PROCESS_UPLOAD:
+        return TranscodeFlowBuilder.buildFlow(task);
 
-    const payload = task.payload as any; // DetectLabelsPayload
-    const { mediaId, fileRef, config } = payload;
+      case TaskType.RENDER_TIMELINE:
+        return RenderFlowBuilder.buildFlow(task);
 
-    // Import step types and job options
-    const { IntelligenceStepType } = await import('./types/step.types');
-    const { getStepJobOptions } = await import('./config/step-options');
-    const { QUEUE_NAMES } = await import('./queue.constants');
+      case TaskType.DETECT_LABELS:
+        return LabelsFlowBuilder.buildFlow(task);
 
-    // Build base job data
-    const baseJobData = {
-      taskId: task.id,
-      workspaceId: task.WorkspaceRef,
-      attemptNumber: 0,
-    };
-
-    // Create parent job with children
-    const flow = {
-      name: 'parent',
-      queueName: QUEUE_NAMES.INTELLIGENCE,
-      data: {
-        ...baseJobData,
-        task,
-        stepResults: {},
-      },
-      children: [] as any[],
-    };
-
-    // VIDEO_INTELLIGENCE step (runs in parallel with SPEECH_TO_TEXT)
-    const videoIntelligenceOptions = getStepJobOptions(
-      IntelligenceStepType.VIDEO_INTELLIGENCE
-    );
-    flow.children.push({
-      name: IntelligenceStepType.VIDEO_INTELLIGENCE,
-      queueName: QUEUE_NAMES.INTELLIGENCE,
-      data: {
-        ...baseJobData,
-        stepType: IntelligenceStepType.VIDEO_INTELLIGENCE,
-        parentJobId: '', // Will be set by BullMQ
-        input: {
-          type: 'video_intelligence',
-          mediaId,
-          fileRef,
-          filePath: '', // Will be resolved by processor
-          config: {
-            detectLabels: config.detectLabels !== false,
-            detectObjects: config.detectObjects !== false,
-            detectSceneChanges: config.detectSceneChanges !== false,
-            confidenceThreshold: config.confidenceThreshold || 0.5,
-          },
-        },
-      },
-      opts: {
-        attempts: videoIntelligenceOptions.attempts,
-        backoff: {
-          type: 'exponential',
-          delay: videoIntelligenceOptions.backoff,
-        },
-      },
-    });
-
-    // SPEECH_TO_TEXT step (runs in parallel with VIDEO_INTELLIGENCE)
-    const speechToTextOptions = getStepJobOptions(
-      IntelligenceStepType.SPEECH_TO_TEXT
-    );
-    flow.children.push({
-      name: IntelligenceStepType.SPEECH_TO_TEXT,
-      queueName: QUEUE_NAMES.INTELLIGENCE,
-      data: {
-        ...baseJobData,
-        stepType: IntelligenceStepType.SPEECH_TO_TEXT,
-        parentJobId: '',
-        input: {
-          type: 'speech_to_text',
-          mediaId,
-          fileRef,
-          filePath: '', // Will be resolved by processor
-        },
-      },
-      opts: {
-        attempts: speechToTextOptions.attempts,
-        backoff: {
-          type: 'exponential',
-          delay: speechToTextOptions.backoff,
-        },
-      },
-    });
-
-    // STORE_RESULTS step (depends on both VIDEO_INTELLIGENCE and SPEECH_TO_TEXT)
-    // This step will run even if one of the analysis steps fails (partial success)
-    const storeResultsOptions = getStepJobOptions(
-      IntelligenceStepType.STORE_RESULTS
-    );
-    flow.children.push({
-      name: IntelligenceStepType.STORE_RESULTS,
-      queueName: QUEUE_NAMES.INTELLIGENCE,
-      data: {
-        ...baseJobData,
-        stepType: IntelligenceStepType.STORE_RESULTS,
-        parentJobId: '',
-        input: {
-          type: 'store_results',
-          mediaId,
-          videoIntelligence: undefined, // Will be populated from VIDEO_INTELLIGENCE output
-          speechToText: undefined, // Will be populated from SPEECH_TO_TEXT output
-        },
-      },
-      opts: {
-        attempts: storeResultsOptions.attempts,
-        backoff: {
-          type: 'exponential',
-          delay: storeResultsOptions.backoff,
-        },
-      },
-      children: [
-        {
-          name: IntelligenceStepType.VIDEO_INTELLIGENCE,
-          queueName: QUEUE_NAMES.INTELLIGENCE,
-        },
-        {
-          name: IntelligenceStepType.SPEECH_TO_TEXT,
-          queueName: QUEUE_NAMES.INTELLIGENCE,
-        },
-      ],
-    });
-
-    // Add the flow to BullMQ
-    const result = await this.flowProducer.add(flow);
-
-    this.logger.log(
-      `Created intelligence flow for task ${task.id}, parent job: ${result.job.id}`
-    );
-
-    return result.job.id!;
-  }
-
-  /**
-   * Create a detect_labels flow for DETECT_LABELS tasks
-   * Builds a parent-child job hierarchy with parallel steps: VIDEO_INTELLIGENCE, SPEECH_TO_TEXT
-   * Then runs NORMALIZE_LABELS and STORE_RESULTS sequentially
-   */
-  async createDetectLabelsFlow(task: Task): Promise<string> {
-    this.logger.log(`Creating detect_labels flow for task ${task.id}`);
-
-    const payload = task.payload as any; // DetectLabelsPayload
-    const { mediaId, fileRef, workspaceRef, config } = payload;
-
-    // Import step types and job options
-    const { DetectLabelsStepType } = await import('./types/step.types');
-    const { getStepJobOptions } = await import('./config/step-options');
-    const { QUEUE_NAMES } = await import('./queue.constants');
-    const { getLabelCachePath } = await import(
-      '../labels/utils/cache-keys'
-    );
-    const { ProcessingProvider } = await import('@project/shared');
-
-    // Build base job data
-    const baseJobData = {
-      taskId: task.id,
-      workspaceId: workspaceRef,
-      attemptNumber: 0,
-    };
-
-    // Get current version from Media record (will be incremented on success)
-    // For now, we'll use version 1 as default - the actual version should come from payload
-    const version = payload.version || 1;
-    const processorVersion = 'detect-labels:1.0.0';
-
-    // Create parent job with children
-    const flow = {
-      name: 'parent',
-      queueName: QUEUE_NAMES.LABELS,
-      data: {
-        ...baseJobData,
-        task,
-        stepResults: {},
-      },
-      children: [] as any[],
-    };
-
-    // VIDEO_INTELLIGENCE step (runs in parallel with SPEECH_TO_TEXT)
-    const videoIntelligenceOptions = getStepJobOptions(
-      DetectLabelsStepType.VIDEO_INTELLIGENCE,
-    );
-    const videoCacheKey = getLabelCachePath(
-      mediaId,
-      version,
-      ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
-    );
-
-    flow.children.push({
-      name: DetectLabelsStepType.VIDEO_INTELLIGENCE,
-      queueName: QUEUE_NAMES.LABELS,
-      data: {
-        ...baseJobData,
-        stepType: DetectLabelsStepType.VIDEO_INTELLIGENCE,
-        parentJobId: '', // Will be set by BullMQ
-        input: {
-          type: 'video_intelligence',
-          mediaId,
-          fileRef,
-          gcsUri: '', // Will be resolved by processor
-          provider: ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
-          config: {
-            detectLabels: config.detectLabels !== false,
-            detectObjects: config.detectObjects !== false,
-            detectShots: config.detectShots !== false,
-            detectPersons: config.detectPersons !== false,
-            confidenceThreshold: config.confidenceThreshold || 0.5,
-          },
-          cacheKey: videoCacheKey,
-          version,
-          processor: processorVersion,
-        },
-      },
-      opts: {
-        attempts: videoIntelligenceOptions.attempts,
-        backoff: {
-          type: 'exponential',
-          delay: videoIntelligenceOptions.backoff,
-        },
-      },
-    });
-
-    // SPEECH_TO_TEXT step (runs in parallel with VIDEO_INTELLIGENCE)
-    const speechToTextOptions = getStepJobOptions(
-      DetectLabelsStepType.SPEECH_TO_TEXT,
-    );
-    const speechCacheKey = getLabelCachePath(
-      mediaId,
-      version,
-      ProcessingProvider.GOOGLE_SPEECH,
-    );
-
-    flow.children.push({
-      name: DetectLabelsStepType.SPEECH_TO_TEXT,
-      queueName: QUEUE_NAMES.LABELS,
-      data: {
-        ...baseJobData,
-        stepType: DetectLabelsStepType.SPEECH_TO_TEXT,
-        parentJobId: '',
-        input: {
-          type: 'speech_to_text',
-          mediaId,
-          fileRef,
-          gcsUri: '', // Will be resolved by processor
-          provider: ProcessingProvider.GOOGLE_SPEECH,
-          cacheKey: speechCacheKey,
-          version,
-          processor: processorVersion,
-        },
-      },
-      opts: {
-        attempts: speechToTextOptions.attempts,
-        backoff: {
-          type: 'exponential',
-          delay: speechToTextOptions.backoff,
-        },
-      },
-    });
-
-    // NORMALIZE_LABELS step (depends on both VIDEO_INTELLIGENCE and SPEECH_TO_TEXT)
-    const normalizeLabelsOptions = getStepJobOptions(
-      DetectLabelsStepType.NORMALIZE_LABELS,
-    );
-
-    flow.children.push({
-      name: DetectLabelsStepType.NORMALIZE_LABELS,
-      queueName: QUEUE_NAMES.LABELS,
-      data: {
-        ...baseJobData,
-        stepType: DetectLabelsStepType.NORMALIZE_LABELS,
-        parentJobId: '',
-        input: {
-          type: 'normalize_labels',
-          mediaId,
-          workspaceRef,
-          version,
-          videoIntelligence: undefined, // Will be populated from VIDEO_INTELLIGENCE output
-          speechToText: undefined, // Will be populated from SPEECH_TO_TEXT output
-        },
-      },
-      opts: {
-        attempts: normalizeLabelsOptions.attempts,
-        backoff: {
-          type: 'exponential',
-          delay: normalizeLabelsOptions.backoff,
-        },
-      },
-      children: [
-        {
-          name: DetectLabelsStepType.VIDEO_INTELLIGENCE,
-          queueName: QUEUE_NAMES.LABELS,
-        },
-        {
-          name: DetectLabelsStepType.SPEECH_TO_TEXT,
-          queueName: QUEUE_NAMES.LABELS,
-        },
-      ],
-    });
-
-    // STORE_RESULTS step (depends on NORMALIZE_LABELS)
-    const storeResultsOptions = getStepJobOptions(
-      DetectLabelsStepType.STORE_RESULTS,
-    );
-
-    flow.children.push({
-      name: DetectLabelsStepType.STORE_RESULTS,
-      queueName: QUEUE_NAMES.LABELS,
-      data: {
-        ...baseJobData,
-        stepType: DetectLabelsStepType.STORE_RESULTS,
-        parentJobId: '',
-        input: {
-          type: 'store_results',
-          mediaId,
-          workspaceRef,
-          taskRef: task.id,
-          version,
-          labelClips: [], // Will be populated from NORMALIZE_LABELS output
-          processor: processorVersion,
-          provider: ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE, // Primary provider
-        },
-      },
-      opts: {
-        attempts: storeResultsOptions.attempts,
-        backoff: {
-          type: 'exponential',
-          delay: storeResultsOptions.backoff,
-        },
-      },
-      children: [
-        {
-          name: DetectLabelsStepType.NORMALIZE_LABELS,
-          queueName: QUEUE_NAMES.LABELS,
-        },
-      ],
-    });
-
-    // Add the flow to BullMQ
-    const result = await this.flowProducer.add(flow);
-
-    this.logger.log(
-      `Created detect_labels flow for task ${task.id}, parent job: ${result.job.id}`,
-    );
-
-    return result.job.id!;
+      default:
+        throw new Error(`Unknown task type: ${task.type}`);
+    }
   }
 
   /**
@@ -709,3 +89,4 @@ export class FlowService {
     this.logger.log('FlowService closed');
   }
 }
+

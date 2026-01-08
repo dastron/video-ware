@@ -41,8 +41,8 @@ export const validationSchema = Joi.object({
   S3_WATCHER_PATHS: Joi.string().optional(),
 
   // Google Cloud configuration
-  GOOGLE_CLOUD_PROJECT_ID: Joi.string().optional(),
-  GOOGLE_APPLICATION_CREDENTIALS: Joi.string().optional(),
+  GOOGLE_PROJECT_ID: Joi.string().optional(),
+  GOOGLE_CLOUD_KEY: Joi.string().optional(),
 
   // Task enqueuer configuration
   ENABLE_TASK_ENQUEUER: Joi.string().optional(),

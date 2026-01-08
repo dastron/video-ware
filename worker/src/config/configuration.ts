@@ -35,8 +35,12 @@ export default () => ({
   },
 
   google: {
-    projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
-    keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+    projectId: process.env.GOOGLE_PROJECT_ID,
+    keyFilename: process.env.GOOGLE_CLOUD_KEY_FILE || undefined,
+    credentials: process.env.GOOGLE_CLOUD_CREDENTIALS
+      ? JSON.parse(process.env.GOOGLE_CLOUD_CREDENTIALS)
+      : undefined,
+    gcsBucket: process.env.GCS_BUCKET,
   },
 
   tasks: {

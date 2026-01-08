@@ -39,23 +39,25 @@ export interface StepResult {
   completedAt?: string;
 }
 
-/**
- * Discriminated union for step-specific inputs
- * Each step type has its own input interface with a 'type' discriminator
- */
-export type StepInput =
-  // Transcode step inputs
-  | import('../../transcode/types/step-inputs').ProbeStepInput
-  | import('../../transcode/types/step-inputs').ThumbnailStepInput
-  | import('../../transcode/types/step-inputs').SpriteStepInput
-  | import('../../transcode/types/step-inputs').TranscodeStepInput
-  | import('../../transcode/types/step-inputs').FinalizeStepInput
-  // Render step inputs
-  | import('../../render/types/step-inputs').ResolveClipsStepInput
-  | import('../../render/types/step-inputs').ComposeStepInput
-  | import('../../render/types/step-inputs').UploadStepInput
-  | import('../../render/types/step-inputs').CreateRecordsStepInput
-  // Intelligence step inputs
-  | import('../../intelligence/types/step-inputs').VideoIntelligenceStepInput
-  | import('../../intelligence/types/step-inputs').SpeechToTextStepInput
-  | import('../../intelligence/types/step-inputs').StoreResultsStepInput;
+// /**
+//  * Discriminated union for step-specific inputs
+//  * Each step type has its own input interface with a 'type' discriminator
+//  */
+// export type StepInput =
+//   // Transcode step inputs
+//   | import('../../transcode/types/step-inputs').ProbeStepInput
+//   | import('../../transcode/types/step-inputs').ThumbnailStepInput
+//   | import('../../transcode/types/step-inputs').SpriteStepInput
+//   | import('../../transcode/types/step-inputs').TranscodeStepInput
+//   | import('../../transcode/types/step-inputs').FinalizeStepInput
+//   // Render step inputs
+//   | import('../../render/pro/step-inputs').ResolveClipsStepInput
+//   | import('../../render/types/step-inputs').ComposeStepInput
+//   | import('../../render/types/step-inputs').UploadStepInput
+//   | import('../../render/types/step-inputs').CreateRecordsStepInput
+//   // Intelligence step inputs (now in processor files)
+//   | import('../../labels/processors/video-intelligence-step.processor').VideoIntelligenceStepInput
+//   | import('../../labels/processors/speech-to-text-step.processor').SpeechToTextStepInput
+//   | import('../../labels/processors/store-results-step.processor').StoreResultsStepInput;
+
+export type StepInput = object;

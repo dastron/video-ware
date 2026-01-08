@@ -17,12 +17,6 @@ export enum RenderStepType {
   CREATE_RECORDS = 'render:create_records',
 }
 
-export enum IntelligenceStepType {
-  VIDEO_INTELLIGENCE = 'intelligence:video_intelligence',
-  SPEECH_TO_TEXT = 'intelligence:speech_to_text',
-  STORE_RESULTS = 'intelligence:store_results',
-}
-
 export enum DetectLabelsStepType {
   VIDEO_INTELLIGENCE = 'labels:video_intelligence',
   SPEECH_TO_TEXT = 'labels:speech_to_text',
@@ -36,5 +30,4 @@ export enum DetectLabelsStepType {
 export type StepType =
   | TranscodeStepType
   | RenderStepType
-  | IntelligenceStepType
   | DetectLabelsStepType;

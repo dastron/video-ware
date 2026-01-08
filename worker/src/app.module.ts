@@ -6,12 +6,11 @@ import configuration from './config/configuration';
 import { validationSchema } from './config/validation.schema';
 import { QueueModule } from './queue/queue.module';
 import { SharedModule } from './shared/shared.module';
-import { IntelligenceModule } from './intelligence/intelligence.module';
-import { TranscodeModule } from './transcode/transcode.module';
-import { RenderModule } from './render/render.module';
+import { TranscodeModule } from './task-transcode/transcode.module';
+import { RenderModule } from './task-render/render.module';
 import { HealthModule } from './health/health.module';
 import { TasksModule } from './tasks/tasks.module';
-import { LabelsModule } from './labels/labels.module';
+import { LabelsModule } from './task-labels/labels.module';
 
 @Module({
   imports: [
@@ -52,7 +51,6 @@ import { LabelsModule } from './labels/labels.module';
     QueueModule,
     TasksModule,
     TranscodeModule,
-    IntelligenceModule,
     LabelsModule,
     RenderModule,
     HealthModule,

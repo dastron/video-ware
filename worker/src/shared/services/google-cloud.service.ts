@@ -1,5 +1,8 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Storage } from '@google-cloud/storage';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Google Cloud Video Intelligence
 import {
@@ -79,9 +82,12 @@ export class GoogleCloudService implements OnModuleInit {
   private videoIntelligenceClient!: VideoIntelligenceServiceClient;
   private speechClient!: SpeechClient;
   private transcoderClient!: TranscoderServiceClient;
+  private storageClient!: Storage;
 
   private readonly projectId: string;
   private readonly keyFilename?: string;
+  private readonly credentials?: any;
+  private readonly gcsBucket?: string;
   private readonly enabled: {
     videoIntelligence: boolean;
     speech: boolean;
@@ -93,6 +99,8 @@ export class GoogleCloudService implements OnModuleInit {
       'google.projectId'
     ) as string;
     this.keyFilename = this.configService.get<string>('google.keyFilename');
+    this.credentials = this.configService.get<any>('google.credentials');
+    this.gcsBucket = this.configService.get<string>('google.gcsBucket');
 
     this.enabled = {
       videoIntelligence: this.configService.get<boolean>(
@@ -114,8 +122,8 @@ export class GoogleCloudService implements OnModuleInit {
     await this.initializeClients();
   }
 
-  async transcribeAudio(gcsUri: string): Promise<any>{
-    throw new Error("N/A")
+  async transcribeAudio(gcsUri: string): Promise<SpeechTranscriptionResult>{
+    return this.transcribeSpeech(gcsUri);
   }
 
   private async initializeClients() {
@@ -126,12 +134,26 @@ export class GoogleCloudService implements OnModuleInit {
       return;
     }
 
-    const clientConfig = {
+    const clientConfig: any = {
       projectId: this.projectId,
-      ...(this.keyFilename && { keyFilename: this.keyFilename }),
     };
 
+    // Prefer inline credentials over key file
+    if (this.credentials) {
+      clientConfig.credentials = this.credentials;
+      this.logger.log('Using inline Google Cloud credentials');
+    } else if (this.keyFilename) {
+      clientConfig.keyFilename = this.keyFilename;
+      this.logger.log(`Using Google Cloud key file: ${this.keyFilename}`);
+    } else {
+      this.logger.log('Using Application Default Credentials');
+    }
+
     try {
+      // Initialize Storage client (always needed for temp uploads)
+      this.storageClient = new Storage(clientConfig);
+      this.logger.log('Google Cloud Storage client initialized');
+
       // Initialize Video Intelligence client
       if (this.enabled.videoIntelligence) {
         this.videoIntelligenceClient = new VideoIntelligenceServiceClient(
@@ -553,5 +575,84 @@ export class GoogleCloudService implements OnModuleInit {
     if (this.enabled.speech) services.push('Speech-to-Text');
     if (this.enabled.transcoder) services.push('Transcoder');
     return services;
+  }
+
+  /**
+   * Upload a local file to GCS temporarily for processing
+   * Returns the GCS URI (gs://bucket/path)
+   */
+  async uploadToGcsTempBucket(
+    localFilePath: string,
+    mediaId: string
+  ): Promise<string> {
+    if (!this.storageClient) {
+      throw new Error('Google Cloud Storage client not initialized');
+    }
+
+    if (!this.gcsBucket) {
+      throw new Error(
+        'GCS_BUCKET not configured. Set GCS_BUCKET environment variable.'
+      );
+    }
+
+    try {
+      const fileName = path.basename(localFilePath);
+      const gcsPath = `temp/${mediaId}/${fileName}`;
+      const bucket = this.storageClient.bucket(this.gcsBucket);
+      const file = bucket.file(gcsPath);
+
+      this.logger.log(`Uploading ${localFilePath} to gs://${this.gcsBucket}/${gcsPath}`);
+
+      await bucket.upload(localFilePath, {
+        destination: gcsPath,
+        metadata: {
+          metadata: {
+            uploadedAt: new Date().toISOString(),
+            mediaId: mediaId,
+            temporary: 'true',
+          },
+        },
+      });
+
+      const gcsUri = `gs://${this.gcsBucket}/${gcsPath}`;
+      this.logger.log(`Successfully uploaded to ${gcsUri}`);
+
+      return gcsUri;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.error(`Failed to upload to GCS: ${errorMessage}`);
+      throw new Error(`GCS upload failed: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Delete temporary file from GCS
+   */
+  async deleteFromGcsTempBucket(gcsUri: string): Promise<void> {
+    if (!this.storageClient) {
+      throw new Error('Google Cloud Storage client not initialized');
+    }
+
+    if (!this.gcsBucket) {
+      this.logger.warn('GCS_BUCKET not configured, skipping cleanup');
+      return;
+    }
+
+    try {
+      // Extract path from gs://bucket/path
+      const gcsPath = gcsUri.replace(`gs://${this.gcsBucket}/`, '');
+      const bucket = this.storageClient.bucket(this.gcsBucket);
+      const file = bucket.file(gcsPath);
+
+      this.logger.log(`Deleting temporary file: ${gcsUri}`);
+      await file.delete({ ignoreNotFound: true });
+      this.logger.log(`Successfully deleted ${gcsUri}`);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.warn(`Failed to delete from GCS: ${errorMessage}`);
+      // Don't throw - cleanup failures shouldn't break the flow
+    }
   }
 }

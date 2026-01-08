@@ -28,6 +28,17 @@ export abstract class BaseParentProcessor extends WorkerHost {
     if (job.name === 'parent') {
       return this.processParentJob(job as Job<ParentJobData>);
     }
+
+    // Skip dependency reference jobs (they don't have stepType in data)
+    // These are created by BullMQ for dependency tracking but shouldn't be processed
+    const stepData = job.data as StepJobData;
+    if (!stepData.stepType) {
+      this.logger.warn(
+        `Skipping job ${job.id} with name ${job.name} - no stepType (likely a dependency reference)`
+      );
+      return { skipped: true, reason: 'dependency_reference' };
+    }
+
     return this.processStepJob(job as Job<StepJobData>);
   }
 
