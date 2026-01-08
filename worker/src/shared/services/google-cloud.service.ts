@@ -287,6 +287,8 @@ export class GoogleCloudService implements OnModuleInit {
 
   /**
    * Transcribe speech from audio file
+   * Note: Input must be an audio file (FLAC, WAV, MP3, etc.), not a video file
+   * Use extractAudioForSpeech() first if you have a video file
    */
   async transcribeSpeech(
     gcsUri: string,
@@ -300,16 +302,18 @@ export class GoogleCloudService implements OnModuleInit {
     try {
       this.logger.log(`Starting speech transcription for: ${gcsUri}`);
 
+      // Configuration for audio transcription
+      // Don't specify encoding - let Google auto-detect from FLAC header
+      // This avoids channel count and sample rate mismatches
       const request = {
         audio: {
           uri: gcsUri,
         },
         config: {
-          encoding: 'LINEAR16' as const,
           languageCode: languageCode,
           enableWordTimeOffsets: enableWordTimeOffsets,
           enableAutomaticPunctuation: true,
-          model: 'video',
+          model: 'video', // Optimized for video audio quality
           useEnhanced: true,
         },
       };
@@ -623,6 +627,43 @@ export class GoogleCloudService implements OnModuleInit {
         error instanceof Error ? error.message : String(error);
       this.logger.error(`Failed to upload to GCS: ${errorMessage}`);
       throw new Error(`GCS upload failed: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Get expected GCS URI for a media file (deterministic path)
+   */
+  async getExpectedGcsUri(mediaId: string, fileName: string): Promise<string> {
+    if (!this.gcsBucket) {
+      throw new Error('GCS_BUCKET not configured');
+    }
+    const gcsPath = `temp/${mediaId}/${fileName}`;
+    return `gs://${this.gcsBucket}/${gcsPath}`;
+  }
+
+  /**
+   * Check if a file exists in GCS
+   */
+  async checkGcsFileExists(gcsUri: string): Promise<boolean> {
+    if (!this.storageClient) {
+      throw new Error('Google Cloud Storage client not initialized');
+    }
+
+    if (!this.gcsBucket) {
+      return false;
+    }
+
+    try {
+      // Extract path from gs://bucket/path
+      const gcsPath = gcsUri.replace(`gs://${this.gcsBucket}/`, '');
+      const bucket = this.storageClient.bucket(this.gcsBucket);
+      const file = bucket.file(gcsPath);
+
+      const [exists] = await file.exists();
+      return exists;
+    } catch (error) {
+      this.logger.debug(`Error checking GCS file existence: ${error}`);
+      return false;
     }
   }
 

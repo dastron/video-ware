@@ -109,7 +109,7 @@ export class LabelNormalizerService {
       `Normalizing speech-to-text for media ${input.mediaId}, version ${input.version}`,
     );
 
-    if (!response.results || response.results.length === 0) {
+    if (!response.transcript || !response.words || response.words.length === 0) {
       this.logger.warn('No speech results found in response');
       return {
         labelClips: [],
@@ -120,57 +120,50 @@ export class LabelNormalizerService {
       };
     }
 
-    let totalWords = 0;
+    const words = response.words;
+    const totalWords = words.length;
 
-    for (const result of response.results) {
-      if (!result.alternatives || result.alternatives.length === 0) {
-        continue;
-      }
+    // Create a speech segment from the words
+    if (words.length > 0) {
+      const firstWord = words[0];
+      const lastWord = words[words.length - 1];
 
-      const alternative = result.alternatives[0];
-      if (!alternative.transcript || !alternative.words) {
-        continue;
-      }
+      const startTime = firstWord.startTime;
+      const endTime = lastWord.endTime;
 
-      const words = alternative.words;
-      totalWords += words.length;
-
-      // Create a speech segment from the words
-      if (words.length > 0) {
-        const firstWord = words[0];
-        const lastWord = words[words.length - 1];
-
-        const startTime = toSeconds(firstWord.startTime);
-        const endTime = toSeconds(lastWord.endTime);
-
-        if (startTime >= endTime) {
-          this.logger.warn(
-            `Invalid time range for speech segment: start=${startTime}, end=${endTime}`,
-          );
-          continue;
-        }
-
-        const labelData: SpeechLabelData = {
-          entityId: `speech_${startTime}_${endTime}`,
-          entityDescription: alternative.transcript.substring(0, 100),
-          rawJsonPath,
-          transcript: alternative.transcript,
-          languageCode: result.languageCode || 'en-US',
-          wordCount: words.length,
-          providerPayload: {
-            confidence: alternative.confidence,
+      if (startTime >= endTime) {
+        this.logger.warn(
+          `Invalid time range for speech segment: start=${startTime}, end=${endTime}`,
+        );
+        return {
+          labelClips: [],
+          summary: {
+            speechCount: 0,
+            totalWords,
           },
         };
-
-        labelClips.push({
-          labelType: LabelType.SPEECH,
-          start: startTime,
-          end: endTime,
-          duration: endTime - startTime,
-          confidence: alternative.confidence || 0.9,
-          labelData,
-        });
       }
+
+      const labelData: SpeechLabelData = {
+        entityId: `speech_${startTime}_${endTime}`,
+        entityDescription: response.transcript.substring(0, 100),
+        rawJsonPath,
+        transcript: response.transcript,
+        languageCode: response.languageCode || 'en-US',
+        wordCount: words.length,
+        providerPayload: {
+          confidence: response.confidence,
+        },
+      };
+
+      labelClips.push({
+        labelType: LabelType.SPEECH,
+        start: startTime,
+        end: endTime,
+        duration: endTime - startTime,
+        confidence: response.confidence || 0.9,
+        labelData,
+      });
     }
 
     this.logger.log(
@@ -202,48 +195,45 @@ export class LabelNormalizerService {
   ): NormalizedLabelClip[] {
     const clips: NormalizedLabelClip[] = [];
 
-    if (!response.annotationResults) {
+    if (!response.sceneChanges || response.sceneChanges.length === 0) {
       return clips;
     }
 
-    for (const result of response.annotationResults) {
-      if (!result.shotAnnotations) {
-        continue;
-      }
+    // Scene changes are just time offsets, we need to create segments between them
+    const sceneChanges = response.sceneChanges;
+    
+    for (let i = 0; i < sceneChanges.length - 1; i++) {
+      try {
+        const startTime = sceneChanges[i].timeOffset;
+        const endTime = sceneChanges[i + 1].timeOffset;
 
-      result.shotAnnotations.forEach((shot, index) => {
-        try {
-          const startTime = toSeconds(shot.startTimeOffset);
-          const endTime = toSeconds(shot.endTimeOffset);
-
-          if (startTime >= endTime) {
-            this.logger.warn(
-              `Invalid shot time range: start=${startTime}, end=${endTime}`,
-            );
-            return;
-          }
-
-          const labelData: ShotLabelData = {
-            entityId: `shot_${index}`,
-            entityDescription: `Shot ${index + 1}`,
-            rawJsonPath,
-            shotIndex: index,
-          };
-
-          clips.push({
-            labelType: LabelType.SHOT,
-            start: startTime,
-            end: endTime,
-            duration: endTime - startTime,
-            confidence: 1.0, // Shots don't have confidence scores
-            labelData,
-          });
-        } catch (error) {
+        if (startTime >= endTime) {
           this.logger.warn(
-            `Failed to normalize shot ${index}: ${error instanceof Error ? error.message : String(error)}`,
+            `Invalid shot time range: start=${startTime}, end=${endTime}`,
           );
+          continue;
         }
-      });
+
+        const labelData: ShotLabelData = {
+          entityId: `shot_${i}`,
+          entityDescription: `Shot ${i + 1}`,
+          rawJsonPath,
+          shotIndex: i,
+        };
+
+        clips.push({
+          labelType: LabelType.SHOT,
+          start: startTime,
+          end: endTime,
+          duration: endTime - startTime,
+          confidence: 1.0, // Shots don't have confidence scores
+          labelData,
+        });
+      } catch (error) {
+        this.logger.warn(
+          `Failed to normalize shot ${i}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
     }
 
     return clips;
@@ -258,67 +248,63 @@ export class LabelNormalizerService {
   ): NormalizedLabelClip[] {
     const clips: NormalizedLabelClip[] = [];
 
-    if (!response.annotationResults) {
+    if (!response.objects || response.objects.length === 0) {
       return clips;
     }
 
-    for (const result of response.annotationResults) {
-      if (!result.objectAnnotations) {
-        continue;
-      }
-
-      for (const obj of result.objectAnnotations) {
-        try {
-          if (!obj.entity || !obj.segment) {
-            continue;
-          }
-
-          const startTime = toSeconds(obj.segment.startTimeOffset);
-          const endTime = toSeconds(obj.segment.endTimeOffset);
-
-          if (startTime >= endTime) {
-            this.logger.warn(
-              `Invalid object time range: start=${startTime}, end=${endTime}`,
-            );
-            continue;
-          }
-
-          // Sample bounding boxes (max 10)
-          const boundingBoxSamples = obj.frames
-            ? sampleBoundingBoxes(
-                obj.frames.map((frame) => ({
-                  timeOffset: toSeconds(frame.timeOffset),
-                  left: frame.normalizedBoundingBox?.left || 0,
-                  top: frame.normalizedBoundingBox?.top || 0,
-                  right: frame.normalizedBoundingBox?.right || 1,
-                  bottom: frame.normalizedBoundingBox?.bottom || 1,
-                })),
-              )
-            : [];
-
-          const labelData: ObjectLabelData = {
-            entityId: obj.entity.entityId || '',
-            entityDescription: obj.entity.description || 'Unknown object',
-            rawJsonPath,
-            boundingBoxSamples,
-            providerPayload: {
-              confidence: obj.confidence,
-            },
-          };
-
-          clips.push({
-            labelType: LabelType.OBJECT,
-            start: startTime,
-            end: endTime,
-            duration: endTime - startTime,
-            confidence: obj.confidence || 0.5,
-            labelData,
-          });
-        } catch (error) {
-          this.logger.warn(
-            `Failed to normalize object: ${error instanceof Error ? error.message : String(error)}`,
-          );
+    for (const obj of response.objects) {
+      try {
+        if (!obj.entity || !obj.frames || obj.frames.length === 0) {
+          continue;
         }
+
+        // Get time range from first and last frame
+        const firstFrame = obj.frames[0];
+        const lastFrame = obj.frames[obj.frames.length - 1];
+        
+        const startTime = firstFrame.timeOffset;
+        const endTime = lastFrame.timeOffset;
+
+        if (startTime >= endTime) {
+          this.logger.warn(
+            `Invalid object time range: start=${startTime}, end=${endTime}`,
+          );
+          continue;
+        }
+
+        // Sample bounding boxes (max 10)
+        const boundingBoxSamples = sampleBoundingBoxes(
+          obj.frames.map((frame) => ({
+            timeOffset: frame.timeOffset,
+            left: frame.boundingBox.left,
+            top: frame.boundingBox.top,
+            right: frame.boundingBox.right,
+            bottom: frame.boundingBox.bottom,
+          })),
+        );
+
+        const labelData: ObjectLabelData = {
+          entityId: obj.entity,
+          entityDescription: obj.entity,
+          rawJsonPath,
+          boundingBoxSamples,
+          providerPayload: {
+            confidence: obj.confidence,
+          },
+        };
+
+        clips.push({
+          labelType: LabelType.OBJECT,
+          start: startTime,
+          end: endTime,
+          duration: endTime - startTime,
+          confidence: obj.confidence || 0.5,
+          labelData,
+        });
+      } catch (error) {
+        this.logger.warn(
+          `Failed to normalize object: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }
 
@@ -334,73 +320,63 @@ export class LabelNormalizerService {
   ): NormalizedLabelClip[] {
     const clips: NormalizedLabelClip[] = [];
 
-    if (!response.annotationResults) {
+    if (!response.persons || response.persons.length === 0) {
       return clips;
     }
 
-    for (const result of response.annotationResults) {
-      if (!result.personDetectionAnnotations) {
-        continue;
-      }
-
-      for (const personAnnotation of result.personDetectionAnnotations) {
-        if (!personAnnotation.tracks) {
+    for (const person of response.persons) {
+      try {
+        if (!person.frames || person.frames.length === 0) {
           continue;
         }
 
-        for (const track of personAnnotation.tracks) {
-          try {
-            if (!track.segment) {
-              continue;
-            }
+        // Get time range from first and last frame
+        const firstFrame = person.frames[0];
+        const lastFrame = person.frames[person.frames.length - 1];
+        
+        const startTime = firstFrame.timeOffset;
+        const endTime = lastFrame.timeOffset;
 
-            const startTime = toSeconds(track.segment.startTimeOffset);
-            const endTime = toSeconds(track.segment.endTimeOffset);
-
-            if (startTime >= endTime) {
-              this.logger.warn(
-                `Invalid person time range: start=${startTime}, end=${endTime}`,
-              );
-              continue;
-            }
-
-            // Sample bounding boxes (max 10)
-            const boundingBoxSamples = track.timestampedObjects
-              ? sampleBoundingBoxes(
-                  track.timestampedObjects.map((obj) => ({
-                    timeOffset: toSeconds(obj.timeOffset),
-                    left: obj.normalizedBoundingBox?.left || 0,
-                    top: obj.normalizedBoundingBox?.top || 0,
-                    right: obj.normalizedBoundingBox?.right || 1,
-                    bottom: obj.normalizedBoundingBox?.bottom || 1,
-                  })),
-                )
-              : [];
-
-            const labelData: PersonLabelData = {
-              entityId: `person_${startTime}_${endTime}`,
-              entityDescription: 'Person',
-              rawJsonPath,
-              boundingBoxSamples,
-              providerPayload: {
-                confidence: track.confidence,
-              },
-            };
-
-            clips.push({
-              labelType: LabelType.PERSON,
-              start: startTime,
-              end: endTime,
-              duration: endTime - startTime,
-              confidence: track.confidence || 0.5,
-              labelData,
-            });
-          } catch (error) {
-            this.logger.warn(
-              `Failed to normalize person track: ${error instanceof Error ? error.message : String(error)}`,
-            );
-          }
+        if (startTime >= endTime) {
+          this.logger.warn(
+            `Invalid person time range: start=${startTime}, end=${endTime}`,
+          );
+          continue;
         }
+
+        // Sample bounding boxes (max 10)
+        const boundingBoxSamples = sampleBoundingBoxes(
+          person.frames.map((frame) => ({
+            timeOffset: frame.timeOffset,
+            left: frame.boundingBox.left,
+            top: frame.boundingBox.top,
+            right: frame.boundingBox.right,
+            bottom: frame.boundingBox.bottom,
+          })),
+        );
+
+        const labelData: PersonLabelData = {
+          entityId: `person_${startTime}_${endTime}`,
+          entityDescription: 'Person',
+          rawJsonPath,
+          boundingBoxSamples,
+          providerPayload: {
+            confidence: person.confidence,
+          },
+        };
+
+        clips.push({
+          labelType: LabelType.PERSON,
+          start: startTime,
+          end: endTime,
+          duration: endTime - startTime,
+          confidence: person.confidence || 0.5,
+          labelData,
+        });
+      } catch (error) {
+        this.logger.warn(
+          `Failed to normalize person track: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }
 

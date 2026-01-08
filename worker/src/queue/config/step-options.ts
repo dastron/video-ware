@@ -59,19 +59,23 @@ export const STEP_JOB_OPTIONS: Record<string, StepJobOptions> = {
 
 
   // Detect Labels steps
+  [DetectLabelsStepType.UPLOAD_TO_GCS]: {
+    attempts: 3,
+    backoff: 60000, // 1 minute
+  },
   [DetectLabelsStepType.VIDEO_INTELLIGENCE]: {
     attempts: 3,
     backoff: 120000, // 2 minutes
+  },
+  [DetectLabelsStepType.PROCESS_VIDEO_INTELLIGENCE_LABELS]: {
+    attempts: 3,
+    backoff: 30000, // 30 seconds
   },
   [DetectLabelsStepType.SPEECH_TO_TEXT]: {
     attempts: 3,
     backoff: 120000, // 2 minutes
   },
-  [DetectLabelsStepType.NORMALIZE_LABELS]: {
-    attempts: 3,
-    backoff: 30000, // 30 seconds
-  },
-  [DetectLabelsStepType.STORE_RESULTS]: {
+  [DetectLabelsStepType.PROCESS_SPEECH_TO_TEXT_LABELS]: {
     attempts: 3,
     backoff: 30000, // 30 seconds
   },

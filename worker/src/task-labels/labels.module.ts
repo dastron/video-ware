@@ -4,10 +4,11 @@ import { QueueModule } from '../queue/queue.module';
 import { LabelsService } from './labels.service';
 import {
   DetectLabelsParentProcessor,
+  UploadToGcsStepProcessor,
   VideoIntelligenceStepProcessor,
   SpeechToTextStepProcessor,
-  NormalizeLabelsStepProcessor,
-  StoreResultsStepProcessor,
+  ProcessVideoIntelligenceLabelsStepProcessor,
+  ProcessSpeechToTextLabelsStepProcessor,
 } from './processors';
 import {
   GoogleVideoIntelligenceExecutor,
@@ -32,10 +33,11 @@ import { LabelCacheService } from './services/label-cache.service';
 
     // Processors
     DetectLabelsParentProcessor,
+    UploadToGcsStepProcessor,
     VideoIntelligenceStepProcessor,
     SpeechToTextStepProcessor,
-    NormalizeLabelsStepProcessor,
-    StoreResultsStepProcessor,
+    ProcessVideoIntelligenceLabelsStepProcessor,
+    ProcessSpeechToTextLabelsStepProcessor,
   ],
   exports: [LabelsService, LabelNormalizerService, LabelCacheService],
 })

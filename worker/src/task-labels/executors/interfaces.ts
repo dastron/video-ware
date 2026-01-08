@@ -8,84 +8,63 @@
 import type { LabelType, LabelData } from '@project/shared';
 
 /**
- * Google Video Intelligence API response structure
+ * Google Video Intelligence API response structure (normalized)
+ * This is the simplified structure returned by GoogleCloudService.analyzeVideo()
  */
 export interface VideoIntelligenceResponse {
-  annotationResults?: Array<{
-    segmentLabelAnnotations?: Array<{
-      entity?: {
-        entityId?: string;
-        description?: string;
-      };
-      segments?: Array<{
-        segment?: {
-          startTimeOffset?: string | { seconds?: number; nanos?: number };
-          endTimeOffset?: string | { seconds?: number; nanos?: number };
-        };
-        confidence?: number;
-      }>;
+  labels?: Array<{
+    entity: string;
+    confidence: number;
+    segments: Array<{
+      startTime: number;
+      endTime: number;
+      confidence: number;
     }>;
-    objectAnnotations?: Array<{
-      entity?: {
-        entityId?: string;
-        description?: string;
-      };
-      confidence?: number;
-      frames?: Array<{
-        timeOffset?: string | { seconds?: number; nanos?: number };
-        normalizedBoundingBox?: {
-          left?: number;
-          top?: number;
-          right?: number;
-          bottom?: number;
-        };
-      }>;
-      segment?: {
-        startTimeOffset?: string | { seconds?: number; nanos?: number };
-        endTimeOffset?: string | { seconds?: number; nanos?: number };
+  }>;
+  objects?: Array<{
+    entity: string;
+    confidence: number;
+    frames: Array<{
+      timeOffset: number;
+      boundingBox: {
+        left: number;
+        top: number;
+        right: number;
+        bottom: number;
       };
     }>;
-    shotAnnotations?: Array<{
-      startTimeOffset?: string | { seconds?: number; nanos?: number };
-      endTimeOffset?: string | { seconds?: number; nanos?: number };
-    }>;
-    personDetectionAnnotations?: Array<{
-      tracks?: Array<{
-        segment?: {
-          startTimeOffset?: string | { seconds?: number; nanos?: number };
-          endTimeOffset?: string | { seconds?: number; nanos?: number };
-        };
-        confidence?: number;
-        timestampedObjects?: Array<{
-          timeOffset?: string | { seconds?: number; nanos?: number };
-          normalizedBoundingBox?: {
-            left?: number;
-            top?: number;
-            right?: number;
-            bottom?: number;
-          };
-        }>;
-      }>;
+  }>;
+  sceneChanges?: Array<{
+    timeOffset: number;
+  }>;
+  persons?: Array<{
+    confidence: number;
+    frames: Array<{
+      timeOffset: number;
+      boundingBox: {
+        left: number;
+        top: number;
+        right: number;
+        bottom: number;
+      };
     }>;
   }>;
 }
 
 /**
- * Google Speech-to-Text API response structure
+ * Google Speech-to-Text API response structure (normalized)
+ * This is the simplified structure returned by GoogleCloudService.transcribeSpeech()
  */
 export interface SpeechToTextResponse {
-  results?: Array<{
-    alternatives?: Array<{
-      transcript?: string;
-      confidence?: number;
-      words?: Array<{
-        startTime?: string | { seconds?: number; nanos?: number };
-        endTime?: string | { seconds?: number; nanos?: number };
-        word?: string;
-      }>;
-    }>;
-    languageCode?: string;
+  transcript: string;
+  confidence: number;
+  words: Array<{
+    word: string;
+    startTime: number;
+    endTime: number;
+    confidence: number;
   }>;
+  languageCode: string;
 }
 
 /**

@@ -16,6 +16,7 @@ export const LabelClipSchema = z
     WorkspaceRef: RelationField({ collection: 'Workspaces' }),
     MediaRef: RelationField({ collection: 'Media' }),
     TaskRef: RelationField({ collection: 'Tasks' }).optional(),
+    labelHash: TextField({min:1}),
     labelType: SelectField([
       LabelType.OBJECT,
       LabelType.SHOT,
@@ -42,12 +43,14 @@ export const LabelClipInputSchema = z.object({
   WorkspaceRef: z.string().min(1, 'Workspace is required'),
   MediaRef: z.string().min(1, 'Media is required'),
   TaskRef: z.string().optional(),
+  labelHash: z.string().min(1, 'Label hash is required'),
   labelType: z.enum([
     LabelType.OBJECT,
     LabelType.SHOT,
     LabelType.PERSON,
     LabelType.SPEECH,
   ]),
+  type: z.string().min(1, 'Type is required'),
   start: z.number().min(0),
   end: z.number().min(0),
   duration: z.number().min(0),

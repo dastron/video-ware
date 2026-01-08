@@ -16,7 +16,6 @@ export interface VideoIntelligenceStepInput {
   type: 'video_intelligence';
   mediaId: string;
   fileRef: string;
-  gcsUri: string;
   provider: ProcessingProvider;
   config: {
     detectLabels?: boolean;
@@ -31,9 +30,11 @@ export interface VideoIntelligenceStepInput {
 }
 
 export interface VideoIntelligenceStepOutput {
-  response: VideoIntelligenceResponse;
-  rawJsonPath: string;
-  usedCache: boolean;
+  cacheHit: boolean;
+  cachedPath: string;
+  labelCount: number;
+  objectCount: number;
+  shotCount: number;
   processor: string;
 }
 
@@ -73,8 +74,6 @@ export class VideoIntelligenceStepProcessor extends BaseStepProcessor<
       `Processing video intelligence for media ${input.mediaId}, version ${input.version}`,
     );
 
-    let uploadedGcsUri: string | null = null;
-
     try {
       // Check cache before API call
       const cached = await this.labelCacheService.getCachedLabels(
@@ -88,10 +87,13 @@ export class VideoIntelligenceStepProcessor extends BaseStepProcessor<
           `Using cached video intelligence for media ${input.mediaId}, version ${input.version}`,
         );
 
+        const response = cached.response as VideoIntelligenceResponse;
         return {
-          response: cached.response as VideoIntelligenceResponse,
-          rawJsonPath: input.cacheKey,
-          usedCache: true,
+          cacheHit: true,
+          cachedPath: input.cacheKey,
+          labelCount: response.labels?.length || 0,
+          objectCount: response.objects?.length || 0,
+          shotCount: response.sceneChanges?.length || 0,
           processor: this.processorVersion,
         };
       }
@@ -101,9 +103,9 @@ export class VideoIntelligenceStepProcessor extends BaseStepProcessor<
         `Cache miss or invalid for media ${input.mediaId}, calling Video Intelligence API`,
       );
 
-      // Resolve the file path and upload to GCS if needed
-      const gcsUri = await this.resolveAndUploadToGcs(input.fileRef, input.mediaId);
-      uploadedGcsUri = gcsUri;
+      // Get deterministic GCS URI - upload step ensures file exists there
+      const gcsUri = await this.getGcsUri(input.fileRef, input.mediaId);
+      this.logger.log(`Using GCS URI: ${gcsUri}`);
 
       // Execute video intelligence analysis via executor
       const result = await this.videoIntelligenceExecutor.execute(gcsUri, {
@@ -131,9 +133,11 @@ export class VideoIntelligenceStepProcessor extends BaseStepProcessor<
       );
 
       return {
-        response: response as VideoIntelligenceResponse,
-        rawJsonPath: input.cacheKey,
-        usedCache: false,
+        cacheHit: false,
+        cachedPath: input.cacheKey,
+        labelCount: response.labels?.length || 0,
+        objectCount: response.objects?.length || 0,
+        shotCount: response.sceneChanges?.length || 0,
         processor: this.processorVersion,
       };
     } catch (error) {
@@ -143,17 +147,63 @@ export class VideoIntelligenceStepProcessor extends BaseStepProcessor<
         `Video intelligence failed for media ${input.mediaId}: ${errorMessage}`,
       );
       throw new Error(`Video intelligence analysis failed: ${errorMessage}`);
-    } finally {
-      // Clean up temporary GCS file if we uploaded one
-      if (uploadedGcsUri) {
-        await this.googleCloudService.deleteFromGcsTempBucket(uploadedGcsUri);
-      }
     }
+  }
+
+  /**
+   * Get deterministic GCS URI for a media file
+   * All steps use the same path - upload step ensures file exists there
+   */
+  private async getGcsUri(fileRef: string, mediaId: string): Promise<string> {
+    // If already a GCS URI, return as-is
+    if (fileRef.startsWith('gs://')) {
+      return fileRef;
+    }
+
+    // Get deterministic GCS path
+    const fileName = fileRef.split('/').pop() || 'video';
+    return await this.googleCloudService.getExpectedGcsUri(mediaId, fileName);
+  }
+
+  /**
+   * Resolve GCS URI - check if file exists in GCS, otherwise throw error
+   * This method is used when no gcsUri is provided from upload step
+   * @deprecated Use getGcsUri instead - upload step ensures file exists
+   */
+  private async resolveGcsUri(
+    fileRef: string,
+    mediaId: string
+  ): Promise<string> {
+    // If already a GCS URI, return as-is
+    if (fileRef.startsWith('gs://')) {
+      this.logger.log(`File already in GCS: ${fileRef}`);
+      return fileRef;
+    }
+
+    // Check if file exists in GCS using deterministic path
+    const fileName = fileRef.split('/').pop() || 'video';
+    const expectedGcsUri = await this.googleCloudService.getExpectedGcsUri(
+      mediaId,
+      fileName
+    );
+
+    const exists = await this.googleCloudService.checkGcsFileExists(expectedGcsUri);
+    
+    if (exists) {
+      this.logger.log(`Found existing file in GCS: ${expectedGcsUri}`);
+      return expectedGcsUri;
+    }
+
+    // File not in GCS - this shouldn't happen if upload step ran first
+    throw new Error(
+      `File not found in GCS: ${expectedGcsUri}. Upload step should run before this step.`
+    );
   }
 
   /**
    * Resolve file path and upload to GCS if needed
    * Returns GCS URI (gs://bucket/path)
+   * @deprecated Use upload step instead
    */
   private async resolveAndUploadToGcs(
     fileRef: string,

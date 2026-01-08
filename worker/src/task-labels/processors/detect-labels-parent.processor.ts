@@ -5,10 +5,11 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { QUEUE_NAMES } from '../../queue/queue.constants';
 import { DetectLabelsStepType } from '../../queue/types/step.types';
 import { PocketBaseService } from '../../shared/services/pocketbase.service';
+import { UploadToGcsStepProcessor } from './upload-to-gcs-step.processor';
 import { VideoIntelligenceStepProcessor } from './video-intelligence-step.processor';
 import { SpeechToTextStepProcessor } from './speech-to-text-step.processor';
-import { NormalizeLabelsStepProcessor } from './normalize-labels-step.processor';
-import { StoreResultsStepProcessor } from './store-results-step.processor';
+import { ProcessVideoIntelligenceLabelsStepProcessor } from './process-video-intelligence-labels-step.processor';
+import { ProcessSpeechToTextLabelsStepProcessor } from './process-speech-to-text-labels-step.processor';
 import type {
   ParentJobData,
   StepJobData,
@@ -22,9 +23,10 @@ import { TaskStatus } from '@project/shared';
  *
  * Key features:
  * - Allows partial success (one analysis step can fail while others succeed)
- * - VIDEO_INTELLIGENCE and SPEECH_TO_TEXT run in parallel
- * - NORMALIZE_LABELS combines results from both analysis steps
- * - STORE_RESULTS persists normalized data to PocketBase
+ * - UPLOAD_TO_GCS runs first to upload file to GCS
+ * - VIDEO_INTELLIGENCE → PROCESS_VIDEO_INTELLIGENCE_LABELS (parallel branch)
+ * - SPEECH_TO_TEXT → PROCESS_SPEECH_TO_TEXT_LABELS (parallel branch)
+ * - Each extraction step processes and writes its own data independently
  */
 @Processor(QUEUE_NAMES.LABELS)
 export class DetectLabelsParentProcessor extends WorkerHost {
@@ -34,10 +36,11 @@ export class DetectLabelsParentProcessor extends WorkerHost {
     @InjectQueue(QUEUE_NAMES.LABELS)
     private readonly labelsQueue: Queue,
     private readonly pocketbaseService: PocketBaseService,
+    private readonly uploadToGcsStepProcessor: UploadToGcsStepProcessor,
     private readonly videoIntelligenceStepProcessor: VideoIntelligenceStepProcessor,
     private readonly speechToTextStepProcessor: SpeechToTextStepProcessor,
-    private readonly normalizeLabelsStepProcessor: NormalizeLabelsStepProcessor,
-    private readonly storeResultsStepProcessor: StoreResultsStepProcessor,
+    private readonly processVideoIntelligenceLabelsStepProcessor: ProcessVideoIntelligenceLabelsStepProcessor,
+    private readonly processSpeechToTextLabelsStepProcessor: ProcessSpeechToTextLabelsStepProcessor,
   ) {
     super();
   }
@@ -58,8 +61,8 @@ export class DetectLabelsParentProcessor extends WorkerHost {
     // These are created by BullMQ for dependency tracking but shouldn't be processed
     const stepData = job.data as StepJobData;
     if (!stepData.stepType) {
-      this.logger.warn(
-        `Skipping job ${job.id} with name ${job.name} - no stepType (likely a dependency reference)`
+      this.logger.debug(
+        `Skipping job ${job.id} with name ${job.name} - no stepType (dependency reference job)`
       );
       return { skipped: true, reason: 'dependency_reference' };
     }
@@ -123,73 +126,59 @@ export class DetectLabelsParentProcessor extends WorkerHost {
       aggregatedResults[DetectLabelsStepType.VIDEO_INTELLIGENCE];
     const speechToTextResult =
       aggregatedResults[DetectLabelsStepType.SPEECH_TO_TEXT];
-    const normalizeLabelsResult =
-      aggregatedResults[DetectLabelsStepType.NORMALIZE_LABELS];
-    const storeResultsResult =
-      aggregatedResults[DetectLabelsStepType.STORE_RESULTS];
+    const processVideoLabelsResult =
+      aggregatedResults[DetectLabelsStepType.PROCESS_VIDEO_INTELLIGENCE_LABELS];
+    const processSpeechLabelsResult =
+      aggregatedResults[DetectLabelsStepType.PROCESS_SPEECH_TO_TEXT_LABELS];
 
     const videoIntelligenceSucceeded =
       videoIntelligenceResult?.status === 'completed';
     const speechToTextSucceeded = speechToTextResult?.status === 'completed';
-    const normalizeLabelsSucceeded =
-      normalizeLabelsResult?.status === 'completed';
-    const storeResultsSucceeded = storeResultsResult?.status === 'completed';
+    const processVideoLabelsSucceeded =
+      processVideoLabelsResult?.status === 'completed';
+    const processSpeechLabelsSucceeded =
+      processSpeechLabelsResult?.status === 'completed';
 
     // Log results of analysis steps
     this.logger.log(`Detect labels results for task ${task.id}:`, {
       videoIntelligence: videoIntelligenceSucceeded ? 'success' : 'failed',
       speechToText: speechToTextSucceeded ? 'success' : 'failed',
-      normalizeLabels: normalizeLabelsSucceeded ? 'success' : 'failed',
-      storeResults: storeResultsSucceeded ? 'success' : 'failed',
+      processVideoLabels: processVideoLabelsSucceeded ? 'success' : 'failed',
+      processSpeechLabels: processSpeechLabelsSucceeded ? 'success' : 'failed',
     });
 
     // Determine overall task status
-    // Task succeeds if:
-    // 1. At least one analysis step (VIDEO_INTELLIGENCE or SPEECH_TO_TEXT) succeeded
-    // 2. NORMALIZE_LABELS succeeded
-    // 3. STORE_RESULTS succeeded
-    const atLeastOneAnalysisSucceeded =
-      videoIntelligenceSucceeded || speechToTextSucceeded;
+    // Task succeeds if at least one complete branch succeeded:
+    // - VIDEO_INTELLIGENCE → PROCESS_VIDEO_INTELLIGENCE_LABELS (complete branch)
+    // - SPEECH_TO_TEXT → PROCESS_SPEECH_TO_TEXT_LABELS (complete branch)
+    const videoBranchSucceeded =
+      videoIntelligenceSucceeded && processVideoLabelsSucceeded;
+    const speechBranchSucceeded =
+      speechToTextSucceeded && processSpeechLabelsSucceeded;
 
-    if (!atLeastOneAnalysisSucceeded) {
-      // Both analysis steps failed
+    if (!videoBranchSucceeded && !speechBranchSucceeded) {
+      // Both branches failed completely
       this.logger.error(
-        `Task ${task.id} failed: both VIDEO_INTELLIGENCE and SPEECH_TO_TEXT failed`,
+        `Task ${task.id} failed: both video and speech processing branches failed`,
       );
       await this.updateTaskStatus(task.id, TaskStatus.FAILED);
       throw new Error(
-        'Detect labels task failed: both analysis steps failed',
+        'Detect labels task failed: both processing branches failed',
       );
     }
 
-    if (!normalizeLabelsSucceeded) {
-      // At least one analysis succeeded but NORMALIZE_LABELS failed
-      this.logger.error(
-        `Task ${task.id} failed: NORMALIZE_LABELS step failed`,
-      );
-      await this.updateTaskStatus(task.id, TaskStatus.FAILED);
-      throw new Error('Detect labels task failed: normalization failed');
-    }
-
-    if (!storeResultsSucceeded) {
-      // Normalization succeeded but STORE_RESULTS failed
-      this.logger.error(`Task ${task.id} failed: STORE_RESULTS step failed`);
-      await this.updateTaskStatus(task.id, TaskStatus.FAILED);
-      throw new Error('Detect labels task failed: failed to store results');
-    }
-
-    // Task succeeded with at least partial results
-    if (videoIntelligenceSucceeded && speechToTextSucceeded) {
+    // Task succeeded with at least one complete branch
+    if (videoBranchSucceeded && speechBranchSucceeded) {
       this.logger.log(
-        `Task ${task.id} completed successfully with full label data`,
+        `Task ${task.id} completed successfully with full label data (video + speech)`,
       );
-    } else if (videoIntelligenceSucceeded) {
+    } else if (videoBranchSucceeded) {
       this.logger.log(
-        `Task ${task.id} completed successfully with video intelligence only (speech-to-text failed)`,
+        `Task ${task.id} completed successfully with video intelligence only (speech branch failed)`,
       );
     } else {
       this.logger.log(
-        `Task ${task.id} completed successfully with speech-to-text only (video intelligence failed)`,
+        `Task ${task.id} completed successfully with speech-to-text only (video branch failed)`,
       );
     }
 
@@ -227,6 +216,13 @@ export class DetectLabelsParentProcessor extends WorkerHost {
 
       // Dispatch to appropriate step processor based on step type
       switch (stepType) {
+        case DetectLabelsStepType.UPLOAD_TO_GCS:
+          output = await this.uploadToGcsStepProcessor.process(
+            input as any,
+            job,
+          );
+          break;
+
         case DetectLabelsStepType.VIDEO_INTELLIGENCE:
           output = await this.videoIntelligenceStepProcessor.process(
             input as any,
@@ -241,15 +237,15 @@ export class DetectLabelsParentProcessor extends WorkerHost {
           );
           break;
 
-        case DetectLabelsStepType.NORMALIZE_LABELS:
-          output = await this.normalizeLabelsStepProcessor.process(
+        case DetectLabelsStepType.PROCESS_VIDEO_INTELLIGENCE_LABELS:
+          output = await this.processVideoIntelligenceLabelsStepProcessor.process(
             input as any,
             job,
           );
           break;
 
-        case DetectLabelsStepType.STORE_RESULTS:
-          output = await this.storeResultsStepProcessor.process(
+        case DetectLabelsStepType.PROCESS_SPEECH_TO_TEXT_LABELS:
+          output = await this.processSpeechToTextLabelsStepProcessor.process(
             input as any,
             job,
           );
@@ -300,7 +296,7 @@ export class DetectLabelsParentProcessor extends WorkerHost {
         return result;
       }
 
-      // For NORMALIZE_LABELS and STORE_RESULTS, re-throw to let BullMQ handle retry logic
+      // For processing steps, re-throw to let BullMQ handle retry logic
       throw error;
     }
   }
@@ -357,10 +353,10 @@ export class DetectLabelsParentProcessor extends WorkerHost {
 
         // For detect labels tasks, only mark as failed if it's a critical step
         // VIDEO_INTELLIGENCE and SPEECH_TO_TEXT failures are allowed (partial success)
-        // NORMALIZE_LABELS and STORE_RESULTS failures should mark task as failed
+        // Processing steps failures should mark task as failed
         if (
-          stepType === DetectLabelsStepType.NORMALIZE_LABELS ||
-          stepType === DetectLabelsStepType.STORE_RESULTS
+          stepType === DetectLabelsStepType.PROCESS_VIDEO_INTELLIGENCE_LABELS ||
+          stepType === DetectLabelsStepType.PROCESS_SPEECH_TO_TEXT_LABELS
         ) {
           if (parentJobId) {
             try {

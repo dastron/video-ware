@@ -444,6 +444,8 @@ export class FFmpegService {
         '-y', // Overwrite output file
         `-i "${inputPath}"`, // Input file
         '-vn', // No video
+        '-ac 1', // Convert to mono (1 channel) for speech recognition
+        '-ar 16000', // 16kHz sample rate (optimal for speech recognition)
         `-f ${format}`, // Output format
         `"${outputPath}"`, // Output file
       ].join(' ');

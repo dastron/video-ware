@@ -18,10 +18,11 @@ export enum RenderStepType {
 }
 
 export enum DetectLabelsStepType {
+  UPLOAD_TO_GCS = 'labels:upload_to_gcs',
   VIDEO_INTELLIGENCE = 'labels:video_intelligence',
+  PROCESS_VIDEO_INTELLIGENCE_LABELS = 'labels:process_video_intelligence_labels',
   SPEECH_TO_TEXT = 'labels:speech_to_text',
-  NORMALIZE_LABELS = 'labels:normalize_labels',
-  STORE_RESULTS = 'labels:store_results',
+  PROCESS_SPEECH_TO_TEXT_LABELS = 'labels:process_speech_to_text_labels',
 }
 
 /**
