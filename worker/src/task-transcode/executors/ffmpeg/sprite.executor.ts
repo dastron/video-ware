@@ -1,6 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { FFmpegService } from '../../../shared/services/ffmpeg.service';
-import type { ISpriteExecutor, SpriteConfig, SpriteResult } from '../interfaces';
+import type {
+  ISpriteExecutor,
+  SpriteConfig,
+  SpriteResult,
+} from '../interfaces';
 
 /**
  * FFmpeg implementation of the Sprite Executor

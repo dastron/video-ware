@@ -20,11 +20,12 @@ export class FFmpegUploadExecutor implements IUploadExecutor {
 
     try {
       await this.storageService.uploadFromPath(outputPath, storagePath);
-      
+
       this.logger.log(`File uploaded successfully to ${storagePath}`);
       return { storagePath };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       this.logger.error(`File upload failed: ${errorMessage}`);
       throw error;
     }

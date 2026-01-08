@@ -51,7 +51,7 @@ export class SpeechToTextStepProcessor extends BaseStepProcessor<
     private readonly speechToTextExecutor: GoogleSpeechToTextExecutor,
     private readonly googleCloudService: GoogleCloudService,
     private readonly storageService: StorageService,
-    private readonly ffmpegService: FFmpegService,
+    private readonly ffmpegService: FFmpegService
   ) {
     super();
   }
@@ -62,10 +62,10 @@ export class SpeechToTextStepProcessor extends BaseStepProcessor<
    */
   async process(
     input: SpeechToTextStepInput,
-    job: Job<StepJobData>,
+    job: Job<StepJobData>
   ): Promise<SpeechToTextStepOutput> {
     this.logger.log(
-      `Processing speech-to-text for media ${input.mediaId}, version ${input.version}`,
+      `Processing speech-to-text for media ${input.mediaId}, version ${input.version}`
     );
 
     try {
@@ -73,18 +73,21 @@ export class SpeechToTextStepProcessor extends BaseStepProcessor<
       const cached = await this.labelCacheService.getCachedLabels(
         input.mediaId,
         input.version,
-        ProcessingProvider.GOOGLE_SPEECH,
+        ProcessingProvider.GOOGLE_SPEECH
       );
 
-      if (cached && this.labelCacheService.isCacheValid(cached, this.processorVersion)) {
+      if (
+        cached &&
+        this.labelCacheService.isCacheValid(cached, this.processorVersion)
+      ) {
         this.logger.log(
-          `Using cached speech-to-text for media ${input.mediaId}, version ${input.version}`,
+          `Using cached speech-to-text for media ${input.mediaId}, version ${input.version}`
         );
 
         const response = cached.response as SpeechToTextResponse;
         const transcriptLength = this.getTranscriptLength(response);
         const wordCount = this.getWordCount(response);
-        
+
         return {
           cacheHit: true,
           cachedPath: input.cacheKey,
@@ -96,7 +99,7 @@ export class SpeechToTextStepProcessor extends BaseStepProcessor<
 
       // Cache miss or invalid - process audio
       this.logger.log(
-        `Cache miss or invalid for media ${input.mediaId}, extracting audio and transcribing`,
+        `Cache miss or invalid for media ${input.mediaId}, extracting audio and transcribing`
       );
 
       // Step 1: Get audio file (extract from video if needed)
@@ -117,11 +120,11 @@ export class SpeechToTextStepProcessor extends BaseStepProcessor<
         ProcessingProvider.GOOGLE_SPEECH,
         response,
         this.processorVersion,
-        ['SPEECH_RECOGNITION'],
+        ['SPEECH_RECOGNITION']
       );
 
       this.logger.log(
-        `Speech-to-text completed for media ${input.mediaId}, stored to cache`,
+        `Speech-to-text completed for media ${input.mediaId}, stored to cache`
       );
 
       const transcriptLength = this.getTranscriptLength(response);
@@ -138,7 +141,7 @@ export class SpeechToTextStepProcessor extends BaseStepProcessor<
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       this.logger.error(
-        `Speech-to-text failed for media ${input.mediaId}: ${errorMessage}`,
+        `Speech-to-text failed for media ${input.mediaId}: ${errorMessage}`
       );
       throw new Error(`Speech-to-text transcription failed: ${errorMessage}`);
     }
@@ -159,12 +162,13 @@ export class SpeechToTextStepProcessor extends BaseStepProcessor<
       audioFileName
     );
 
-    const audioExists = await this.googleCloudService.checkGcsFileExists(
-      expectedAudioGcsUri
-    );
+    const audioExists =
+      await this.googleCloudService.checkGcsFileExists(expectedAudioGcsUri);
 
     if (audioExists) {
-      this.logger.log(`Audio file already exists in GCS: ${expectedAudioGcsUri}`);
+      this.logger.log(
+        `Audio file already exists in GCS: ${expectedAudioGcsUri}`
+      );
       return expectedAudioGcsUri;
     }
 
@@ -178,7 +182,9 @@ export class SpeechToTextStepProcessor extends BaseStepProcessor<
     });
 
     // Create temp directory for audio extraction
-    const tempDir = await this.storageService.createTempDir(`speech-${mediaId}`);
+    const tempDir = await this.storageService.createTempDir(
+      `speech-${mediaId}`
+    );
     const audioPath = path.join(tempDir, audioFileName);
 
     try {
@@ -244,8 +250,9 @@ export class SpeechToTextStepProcessor extends BaseStepProcessor<
       fileName
     );
 
-    const exists = await this.googleCloudService.checkGcsFileExists(expectedGcsUri);
-    
+    const exists =
+      await this.googleCloudService.checkGcsFileExists(expectedGcsUri);
+
     if (exists) {
       this.logger.log(`Found existing file in GCS: ${expectedGcsUri}`);
       return expectedGcsUri;
@@ -274,14 +281,14 @@ export class SpeechToTextStepProcessor extends BaseStepProcessor<
 
     // For local or S3 files, we need to upload to GCS
     this.logger.log(`Resolving local file path for: ${fileRef}`);
-    
+
     // Get local file path (downloads from S3 if needed)
     const localPath = await this.storageService.resolveFilePath({
       storagePath: fileRef,
     });
 
     this.logger.log(`Uploading local file to GCS: ${localPath}`);
-    
+
     // Upload to GCS temp bucket
     const gcsUri = await this.googleCloudService.uploadToGcsTempBucket(
       localPath,
@@ -307,7 +314,7 @@ export class SpeechToTextStepProcessor extends BaseStepProcessor<
     if (filePath.includes('s3://') || filePath.startsWith('/')) {
       throw new Error(
         'Speech-to-Text requires GCS URI (gs://). ' +
-          'File must be uploaded to Google Cloud Storage before transcription.',
+          'File must be uploaded to Google Cloud Storage before transcription.'
       );
     }
 

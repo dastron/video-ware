@@ -3,7 +3,11 @@
  * Builds BullMQ flow definitions for label detection operations
  */
 
-import type { Task, DetectLabelsPayload, ProcessingProvider } from '@project/shared';
+import type {
+  Task,
+  DetectLabelsPayload,
+  ProcessingProvider,
+} from '@project/shared';
 import { DetectLabelsStepType } from '../types/step.types';
 import { getStepJobOptions } from '../config/step-options';
 import { QUEUE_NAMES } from '../queue.constants';
@@ -17,7 +21,7 @@ export class LabelsFlowBuilder {
    * 1. UPLOAD_TO_GCS (runs first, uploads file to GCS)
    * 2. VIDEO_INTELLIGENCE → PROCESS_VIDEO_INTELLIGENCE_LABELS (parallel branch)
    * 3. SPEECH_TO_TEXT → PROCESS_SPEECH_TO_TEXT_LABELS (parallel branch)
-   * 
+   *
    * Each extraction step processes and writes its own data independently
    */
   static buildFlow(task: Task): LabelsFlowDefinition {
@@ -50,7 +54,7 @@ export class LabelsFlowBuilder {
 
     // UPLOAD_TO_GCS step (runs first)
     const uploadOptions = getStepJobOptions(DetectLabelsStepType.UPLOAD_TO_GCS);
-    
+
     flow.children.push({
       name: DetectLabelsStepType.UPLOAD_TO_GCS,
       queueName: QUEUE_NAMES.LABELS,

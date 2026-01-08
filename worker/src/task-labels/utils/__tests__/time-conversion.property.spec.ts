@@ -22,9 +22,9 @@ describe('Time Conversion Properties', () => {
             const seconds = toSeconds(ms);
             const expected = ms / 1000;
             expect(seconds).toBeCloseTo(expected, 6);
-          },
+          }
         ),
-        { numRuns: 100 },
+        { numRuns: 100 }
       );
     });
 
@@ -36,9 +36,9 @@ describe('Time Conversion Properties', () => {
             const seconds = toSeconds(ns);
             const expected = ns / 1_000_000_000;
             expect(seconds).toBeCloseTo(expected, 9);
-          },
+          }
         ),
-        { numRuns: 100 },
+        { numRuns: 100 }
       );
     });
 
@@ -53,9 +53,9 @@ describe('Time Conversion Properties', () => {
             const seconds = toSeconds(duration);
             const expected = duration.seconds + duration.nanos / 1_000_000_000;
             expect(seconds).toBeCloseTo(expected, 9);
-          },
+          }
         ),
-        { numRuns: 100 },
+        { numRuns: 100 }
       );
     });
 
@@ -71,36 +71,30 @@ describe('Time Conversion Properties', () => {
             const expected =
               parseFloat(duration.seconds) + duration.nanos / 1_000_000_000;
             expect(seconds).toBeCloseTo(expected, 9);
-          },
+          }
         ),
-        { numRuns: 100 },
+        { numRuns: 100 }
       );
     });
 
     it('should convert string formats with "s" suffix to seconds', () => {
       fc.assert(
-        fc.property(
-          fc.float({ min: 0, max: 3600, noNaN: true }),
-          (value) => {
-            const timeString = `${value}s`;
-            const seconds = toSeconds(timeString);
-            expect(seconds).toBeCloseTo(value, 6);
-          },
-        ),
-        { numRuns: 100 },
+        fc.property(fc.float({ min: 0, max: 3600, noNaN: true }), (value) => {
+          const timeString = `${value}s`;
+          const seconds = toSeconds(timeString);
+          expect(seconds).toBeCloseTo(value, 6);
+        }),
+        { numRuns: 100 }
       );
     });
 
     it('should treat small numbers as seconds', () => {
       fc.assert(
-        fc.property(
-          fc.float({ min: 0, max: 1000, noNaN: true }),
-          (value) => {
-            const seconds = toSeconds(value);
-            expect(seconds).toBeCloseTo(value, 6);
-          },
-        ),
-        { numRuns: 100 },
+        fc.property(fc.float({ min: 0, max: 1000, noNaN: true }), (value) => {
+          const seconds = toSeconds(value);
+          expect(seconds).toBeCloseTo(value, 6);
+        }),
+        { numRuns: 100 }
       );
     });
 
@@ -114,13 +108,13 @@ describe('Time Conversion Properties', () => {
             const start = Math.min(val1, val2);
             const end = Math.max(val1, val2);
             if (start === end) return; // Skip equal values
-            
+
             const duration = calculateDuration(start, end);
             expect(duration).toBeGreaterThanOrEqual(0);
             expect(duration).toBeCloseTo(end - start, 6);
-          },
+          }
         ),
-        { numRuns: 100 },
+        { numRuns: 100 }
       );
     });
 
@@ -132,16 +126,16 @@ describe('Time Conversion Properties', () => {
           (start, offset) => {
             const end = start + offset;
             const normalized = normalizeTimeRange(start, end);
-            
+
             expect(normalized.start).toBeLessThan(normalized.end);
             expect(normalized.duration).toBeCloseTo(
               normalized.end - normalized.start,
-              6,
+              6
             );
             expect(normalized.duration).toBeGreaterThan(0);
-          },
+          }
         ),
-        { numRuns: 100 },
+        { numRuns: 100 }
       );
     });
 
@@ -152,9 +146,9 @@ describe('Time Conversion Properties', () => {
           fc.integer({ min: 0, max: 100 }),
           (start, end) => {
             expect(() => normalizeTimeRange(start, end)).toThrow();
-          },
+          }
         ),
-        { numRuns: 100 },
+        { numRuns: 100 }
       );
     });
 
@@ -169,27 +163,21 @@ describe('Time Conversion Properties', () => {
   describe('Specific conversion functions', () => {
     it('millisecondsToSeconds should always divide by 1000', () => {
       fc.assert(
-        fc.property(
-          fc.integer({ min: 0, max: 1_000_000 }),
-          (ms) => {
-            const seconds = millisecondsToSeconds(ms);
-            expect(seconds).toBeCloseTo(ms / 1000, 6);
-          },
-        ),
-        { numRuns: 100 },
+        fc.property(fc.integer({ min: 0, max: 1_000_000 }), (ms) => {
+          const seconds = millisecondsToSeconds(ms);
+          expect(seconds).toBeCloseTo(ms / 1000, 6);
+        }),
+        { numRuns: 100 }
       );
     });
 
     it('nanosecondsToSeconds should always divide by 1_000_000_000', () => {
       fc.assert(
-        fc.property(
-          fc.integer({ min: 0, max: 10_000_000_000 }),
-          (ns) => {
-            const seconds = nanosecondsToSeconds(ns);
-            expect(seconds).toBeCloseTo(ns / 1_000_000_000, 9);
-          },
-        ),
-        { numRuns: 100 },
+        fc.property(fc.integer({ min: 0, max: 10_000_000_000 }), (ns) => {
+          const seconds = nanosecondsToSeconds(ns);
+          expect(seconds).toBeCloseTo(ns / 1_000_000_000, 9);
+        }),
+        { numRuns: 100 }
       );
     });
 
@@ -204,9 +192,9 @@ describe('Time Conversion Properties', () => {
             const seconds = durationToSeconds(duration);
             const expected = duration.seconds + duration.nanos / 1_000_000_000;
             expect(seconds).toBeCloseTo(expected, 9);
-          },
+          }
         ),
-        { numRuns: 100 },
+        { numRuns: 100 }
       );
     });
   });

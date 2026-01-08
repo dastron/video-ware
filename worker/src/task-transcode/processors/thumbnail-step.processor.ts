@@ -15,7 +15,10 @@ import { FileType, FileSource } from '@project/shared';
  * Generates a thumbnail image and creates File record
  */
 @Injectable()
-export class ThumbnailStepProcessor extends BaseStepProcessor<ThumbnailStepInput, ThumbnailStepOutput> {
+export class ThumbnailStepProcessor extends BaseStepProcessor<
+  ThumbnailStepInput,
+  ThumbnailStepOutput
+> {
   protected readonly logger = new Logger(ThumbnailStepProcessor.name);
 
   constructor(
@@ -27,7 +30,10 @@ export class ThumbnailStepProcessor extends BaseStepProcessor<ThumbnailStepInput
     super();
   }
 
-  async process(input: ThumbnailStepInput, _job: Job<StepJobData>): Promise<ThumbnailStepOutput> {
+  async process(
+    input: ThumbnailStepInput,
+    _job: Job<StepJobData>
+  ): Promise<ThumbnailStepOutput> {
     // Resolve file path
     const filePath = await FileResolver.resolveFilePath(
       input.uploadId,
@@ -54,7 +60,6 @@ export class ThumbnailStepProcessor extends BaseStepProcessor<ThumbnailStepInput
       throw new Error(`Upload ${input.uploadId} not found`);
     }
 
-
     // Create File record
     const fileName = path.basename(thumbnailPath);
     const storageKey = `uploads/${input.uploadId}/${FileType.THUMBNAIL}/${fileName}`;
@@ -71,7 +76,9 @@ export class ThumbnailStepProcessor extends BaseStepProcessor<ThumbnailStepInput
     });
 
     // Update Media record
-    const media = await this.pocketbaseService.findMediaByUpload(input.uploadId);
+    const media = await this.pocketbaseService.findMediaByUpload(
+      input.uploadId
+    );
     if (media) {
       await this.pocketbaseService.updateMedia(media.id, {
         thumbnailFileRef: thumbnailFile.id,

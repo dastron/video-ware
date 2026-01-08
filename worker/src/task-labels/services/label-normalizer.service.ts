@@ -61,13 +61,13 @@ export class LabelNormalizerService {
    * Normalize Google Video Intelligence API response into label clips
    */
   async normalizeVideoIntelligence(
-    input: NormalizeVideoIntelligenceInput,
+    input: NormalizeVideoIntelligenceInput
   ): Promise<NormalizeVideoIntelligenceOutput> {
     const { response, rawJsonPath } = input;
     const labelClips: NormalizedLabelClip[] = [];
 
     this.logger.log(
-      `Normalizing video intelligence for media ${input.mediaId}, version ${input.version}`,
+      `Normalizing video intelligence for media ${input.mediaId}, version ${input.version}`
     );
 
     // Process shot annotations
@@ -83,7 +83,7 @@ export class LabelNormalizerService {
     labelClips.push(...personClips);
 
     this.logger.log(
-      `Normalized ${labelClips.length} label clips: ${shotClips.length} shots, ${objectClips.length} objects, ${personClips.length} persons`,
+      `Normalized ${labelClips.length} label clips: ${shotClips.length} shots, ${objectClips.length} objects, ${personClips.length} persons`
     );
 
     return {
@@ -100,16 +100,20 @@ export class LabelNormalizerService {
    * Normalize Google Speech-to-Text API response into label clips
    */
   async normalizeSpeechToText(
-    input: NormalizeSpeechToTextInput,
+    input: NormalizeSpeechToTextInput
   ): Promise<NormalizeSpeechToTextOutput> {
     const { response, rawJsonPath } = input;
     const labelClips: NormalizedLabelClip[] = [];
 
     this.logger.log(
-      `Normalizing speech-to-text for media ${input.mediaId}, version ${input.version}`,
+      `Normalizing speech-to-text for media ${input.mediaId}, version ${input.version}`
     );
 
-    if (!response.transcript || !response.words || response.words.length === 0) {
+    if (
+      !response.transcript ||
+      !response.words ||
+      response.words.length === 0
+    ) {
       this.logger.warn('No speech results found in response');
       return {
         labelClips: [],
@@ -133,7 +137,7 @@ export class LabelNormalizerService {
 
       if (startTime >= endTime) {
         this.logger.warn(
-          `Invalid time range for speech segment: start=${startTime}, end=${endTime}`,
+          `Invalid time range for speech segment: start=${startTime}, end=${endTime}`
         );
         return {
           labelClips: [],
@@ -167,7 +171,7 @@ export class LabelNormalizerService {
     }
 
     this.logger.log(
-      `Normalized ${labelClips.length} speech segments with ${totalWords} total words`,
+      `Normalized ${labelClips.length} speech segments with ${totalWords} total words`
     );
 
     return {
@@ -191,7 +195,7 @@ export class LabelNormalizerService {
    */
   private normalizeShotAnnotations(
     response: VideoIntelligenceResponse,
-    rawJsonPath: string,
+    rawJsonPath: string
   ): NormalizedLabelClip[] {
     const clips: NormalizedLabelClip[] = [];
 
@@ -201,7 +205,7 @@ export class LabelNormalizerService {
 
     // Scene changes are just time offsets, we need to create segments between them
     const sceneChanges = response.sceneChanges;
-    
+
     for (let i = 0; i < sceneChanges.length - 1; i++) {
       try {
         const startTime = sceneChanges[i].timeOffset;
@@ -209,7 +213,7 @@ export class LabelNormalizerService {
 
         if (startTime >= endTime) {
           this.logger.warn(
-            `Invalid shot time range: start=${startTime}, end=${endTime}`,
+            `Invalid shot time range: start=${startTime}, end=${endTime}`
           );
           continue;
         }
@@ -231,7 +235,7 @@ export class LabelNormalizerService {
         });
       } catch (error) {
         this.logger.warn(
-          `Failed to normalize shot ${i}: ${error instanceof Error ? error.message : String(error)}`,
+          `Failed to normalize shot ${i}: ${error instanceof Error ? error.message : String(error)}`
         );
       }
     }
@@ -244,7 +248,7 @@ export class LabelNormalizerService {
    */
   private normalizeObjectAnnotations(
     response: VideoIntelligenceResponse,
-    rawJsonPath: string,
+    rawJsonPath: string
   ): NormalizedLabelClip[] {
     const clips: NormalizedLabelClip[] = [];
 
@@ -261,13 +265,13 @@ export class LabelNormalizerService {
         // Get time range from first and last frame
         const firstFrame = obj.frames[0];
         const lastFrame = obj.frames[obj.frames.length - 1];
-        
+
         const startTime = firstFrame.timeOffset;
         const endTime = lastFrame.timeOffset;
 
         if (startTime >= endTime) {
           this.logger.warn(
-            `Invalid object time range: start=${startTime}, end=${endTime}`,
+            `Invalid object time range: start=${startTime}, end=${endTime}`
           );
           continue;
         }
@@ -280,7 +284,7 @@ export class LabelNormalizerService {
             top: frame.boundingBox.top,
             right: frame.boundingBox.right,
             bottom: frame.boundingBox.bottom,
-          })),
+          }))
         );
 
         const labelData: ObjectLabelData = {
@@ -303,7 +307,7 @@ export class LabelNormalizerService {
         });
       } catch (error) {
         this.logger.warn(
-          `Failed to normalize object: ${error instanceof Error ? error.message : String(error)}`,
+          `Failed to normalize object: ${error instanceof Error ? error.message : String(error)}`
         );
       }
     }
@@ -316,7 +320,7 @@ export class LabelNormalizerService {
    */
   private normalizePersonAnnotations(
     response: VideoIntelligenceResponse,
-    rawJsonPath: string,
+    rawJsonPath: string
   ): NormalizedLabelClip[] {
     const clips: NormalizedLabelClip[] = [];
 
@@ -333,13 +337,13 @@ export class LabelNormalizerService {
         // Get time range from first and last frame
         const firstFrame = person.frames[0];
         const lastFrame = person.frames[person.frames.length - 1];
-        
+
         const startTime = firstFrame.timeOffset;
         const endTime = lastFrame.timeOffset;
 
         if (startTime >= endTime) {
           this.logger.warn(
-            `Invalid person time range: start=${startTime}, end=${endTime}`,
+            `Invalid person time range: start=${startTime}, end=${endTime}`
           );
           continue;
         }
@@ -352,7 +356,7 @@ export class LabelNormalizerService {
             top: frame.boundingBox.top,
             right: frame.boundingBox.right,
             bottom: frame.boundingBox.bottom,
-          })),
+          }))
         );
 
         const labelData: PersonLabelData = {
@@ -375,7 +379,7 @@ export class LabelNormalizerService {
         });
       } catch (error) {
         this.logger.warn(
-          `Failed to normalize person track: ${error instanceof Error ? error.message : String(error)}`,
+          `Failed to normalize person track: ${error instanceof Error ? error.message : String(error)}`
         );
       }
     }

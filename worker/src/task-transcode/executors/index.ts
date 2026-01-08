@@ -1,10 +1,10 @@
 /**
  * Transcode Executors
- * 
+ *
  * Executors implement the strategy pattern for media processing operations.
  * Each executor type has a common interface that can be implemented by
  * different providers (FFmpeg, Google Cloud, etc.)
- * 
+ *
  * Architecture:
  * - Interfaces define the contract for each operation type
  * - Implementations provide provider-specific logic

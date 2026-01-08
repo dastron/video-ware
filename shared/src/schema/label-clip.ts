@@ -16,7 +16,7 @@ export const LabelClipSchema = z
     WorkspaceRef: RelationField({ collection: 'Workspaces' }),
     MediaRef: RelationField({ collection: 'Media' }),
     TaskRef: RelationField({ collection: 'Tasks' }).optional(),
-    labelHash: TextField({min:1}),
+    labelHash: TextField({ min: 1 }),
     labelType: SelectField([
       LabelType.OBJECT,
       LabelType.SHOT,

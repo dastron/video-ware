@@ -122,7 +122,7 @@ export class GoogleCloudService implements OnModuleInit {
     await this.initializeClients();
   }
 
-  async transcribeAudio(gcsUri: string): Promise<SpeechTranscriptionResult>{
+  async transcribeAudio(gcsUri: string): Promise<SpeechTranscriptionResult> {
     return this.transcribeSpeech(gcsUri);
   }
 
@@ -605,7 +605,9 @@ export class GoogleCloudService implements OnModuleInit {
       const bucket = this.storageClient.bucket(this.gcsBucket);
       const file = bucket.file(gcsPath);
 
-      this.logger.log(`Uploading ${localFilePath} to gs://${this.gcsBucket}/${gcsPath}`);
+      this.logger.log(
+        `Uploading ${localFilePath} to gs://${this.gcsBucket}/${gcsPath}`
+      );
 
       await bucket.upload(localFilePath, {
         destination: gcsPath,

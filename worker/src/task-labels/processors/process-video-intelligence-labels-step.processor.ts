@@ -40,13 +40,13 @@ export class ProcessVideoIntelligenceLabelsStepProcessor extends BaseStepProcess
   ProcessVideoIntelligenceLabelsStepOutput
 > {
   protected readonly logger = new Logger(
-    ProcessVideoIntelligenceLabelsStepProcessor.name,
+    ProcessVideoIntelligenceLabelsStepProcessor.name
   );
 
   constructor(
     private readonly labelNormalizerService: LabelNormalizerService,
     private readonly labelCacheService: LabelCacheService,
-    private readonly pocketbaseService: PocketBaseService,
+    private readonly pocketbaseService: PocketBaseService
   ) {
     super();
   }
@@ -57,10 +57,10 @@ export class ProcessVideoIntelligenceLabelsStepProcessor extends BaseStepProcess
    */
   async process(
     input: ProcessVideoIntelligenceLabelsStepInput,
-    job: Job<StepJobData>,
+    job: Job<StepJobData>
   ): Promise<ProcessVideoIntelligenceLabelsStepOutput> {
     this.logger.log(
-      `Processing video intelligence labels for media ${input.mediaId}, version ${input.version}`,
+      `Processing video intelligence labels for media ${input.mediaId}, version ${input.version}`
     );
 
     try {
@@ -68,18 +68,18 @@ export class ProcessVideoIntelligenceLabelsStepProcessor extends BaseStepProcess
       const cache = await this.labelCacheService.getCachedLabels(
         input.mediaId,
         input.version,
-        ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
+        ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE
       );
 
       if (!cache) {
         throw new Error(
-          `No video intelligence cache found for media ${input.mediaId}, version ${input.version}`,
+          `No video intelligence cache found for media ${input.mediaId}, version ${input.version}`
         );
       }
 
       // Normalize to label clips
       this.logger.log(
-        `Normalizing video intelligence results for media ${input.mediaId}`,
+        `Normalizing video intelligence results for media ${input.mediaId}`
       );
 
       const normalizedResult =
@@ -92,18 +92,18 @@ export class ProcessVideoIntelligenceLabelsStepProcessor extends BaseStepProcess
         });
 
       this.logger.log(
-        `Normalized ${normalizedResult.labelClips.length} video intelligence labels`,
+        `Normalized ${normalizedResult.labelClips.length} video intelligence labels`
       );
 
       // Filter label clips based on quality criteria
       const filteredClips = this.filterLabelClips(
         normalizedResult.labelClips,
         input.mediaId,
-        input.workspaceRef,
+        input.workspaceRef
       );
-      
+
       this.logger.log(
-        `Filtered to ${filteredClips.length} label clips (removed ${normalizedResult.labelClips.length - filteredClips.length} low-quality clips)`,
+        `Filtered to ${filteredClips.length} label clips (removed ${normalizedResult.labelClips.length - filteredClips.length} low-quality clips)`
       );
 
       // Write to database
@@ -118,7 +118,7 @@ export class ProcessVideoIntelligenceLabelsStepProcessor extends BaseStepProcess
             input.workspaceRef,
             labelClip.labelType,
             labelClip.start,
-            labelClip.end,
+            labelClip.end
           );
 
           // Check if label clip already exists using labelHash (unique index)
@@ -128,18 +128,18 @@ export class ProcessVideoIntelligenceLabelsStepProcessor extends BaseStepProcess
             await this.pocketbaseService.labelClipMutator.getList(
               1,
               1,
-              existingFilter,
+              existingFilter
             );
 
           let recordId: string;
 
           if (existing.items.length > 0) {
             const existingRecord = existing.items[0];
-            
+
             // Check if data has changed before updating
             if (this.hasLabelClipChanged(existingRecord, labelClip, input)) {
               this.logger.debug(
-                `Updating existing label clip ${existingRecord.id}`,
+                `Updating existing label clip ${existingRecord.id}`
               );
 
               const updated =
@@ -150,7 +150,9 @@ export class ProcessVideoIntelligenceLabelsStepProcessor extends BaseStepProcess
                     MediaRef: input.mediaId,
                     TaskRef: input.taskRef,
                     labelType: labelClip.labelType,
-                    type: labelClip.labelData.entityDescription || labelClip.labelType,
+                    type:
+                      labelClip.labelData.entityDescription ||
+                      labelClip.labelType,
                     labelHash,
                     start: labelClip.start,
                     end: labelClip.end,
@@ -160,14 +162,14 @@ export class ProcessVideoIntelligenceLabelsStepProcessor extends BaseStepProcess
                     processor: input.processor,
                     provider: ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
                     labelData: labelClip.labelData,
-                  },
+                  }
                 );
 
               recordId = updated.id;
             } else {
               // No changes, skip update
               this.logger.debug(
-                `Skipping unchanged label clip ${existingRecord.id}`,
+                `Skipping unchanged label clip ${existingRecord.id}`
               );
               recordId = existingRecord.id;
               skippedCount++;
@@ -180,7 +182,8 @@ export class ProcessVideoIntelligenceLabelsStepProcessor extends BaseStepProcess
                 MediaRef: input.mediaId,
                 TaskRef: input.taskRef,
                 labelType: labelClip.labelType,
-                type: labelClip.labelData.entityDescription || labelClip.labelType,
+                type:
+                  labelClip.labelData.entityDescription || labelClip.labelType,
                 labelHash,
                 start: labelClip.start,
                 end: labelClip.end,
@@ -199,15 +202,13 @@ export class ProcessVideoIntelligenceLabelsStepProcessor extends BaseStepProcess
         } catch (error) {
           const errorMessage =
             error instanceof Error ? error.message : String(error);
-          this.logger.error(
-            `Failed to upsert label clip: ${errorMessage}`,
-          );
+          this.logger.error(`Failed to upsert label clip: ${errorMessage}`);
           // Continue with other clips
         }
       }
 
       this.logger.log(
-        `Stored ${labelClipIds.length} video intelligence label clips for media ${input.mediaId} (${skippedCount} unchanged)`,
+        `Stored ${labelClipIds.length} video intelligence label clips for media ${input.mediaId} (${skippedCount} unchanged)`
       );
 
       return {
@@ -218,10 +219,10 @@ export class ProcessVideoIntelligenceLabelsStepProcessor extends BaseStepProcess
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       this.logger.error(
-        `Failed to process video intelligence labels for media ${input.mediaId}: ${errorMessage}`,
+        `Failed to process video intelligence labels for media ${input.mediaId}: ${errorMessage}`
       );
       throw new Error(
-        `Video intelligence label processing failed: ${errorMessage}`,
+        `Video intelligence label processing failed: ${errorMessage}`
       );
     }
   }
@@ -230,14 +231,18 @@ export class ProcessVideoIntelligenceLabelsStepProcessor extends BaseStepProcess
    * Filter label clips based on quality criteria
    * Removes duplicates, short clips, and low-confidence clips
    */
-  private filterLabelClips(clips: any[], mediaId: string, workspaceRef: string): any[] {
+  private filterLabelClips(
+    clips: any[],
+    mediaId: string,
+    workspaceRef: string
+  ): any[] {
     const MIN_DURATION = 5; // seconds
     const MIN_CONFIDENCE = 0.7; // 70%
-    
+
     // Track seen hashes to remove duplicates
     const seenHashes = new Set<string>();
     const filtered: any[] = [];
-    
+
     let removedDuplicates = 0;
     let removedShort = 0;
     let removedLowConfidence = 0;
@@ -249,7 +254,7 @@ export class ProcessVideoIntelligenceLabelsStepProcessor extends BaseStepProcess
         workspaceRef,
         clip.labelType,
         clip.start,
-        clip.end,
+        clip.end
       );
 
       // Check for duplicates
@@ -277,7 +282,7 @@ export class ProcessVideoIntelligenceLabelsStepProcessor extends BaseStepProcess
 
     if (removedDuplicates > 0 || removedShort > 0 || removedLowConfidence > 0) {
       this.logger.log(
-        `Filtering removed: ${removedDuplicates} duplicates, ${removedShort} short clips (<${MIN_DURATION}s), ${removedLowConfidence} low confidence (<${MIN_CONFIDENCE * 100}%)`,
+        `Filtering removed: ${removedDuplicates} duplicates, ${removedShort} short clips (<${MIN_DURATION}s), ${removedLowConfidence} low confidence (<${MIN_CONFIDENCE * 100}%)`
       );
     }
 
@@ -293,15 +298,15 @@ export class ProcessVideoIntelligenceLabelsStepProcessor extends BaseStepProcess
     workspaceRef: string,
     labelType: string,
     start: number,
-    end: number,
+    end: number
   ): string {
     // Round to whole seconds for consistency
     const startSecond = Math.floor(start);
     const endSecond = Math.floor(end);
-    
+
     // Create deterministic string
     const hashInput = `${workspaceRef}:${mediaId}:${labelType}:${startSecond}:${endSecond}`;
-    
+
     // Generate SHA-256 hash
     return createHash('sha256').update(hashInput).digest('hex');
   }
@@ -313,24 +318,28 @@ export class ProcessVideoIntelligenceLabelsStepProcessor extends BaseStepProcess
   private hasLabelClipChanged(
     existing: any,
     newClip: any,
-    input: ProcessVideoIntelligenceLabelsStepInput,
+    input: ProcessVideoIntelligenceLabelsStepInput
   ): boolean {
     // Only compare the fields that would actually change
     const typeValue = newClip.labelData.entityDescription || newClip.labelType;
-    
+
     // Compare core fields with loose equality to handle type coercion
     if (existing.type !== typeValue) {
       this.logger.debug(`Type changed: "${existing.type}" -> "${typeValue}"`);
       return true;
     }
-    
+
     if (existing.confidence !== newClip.confidence) {
-      this.logger.debug(`Confidence changed: ${existing.confidence} -> ${newClip.confidence}`);
+      this.logger.debug(
+        `Confidence changed: ${existing.confidence} -> ${newClip.confidence}`
+      );
       return true;
     }
-    
+
     if (existing.processor !== input.processor) {
-      this.logger.debug(`Processor changed: "${existing.processor}" -> "${input.processor}"`);
+      this.logger.debug(
+        `Processor changed: "${existing.processor}" -> "${input.processor}"`
+      );
       return true;
     }
 

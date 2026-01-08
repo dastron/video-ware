@@ -57,7 +57,6 @@ export const STEP_JOB_OPTIONS: Record<string, StepJobOptions> = {
     backoff: 30000, // 30 seconds
   },
 
-
   // Detect Labels steps
   [DetectLabelsStepType.UPLOAD_TO_GCS]: {
     attempts: 3,

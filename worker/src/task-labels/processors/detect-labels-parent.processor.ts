@@ -5,17 +5,42 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { QUEUE_NAMES } from '../../queue/queue.constants';
 import { DetectLabelsStepType } from '../../queue/types/step.types';
 import { PocketBaseService } from '../../shared/services/pocketbase.service';
-import { UploadToGcsStepProcessor } from './upload-to-gcs-step.processor';
-import { VideoIntelligenceStepProcessor } from './video-intelligence-step.processor';
-import { SpeechToTextStepProcessor } from './speech-to-text-step.processor';
-import { ProcessVideoIntelligenceLabelsStepProcessor } from './process-video-intelligence-labels-step.processor';
-import { ProcessSpeechToTextLabelsStepProcessor } from './process-speech-to-text-labels-step.processor';
+import {
+  UploadToGcsStepProcessor,
+  type UploadToGcsStepInput,
+} from './upload-to-gcs-step.processor';
+import {
+  VideoIntelligenceStepProcessor,
+  type VideoIntelligenceStepInput,
+} from './video-intelligence-step.processor';
+import {
+  SpeechToTextStepProcessor,
+  type SpeechToTextStepInput,
+} from './speech-to-text-step.processor';
+import {
+  ProcessVideoIntelligenceLabelsStepProcessor,
+  type ProcessVideoIntelligenceLabelsStepInput,
+} from './process-video-intelligence-labels-step.processor';
+import {
+  ProcessSpeechToTextLabelsStepProcessor,
+  type ProcessSpeechToTextLabelsStepInput,
+} from './process-speech-to-text-labels-step.processor';
 import type {
   ParentJobData,
   StepJobData,
   StepResult,
 } from '../../queue/types/job.types';
 import { TaskStatus } from '@project/shared';
+
+/**
+ * Union type of all possible step inputs
+ */
+type DetectLabelsStepInput =
+  | UploadToGcsStepInput
+  | VideoIntelligenceStepInput
+  | SpeechToTextStepInput
+  | ProcessVideoIntelligenceLabelsStepInput
+  | ProcessSpeechToTextLabelsStepInput;
 
 /**
  * Parent processor for detect_labels tasks
@@ -40,7 +65,7 @@ export class DetectLabelsParentProcessor extends WorkerHost {
     private readonly videoIntelligenceStepProcessor: VideoIntelligenceStepProcessor,
     private readonly speechToTextStepProcessor: SpeechToTextStepProcessor,
     private readonly processVideoIntelligenceLabelsStepProcessor: ProcessVideoIntelligenceLabelsStepProcessor,
-    private readonly processSpeechToTextLabelsStepProcessor: ProcessSpeechToTextLabelsStepProcessor,
+    private readonly processSpeechToTextLabelsStepProcessor: ProcessSpeechToTextLabelsStepProcessor
   ) {
     super();
   }
@@ -118,7 +143,7 @@ export class DetectLabelsParentProcessor extends WorkerHost {
     });
 
     this.logger.log(
-      `Cached ${Object.keys(aggregatedResults).length} step results for task ${task.id}`,
+      `Cached ${Object.keys(aggregatedResults).length} step results for task ${task.id}`
     );
 
     // Check which steps succeeded
@@ -159,26 +184,26 @@ export class DetectLabelsParentProcessor extends WorkerHost {
     if (!videoBranchSucceeded && !speechBranchSucceeded) {
       // Both branches failed completely
       this.logger.error(
-        `Task ${task.id} failed: both video and speech processing branches failed`,
+        `Task ${task.id} failed: both video and speech processing branches failed`
       );
       await this.updateTaskStatus(task.id, TaskStatus.FAILED);
       throw new Error(
-        'Detect labels task failed: both processing branches failed',
+        'Detect labels task failed: both processing branches failed'
       );
     }
 
     // Task succeeded with at least one complete branch
     if (videoBranchSucceeded && speechBranchSucceeded) {
       this.logger.log(
-        `Task ${task.id} completed successfully with full label data (video + speech)`,
+        `Task ${task.id} completed successfully with full label data (video + speech)`
       );
     } else if (videoBranchSucceeded) {
       this.logger.log(
-        `Task ${task.id} completed successfully with video intelligence only (speech branch failed)`,
+        `Task ${task.id} completed successfully with video intelligence only (speech branch failed)`
       );
     } else {
       this.logger.log(
-        `Task ${task.id} completed successfully with speech-to-text only (video branch failed)`,
+        `Task ${task.id} completed successfully with speech-to-text only (video branch failed)`
       );
     }
 
@@ -204,7 +229,7 @@ export class DetectLabelsParentProcessor extends WorkerHost {
 
         if (cachedResult && cachedResult.status === 'completed') {
           this.logger.log(
-            `Step ${stepType} already completed in previous attempt, using cached result`,
+            `Step ${stepType} already completed in previous attempt, using cached result`
           );
           return cachedResult;
         }
@@ -218,36 +243,37 @@ export class DetectLabelsParentProcessor extends WorkerHost {
       switch (stepType) {
         case DetectLabelsStepType.UPLOAD_TO_GCS:
           output = await this.uploadToGcsStepProcessor.process(
-            input as any,
-            job,
+            input as UploadToGcsStepInput,
+            job
           );
           break;
 
         case DetectLabelsStepType.VIDEO_INTELLIGENCE:
           output = await this.videoIntelligenceStepProcessor.process(
-            input as any,
-            job,
+            input as VideoIntelligenceStepInput,
+            job
           );
           break;
 
         case DetectLabelsStepType.SPEECH_TO_TEXT:
           output = await this.speechToTextStepProcessor.process(
-            input as any,
-            job,
+            input as SpeechToTextStepInput,
+            job
           );
           break;
 
         case DetectLabelsStepType.PROCESS_VIDEO_INTELLIGENCE_LABELS:
-          output = await this.processVideoIntelligenceLabelsStepProcessor.process(
-            input as any,
-            job,
-          );
+          output =
+            await this.processVideoIntelligenceLabelsStepProcessor.process(
+              input as ProcessVideoIntelligenceLabelsStepInput,
+              job
+            );
           break;
 
         case DetectLabelsStepType.PROCESS_SPEECH_TO_TEXT_LABELS:
           output = await this.processSpeechToTextLabelsStepProcessor.process(
-            input as any,
-            job,
+            input as ProcessSpeechToTextLabelsStepInput,
+            job
           );
           break;
 
@@ -271,7 +297,7 @@ export class DetectLabelsParentProcessor extends WorkerHost {
         error instanceof Error ? error.message : String(error);
       this.logger.error(
         `Step ${stepType} failed: ${errorMessage}`,
-        error instanceof Error ? error.stack : undefined,
+        error instanceof Error ? error.stack : undefined
       );
 
       // Create failed result
@@ -291,7 +317,7 @@ export class DetectLabelsParentProcessor extends WorkerHost {
         stepType === DetectLabelsStepType.SPEECH_TO_TEXT
       ) {
         this.logger.warn(
-          `Step ${stepType} failed but allowing partial success`,
+          `Step ${stepType} failed but allowing partial success`
         );
         return result;
       }
@@ -306,7 +332,7 @@ export class DetectLabelsParentProcessor extends WorkerHost {
    */
   private async updateTaskStatus(
     taskId: string,
-    status: TaskStatus,
+    status: TaskStatus
   ): Promise<void> {
     try {
       await this.pocketbaseService.taskMutator.update(taskId, { status });
@@ -348,7 +374,7 @@ export class DetectLabelsParentProcessor extends WorkerHost {
 
       if (attemptsMade >= maxAttempts) {
         this.logger.error(
-          `Step ${stepType} exhausted all ${maxAttempts} retry attempts for task ${taskId}`,
+          `Step ${stepType} exhausted all ${maxAttempts} retry attempts for task ${taskId}`
         );
 
         // For detect labels tasks, only mark as failed if it's a critical step
@@ -362,7 +388,7 @@ export class DetectLabelsParentProcessor extends WorkerHost {
             try {
               await this.updateTaskStatus(taskId, TaskStatus.FAILED);
               this.logger.log(
-                `Marked task ${taskId} as failed due to ${stepType} retry exhaustion`,
+                `Marked task ${taskId} as failed due to ${stepType} retry exhaustion`
               );
             } catch (updateError) {
               this.logger.error(`Failed to update task status: ${updateError}`);
@@ -370,7 +396,7 @@ export class DetectLabelsParentProcessor extends WorkerHost {
           }
         } else {
           this.logger.warn(
-            `Step ${stepType} exhausted retries but allowing partial success for detect labels task ${taskId}`,
+            `Step ${stepType} exhausted retries but allowing partial success for detect labels task ${taskId}`
           );
         }
       }
@@ -400,7 +426,7 @@ export class DetectLabelsParentProcessor extends WorkerHost {
       const parentJob = await this.labelsQueue.getJob(parentJobId);
       if (!parentJob) {
         this.logger.warn(
-          `Parent job ${parentJobId} not found for step ${stepType}`,
+          `Parent job ${parentJobId} not found for step ${stepType}`
         );
         return;
       }
@@ -412,7 +438,7 @@ export class DetectLabelsParentProcessor extends WorkerHost {
       });
 
       this.logger.debug(
-        `Updated parent job ${parentJobId} with step ${stepType} progress`,
+        `Updated parent job ${parentJobId} with step ${stepType} progress`
       );
     } catch (error) {
       this.logger.warn(`Failed to update parent progress: ${error}`);

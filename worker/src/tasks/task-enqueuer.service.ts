@@ -14,7 +14,7 @@ export class TaskEnqueuerService implements OnApplicationBootstrap {
   constructor(
     private readonly configService: ConfigService,
     private readonly pocketbaseService: PocketBaseService,
-    private readonly flowService: FlowService,
+    private readonly flowService: FlowService
   ) {}
 
   onApplicationBootstrap() {

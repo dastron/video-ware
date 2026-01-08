@@ -76,7 +76,9 @@ export class FileResolver {
       recordId: uploadId,
     });
 
-    this.logger.log(`Resolved file path for upload ${uploadId}: ${resolvedPath}`);
+    this.logger.log(
+      `Resolved file path for upload ${uploadId}: ${resolvedPath}`
+    );
     return resolvedPath;
   }
 }

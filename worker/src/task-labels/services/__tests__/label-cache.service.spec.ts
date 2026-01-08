@@ -87,7 +87,9 @@ describe('LabelCacheService', () => {
 
     it('should return null if download fails', async () => {
       mockStorageService.exists.mockResolvedValue(true);
-      mockStorageService.download.mockRejectedValue(new Error('Download failed'));
+      mockStorageService.download.mockRejectedValue(
+        new Error('Download failed')
+      );
 
       const result = await service.getCachedLabels(
         'media123',

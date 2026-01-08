@@ -34,7 +34,7 @@ export class UploadToGcsStepProcessor extends BaseStepProcessor<
 
   constructor(
     private readonly googleCloudService: GoogleCloudService,
-    private readonly storageService: StorageService,
+    private readonly storageService: StorageService
   ) {
     super();
   }
@@ -45,11 +45,9 @@ export class UploadToGcsStepProcessor extends BaseStepProcessor<
    */
   async process(
     input: UploadToGcsStepInput,
-    job: Job<StepJobData>,
+    job: Job<StepJobData>
   ): Promise<UploadToGcsStepOutput> {
-    this.logger.log(
-      `Uploading file to GCS for media ${input.mediaId}`,
-    );
+    this.logger.log(`Uploading file to GCS for media ${input.mediaId}`);
 
     try {
       // If already a GCS URI, return as-is
@@ -70,7 +68,8 @@ export class UploadToGcsStepProcessor extends BaseStepProcessor<
       );
 
       // Check if file already exists in GCS
-      const exists = await this.googleCloudService.checkGcsFileExists(expectedGcsUri);
+      const exists =
+        await this.googleCloudService.checkGcsFileExists(expectedGcsUri);
       if (exists) {
         this.logger.log(`File already exists in GCS: ${expectedGcsUri}`);
         return {
@@ -104,7 +103,7 @@ export class UploadToGcsStepProcessor extends BaseStepProcessor<
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       this.logger.error(
-        `Failed to upload to GCS for media ${input.mediaId}: ${errorMessage}`,
+        `Failed to upload to GCS for media ${input.mediaId}: ${errorMessage}`
       );
       throw new Error(`GCS upload failed: ${errorMessage}`);
     }

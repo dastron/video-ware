@@ -136,5 +136,4 @@ export class TranscodeParentProcessor extends BaseParentProcessor {
       throw error;
     }
   }
-
 }

@@ -1,6 +1,6 @@
 /**
  * Executor Interfaces
- * 
+ *
  * Define contracts for media processing operations.
  * Each interface represents a single responsibility.
  */
@@ -58,7 +58,6 @@ export interface TranscodeConfig {
   sourceWidth: number;
   sourceHeight: number;
 }
-
 
 /**
  * Result from video transcoding

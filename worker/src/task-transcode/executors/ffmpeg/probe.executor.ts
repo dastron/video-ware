@@ -1,5 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { FFmpegService, ProbeResult as FFmpegProbeResult } from '../../../shared/services/ffmpeg.service';
+import {
+  FFmpegService,
+  ProbeResult as FFmpegProbeResult,
+} from '../../../shared/services/ffmpeg.service';
 import type { IProbeExecutor, ProbeResult } from '../interfaces';
 import type { ProbeOutput } from '@project/shared';
 
@@ -15,16 +18,16 @@ export class FFmpegProbeExecutor implements IProbeExecutor {
 
   async execute(filePath: string): Promise<ProbeResult> {
     this.logger.debug(`Probing file: ${filePath}`);
-    
+
     const ffmpegResult = await this.ffmpegService.probe(filePath);
     const probeOutput = this.convertResult(ffmpegResult);
-    
+
     return { probeOutput };
   }
 
   private convertResult(result: FFmpegProbeResult): ProbeOutput {
-    const videoStream = result.streams.find(s => s.codec_type === 'video');
-    const audioStream = result.streams.find(s => s.codec_type === 'audio');
+    const videoStream = result.streams.find((s) => s.codec_type === 'video');
+    const audioStream = result.streams.find((s) => s.codec_type === 'audio');
 
     if (!videoStream) {
       throw new Error('No video stream found in input file');
@@ -35,10 +38,16 @@ export class FFmpegProbeExecutor implements IProbeExecutor {
       width: videoStream.width || 0,
       height: videoStream.height || 0,
       codec: videoStream.codec_name || 'unknown',
-      fps: this.parseFps(videoStream.r_frame_rate || videoStream.avg_frame_rate),
-      bitrate: result.format.bit_rate ? parseInt(String(result.format.bit_rate)) : undefined,
+      fps: this.parseFps(
+        videoStream.r_frame_rate || videoStream.avg_frame_rate
+      ),
+      bitrate: result.format.bit_rate
+        ? parseInt(String(result.format.bit_rate))
+        : undefined,
       format: result.format.format_name || 'unknown',
-      size: result.format.size ? parseInt(String(result.format.size)) : undefined,
+      size: result.format.size
+        ? parseInt(String(result.format.size))
+        : undefined,
       video: {
         codec: videoStream.codec_name || 'unknown',
         profile: videoStream.profile || undefined,
@@ -56,7 +65,9 @@ export class FFmpegProbeExecutor implements IProbeExecutor {
         codec: audioStream.codec_name || 'unknown',
         channels: audioStream.channels || 0,
         sampleRate: audioStream.sample_rate || 0,
-        bitrate: audioStream.bit_rate ? parseInt(String(audioStream.bit_rate)) : undefined,
+        bitrate: audioStream.bit_rate
+          ? parseInt(String(audioStream.bit_rate))
+          : undefined,
       };
     }
 

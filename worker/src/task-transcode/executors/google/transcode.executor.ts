@@ -1,6 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { GoogleCloudService } from '../../../shared/services/google-cloud.service';
-import type { ITranscodeExecutor, TranscodeConfig, TranscodeResult, ProgressCallback } from '../interfaces';
+import type {
+  ITranscodeExecutor,
+  TranscodeConfig,
+  TranscodeResult,
+  ProgressCallback,
+} from '../interfaces';
 
 /**
  * Google Cloud Transcoder implementation of the Transcode Executor
@@ -28,7 +33,7 @@ export class GoogleTranscodeExecutor implements ITranscodeExecutor {
     // 4. Download result
 
     const preset = this.selectPreset(config.resolution);
-    
+
     this.logger.warn(
       `Google Cloud Transcoder not fully implemented. Would use preset: ${preset}`
     );
@@ -40,14 +45,16 @@ export class GoogleTranscodeExecutor implements ITranscodeExecutor {
     // await this.waitForCompletion(job.jobId, onProgress);
     // await this.downloadFromGcs(outputGcsUri, outputPath);
 
-    throw new Error('Google Cloud Transcoder not yet implemented. Use FFmpeg provider.');
+    throw new Error(
+      'Google Cloud Transcoder not yet implemented. Use FFmpeg provider.'
+    );
   }
 
   private selectPreset(resolution: string): string {
     const presets: Record<string, string> = {
       '720p': 'preset/web-hd',
       '1080p': 'preset/web-fhd',
-      'original': 'preset/web-hd',
+      original: 'preset/web-hd',
     };
     return presets[resolution] || 'preset/web-hd';
   }

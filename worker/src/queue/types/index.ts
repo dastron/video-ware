@@ -3,11 +3,7 @@
  */
 
 // Step types
-export {
-  TranscodeStepType,
-  RenderStepType,
-  type StepType,
-} from './step.types';
+export { TranscodeStepType, RenderStepType, type StepType } from './step.types';
 
 // Job data types
 export type {

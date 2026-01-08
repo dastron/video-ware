@@ -64,7 +64,8 @@ export class FFmpegComposeExecutor implements IComposeExecutor {
         width: videoStream.width || 0,
         height: videoStream.height || 0,
         codec: videoStream.codec_name || 'unknown',
-        fps: parseFps(videoStream.r_frame_rate || videoStream.avg_frame_rate) || 0,
+        fps:
+          parseFps(videoStream.r_frame_rate || videoStream.avg_frame_rate) || 0,
         bitrate: parseInt(String(probeResult.format.bit_rate)) || undefined,
         format: probeResult.format.format_name || 'unknown',
         size: parseInt(String(probeResult.format.size)) || undefined,
@@ -73,7 +74,8 @@ export class FFmpegComposeExecutor implements IComposeExecutor {
       this.logger.log(`Timeline composition completed: ${outputPath}`);
       return { outputPath, probeOutput };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       this.logger.error(`Timeline composition failed: ${errorMessage}`);
       throw error;
     }

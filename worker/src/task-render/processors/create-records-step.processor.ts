@@ -4,7 +4,10 @@ import { BaseStepProcessor } from '../../queue/processors/base-step.processor';
 import { PocketBaseService } from '../../shared/services/pocketbase.service';
 import { StorageService } from '../../shared/services/storage.service';
 import type { StepJobData } from '../../queue/types/job.types';
-import type { CreateRecordsStepInput, CreateRecordsOutput } from '../executors/interfaces';
+import type {
+  CreateRecordsStepInput,
+  CreateRecordsOutput,
+} from '../executors/interfaces';
 import type { File as FileRecord, Media } from '@project/shared';
 import { FileType, FileStatus, MediaType, FileSource } from '@project/shared';
 import * as fs from 'fs/promises';
@@ -34,14 +37,11 @@ export class CreateRecordsStepProcessor extends BaseStepProcessor<
   ): Promise<CreateRecordsOutput> {
     this.logger.log(`Creating records for timeline ${input.timelineId} render`);
 
-
     // Create File record
     const fileRecord = await this.createFileRecord(input);
 
-
     // Create Media record
     const mediaRecord = await this.createMediaRecord(input, fileRecord);
-
 
     // Create TimelineRender record
     const timelineRenderRecord = await this.createTimelineRenderRecord(
@@ -50,10 +50,8 @@ export class CreateRecordsStepProcessor extends BaseStepProcessor<
       fileRecord.id
     );
 
-
     // Clean up temporary files
     await this.cleanupTempFiles(input.tempDir);
-
 
     this.logger.log(
       `Successfully created records for timeline ${input.timelineId} render`

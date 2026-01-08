@@ -24,7 +24,8 @@ export class FFmpegResolveClipsExecutor implements IResolveClipsExecutor {
     this.logger.log(`Resolving clips for timeline ${timelineId}`);
 
     // Get timeline clips
-    const timelineClips = await this.pocketbaseService.getTimelineClips(timelineId);
+    const timelineClips =
+      await this.pocketbaseService.getTimelineClips(timelineId);
     if (!timelineClips || timelineClips.length === 0) {
       throw new Error(`No clips found for timeline ${timelineId}`);
     }
@@ -36,14 +37,18 @@ export class FFmpegResolveClipsExecutor implements IResolveClipsExecutor {
         // Get media record for the clip
         const media = await this.pocketbaseService.getMedia(clip.MediaRef);
         if (!media) {
-          throw new Error(`Media ${clip.MediaRef} not found for clip ${clip.id}`);
+          throw new Error(
+            `Media ${clip.MediaRef} not found for clip ${clip.id}`
+          );
         }
 
         // Get the source file (prefer proxy, fallback to original upload)
         let sourceFileId = media.proxyFileRef;
         if (!sourceFileId) {
           // Get original upload and find associated file
-          const upload = await this.pocketbaseService.getUploadByMedia(media.id);
+          const upload = await this.pocketbaseService.getUploadByMedia(
+            media.id
+          );
           if (!upload) {
             throw new Error(`No upload found for media ${media.id}`);
           }
@@ -87,8 +92,11 @@ export class FFmpegResolveClipsExecutor implements IResolveClipsExecutor {
         clipMediaMap[clip.id] = { media, filePath };
         this.logger.debug(`Resolved media for clip ${clip.id}: ${filePath}`);
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        this.logger.error(`Failed to resolve media for clip ${clip.id}: ${errorMessage}`);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        this.logger.error(
+          `Failed to resolve media for clip ${clip.id}: ${errorMessage}`
+        );
         throw error;
       }
     }

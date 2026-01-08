@@ -1,6 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { FFmpegService } from '../../../shared/services/ffmpeg.service';
-import type { ITranscodeExecutor, TranscodeConfig, TranscodeResult, ProgressCallback } from '../interfaces';
+import type {
+  ITranscodeExecutor,
+  TranscodeConfig,
+  TranscodeResult,
+  ProgressCallback,
+} from '../interfaces';
 
 /**
  * FFmpeg implementation of the Transcode Executor
@@ -40,7 +45,10 @@ export class FFmpegTranscodeExecutor implements ITranscodeExecutor {
     return { outputPath };
   }
 
-  private resolveResolution(config: TranscodeConfig): { width: number; height: number } {
+  private resolveResolution(config: TranscodeConfig): {
+    width: number;
+    height: number;
+  } {
     const resolutions: Record<string, { width: number; height: number }> = {
       '720p': { width: 1280, height: 720 },
       '1080p': { width: 1920, height: 1080 },
@@ -52,7 +60,6 @@ export class FFmpegTranscodeExecutor implements ITranscodeExecutor {
 
     return resolutions[config.resolution] || resolutions['720p'];
   }
-
 
   private resolveCodec(codec: string): string {
     const codecs: Record<string, string> = {

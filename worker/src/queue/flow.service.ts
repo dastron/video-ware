@@ -3,13 +3,17 @@ import { FlowProducer } from 'bullmq';
 import { ConfigService } from '@nestjs/config';
 import type { Task } from '@project/shared';
 import { TaskType } from '@project/shared';
-import { TranscodeFlowBuilder, RenderFlowBuilder, LabelsFlowBuilder } from './flows';
+import {
+  TranscodeFlowBuilder,
+  RenderFlowBuilder,
+  LabelsFlowBuilder,
+} from './flows';
 import type { FlowDefinition } from './flows';
 
 /**
  * Service for creating BullMQ job flows with parent-child relationships
  * Uses FlowProducer to orchestrate multi-step task processing
- * 
+ *
  * Flow definitions are created by flow builders based on task type
  */
 @Injectable()
@@ -30,7 +34,7 @@ export class FlowService {
 
   /**
    * Create and add a flow based on task type
-   * 
+   *
    * @param task - Task record containing type and payload
    * @returns Parent job ID
    */
@@ -40,7 +44,9 @@ export class FlowService {
     const flowDefinition = this.buildFlowForTask(task);
     const result = await this.flowProducer.add(flowDefinition);
 
-    this.logger.log(`Flow created for task ${task.id}, parent job: ${result.job.id}`);
+    this.logger.log(
+      `Flow created for task ${task.id}, parent job: ${result.job.id}`
+    );
 
     return result.job.id!;
   }
@@ -48,7 +54,7 @@ export class FlowService {
   /**
    * Add a pre-built flow to BullMQ
    * Generic method that accepts any flow definition
-   * 
+   *
    * @param flowDefinition - Flow definition with parent and child jobs
    * @returns Parent job ID
    */
@@ -89,4 +95,3 @@ export class FlowService {
     this.logger.log('FlowService closed');
   }
 }
-

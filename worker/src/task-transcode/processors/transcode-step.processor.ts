@@ -2,8 +2,15 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import * as path from 'path';
 import { BaseStepProcessor } from '../../queue/processors/base-step.processor';
-import { FFmpegProbeExecutor, FFmpegTranscodeExecutor, GoogleTranscodeExecutor } from '../executors';
-import type { ITranscodeExecutor, TranscodeConfig as ExecutorTranscodeConfig } from '../executors/interfaces';
+import {
+  FFmpegProbeExecutor,
+  FFmpegTranscodeExecutor,
+  GoogleTranscodeExecutor,
+} from '../executors';
+import type {
+  ITranscodeExecutor,
+  TranscodeConfig as ExecutorTranscodeConfig,
+} from '../executors/interfaces';
 import { StorageService } from '../../shared/services/storage.service';
 import { PocketBaseService } from '../../shared/services/pocketbase.service';
 import { FileResolver } from '../utils/file-resolver';
@@ -16,7 +23,10 @@ import { ProcessingProvider, FileType, FileSource } from '@project/shared';
  * Creates a proxy video using the configured provider (FFmpeg or Google Cloud)
  */
 @Injectable()
-export class TranscodeStepProcessor extends BaseStepProcessor<TranscodeStepInput, TranscodeStepOutput> {
+export class TranscodeStepProcessor extends BaseStepProcessor<
+  TranscodeStepInput,
+  TranscodeStepOutput
+> {
   protected readonly logger = new Logger(TranscodeStepProcessor.name);
 
   constructor(
@@ -29,7 +39,10 @@ export class TranscodeStepProcessor extends BaseStepProcessor<TranscodeStepInput
     super();
   }
 
-  async process(input: TranscodeStepInput, _job: Job<StepJobData>): Promise<TranscodeStepOutput> {
+  async process(
+    input: TranscodeStepInput,
+    _job: Job<StepJobData>
+  ): Promise<TranscodeStepOutput> {
     // Resolve file path
     const filePath = await FileResolver.resolveFilePath(
       input.uploadId,
@@ -52,7 +65,6 @@ export class TranscodeStepProcessor extends BaseStepProcessor<TranscodeStepInput
       sourceWidth: probeOutput.width,
       sourceHeight: probeOutput.height,
     };
-
 
     // Execute transcode
     const proxyPath = `${filePath}_proxy.mp4`;
@@ -80,7 +92,9 @@ export class TranscodeStepProcessor extends BaseStepProcessor<TranscodeStepInput
     });
 
     // Update Media record
-    const media = await this.pocketbaseService.findMediaByUpload(input.uploadId);
+    const media = await this.pocketbaseService.findMediaByUpload(
+      input.uploadId
+    );
     if (media) {
       await this.pocketbaseService.updateMedia(media.id, {
         proxyFileRef: proxyFile.id,

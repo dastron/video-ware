@@ -18,7 +18,7 @@ export interface DurationObject {
  * - Already in seconds (number)
  */
 export function toSeconds(
-  time: string | number | DurationObject | undefined | null,
+  time: string | number | DurationObject | undefined | null
 ): number {
   if (time === undefined || time === null) {
     return 0;
@@ -36,16 +36,16 @@ export function toSeconds(
     // Remove 's' suffix if present
     const cleaned = time.replace(/s$/, '');
     const parsed = parseFloat(cleaned);
-    
+
     if (isNaN(parsed)) {
       return 0;
     }
-    
+
     // If the string had 's' suffix, it's already in seconds
     if (time.endsWith('s')) {
       return parsed;
     }
-    
+
     // Otherwise treat as milliseconds if > 1000, else seconds
     return parsed > 1000 ? parsed / 1000 : parsed;
   }
@@ -56,12 +56,12 @@ export function toSeconds(
     if (time > 1_000_000_000) {
       return time / 1_000_000_000;
     }
-    
+
     // Milliseconds: numbers between 1000 and 1 billion
     if (time > 1000) {
       return time / 1000;
     }
-    
+
     // Already in seconds
     return time;
   }
@@ -97,7 +97,7 @@ export function durationToSeconds(duration: DurationObject): number {
  */
 export function calculateDuration(
   start: string | number | DurationObject | undefined | null,
-  end: string | number | DurationObject | undefined | null,
+  end: string | number | DurationObject | undefined | null
 ): number {
   const startSeconds = toSeconds(start);
   const endSeconds = toSeconds(end);
@@ -109,17 +109,17 @@ export function calculateDuration(
  */
 export function normalizeTimeRange(
   start: string | number | DurationObject | undefined | null,
-  end: string | number | DurationObject | undefined | null,
+  end: string | number | DurationObject | undefined | null
 ): { start: number; end: number; duration: number } {
   const startSeconds = toSeconds(start);
   const endSeconds = toSeconds(end);
-  
+
   if (startSeconds >= endSeconds) {
     throw new Error(
-      `Invalid time range: start (${startSeconds}) must be less than end (${endSeconds})`,
+      `Invalid time range: start (${startSeconds}) must be less than end (${endSeconds})`
     );
   }
-  
+
   return {
     start: startSeconds,
     end: endSeconds,

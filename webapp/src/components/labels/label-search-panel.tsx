@@ -18,7 +18,12 @@ interface LabelSearchPanelProps {
   onJumpToTime: (timeInSeconds: number) => void;
   onClipCreated?: () => void;
   onViewClip?: (clipId: string) => void;
-  onAddToTimeline?: (mediaId: string, start: number, end: number, clipId?: string) => void;
+  onAddToTimeline?: (
+    mediaId: string,
+    start: number,
+    end: number,
+    clipId?: string
+  ) => void;
 }
 
 const ITEMS_PER_PAGE = 20;
@@ -135,9 +140,7 @@ export function LabelSearchPanel({
         onClipCreated?.();
       } catch (err) {
         console.error('Failed to create clip:', err);
-        setError(
-          err instanceof Error ? err.message : 'Failed to create clip'
-        );
+        setError(err instanceof Error ? err.message : 'Failed to create clip');
       } finally {
         setIsLoading(false);
       }

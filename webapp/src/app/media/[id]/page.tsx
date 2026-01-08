@@ -9,12 +9,7 @@ import { InlineClipCreator } from '@/components/clip/inline-clip-creator';
 import { InlineClipEditor } from '@/components/clip/inline-clip-editor';
 import { LabelSearchPanel } from '@/components/labels/label-search-panel';
 import { Button } from '@/components/ui/button';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   ArrowLeft,
   RefreshCw,
@@ -30,7 +25,12 @@ import {
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { MediaClip, DetectLabelsPayload } from '@project/shared';
-import { ClipType, TaskType, TaskStatus, ProcessingProvider } from '@project/shared/enums';
+import {
+  ClipType,
+  TaskType,
+  TaskStatus,
+  ProcessingProvider,
+} from '@project/shared/enums';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { TaskMutator } from '@project/shared/mutator';
 import pb from '@/lib/pocketbase-client';
@@ -160,7 +160,7 @@ export default function MediaDetailsPage() {
     setIsDetectingLabels(true);
     try {
       const taskMutator = new TaskMutator(pb);
-      
+
       // Get the upload to retrieve the file reference
       const upload = media.expand?.UploadRef;
       if (!upload?.externalPath) {
@@ -197,7 +197,8 @@ export default function MediaDetailsPage() {
     } catch (error) {
       console.error('Failed to start label detection:', error);
       toast.error('Failed to start label detection', {
-        description: error instanceof Error ? error.message : 'An unknown error occurred',
+        description:
+          error instanceof Error ? error.message : 'An unknown error occurred',
       });
     } finally {
       setIsDetectingLabels(false);

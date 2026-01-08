@@ -254,7 +254,7 @@ describe('MediaClipMutator - Derived Clips', () => {
       const labelWithPreciseTime = {
         ...mockLabelClip,
         start: 123.456789,
-        end: 234.567890,
+        end: 234.56789,
         duration: 111.111101,
       };
 
@@ -267,7 +267,7 @@ describe('MediaClipMutator - Derived Clips', () => {
       expect(mockPb.collection().create).toHaveBeenCalledWith(
         expect.objectContaining({
           start: 123.456789,
-          end: 234.567890,
+          end: 234.56789,
           duration: 111.111101,
         }),
         expect.any(Object)

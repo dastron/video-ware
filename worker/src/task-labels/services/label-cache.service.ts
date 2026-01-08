@@ -133,10 +133,7 @@ export class LabelCacheService {
    * @param currentProcessor - Current processor version string
    * @returns true if cache is valid (processor versions match)
    */
-  isCacheValid(
-    cached: RawLabelCacheFile,
-    currentProcessor: string
-  ): boolean {
+  isCacheValid(cached: RawLabelCacheFile, currentProcessor: string): boolean {
     const isValid = cached.metadata.processor === currentProcessor;
 
     if (!isValid) {

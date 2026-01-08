@@ -14,9 +14,7 @@ import type {
  * No database operations - just API calls and response handling.
  */
 @Injectable()
-export class GoogleVideoIntelligenceExecutor
-  implements IVideoIntelligenceExecutor
-{
+export class GoogleVideoIntelligenceExecutor implements IVideoIntelligenceExecutor {
   private readonly logger = new Logger(GoogleVideoIntelligenceExecutor.name);
 
   constructor(private readonly googleCloudService: GoogleCloudService) {}

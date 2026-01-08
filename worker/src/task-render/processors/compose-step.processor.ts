@@ -31,7 +31,9 @@ export class ComposeStepProcessor extends BaseStepProcessor<
   ): Promise<ComposeOutput> {
     const { timelineId, editList, clipMediaMap, outputSettings } = input;
 
-    this.logger.log(`Composing timeline ${timelineId} with ${editList.length} segments`);
+    this.logger.log(
+      `Composing timeline ${timelineId} with ${editList.length} segments`
+    );
 
     // Create temporary directory for output
     const tempDir = await this.storageService.createTempDir(job.data.taskId);

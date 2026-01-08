@@ -15,7 +15,10 @@ import { FileType, FileSource } from '@project/shared';
  * Generates a sprite sheet and creates File record
  */
 @Injectable()
-export class SpriteStepProcessor extends BaseStepProcessor<SpriteStepInput, SpriteStepOutput> {
+export class SpriteStepProcessor extends BaseStepProcessor<
+  SpriteStepInput,
+  SpriteStepOutput
+> {
   protected readonly logger = new Logger(SpriteStepProcessor.name);
 
   constructor(
@@ -26,7 +29,10 @@ export class SpriteStepProcessor extends BaseStepProcessor<SpriteStepInput, Spri
     super();
   }
 
-  async process(input: SpriteStepInput, _job: Job<StepJobData>): Promise<SpriteStepOutput> {
+  async process(
+    input: SpriteStepInput,
+    _job: Job<StepJobData>
+  ): Promise<SpriteStepOutput> {
     // Resolve file path
     const filePath = await FileResolver.resolveFilePath(
       input.uploadId,
@@ -49,7 +55,6 @@ export class SpriteStepProcessor extends BaseStepProcessor<SpriteStepInput, Spri
     const fileName = path.basename(spritePath);
     const storageKey = `uploads/${input.uploadId}/${FileType.SPRITE}/${fileName}`;
 
-
     const spriteFile = await this.pocketbaseService.createFileWithUpload({
       localFilePath: spritePath,
       fileName,
@@ -62,7 +67,9 @@ export class SpriteStepProcessor extends BaseStepProcessor<SpriteStepInput, Spri
     });
 
     // Update Media record
-    const media = await this.pocketbaseService.findMediaByUpload(input.uploadId);
+    const media = await this.pocketbaseService.findMediaByUpload(
+      input.uploadId
+    );
     if (media) {
       await this.pocketbaseService.updateMedia(media.id, {
         spriteFileRef: spriteFile.id,

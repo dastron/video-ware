@@ -48,16 +48,14 @@ export class VideoIntelligenceStepProcessor extends BaseStepProcessor<
   VideoIntelligenceStepInput,
   VideoIntelligenceStepOutput
 > {
-  protected readonly logger = new Logger(
-    VideoIntelligenceStepProcessor.name,
-  );
+  protected readonly logger = new Logger(VideoIntelligenceStepProcessor.name);
   private readonly processorVersion = 'video-intelligence:1.0.0';
 
   constructor(
     private readonly labelCacheService: LabelCacheService,
     private readonly videoIntelligenceExecutor: GoogleVideoIntelligenceExecutor,
     private readonly googleCloudService: GoogleCloudService,
-    private readonly storageService: StorageService,
+    private readonly storageService: StorageService
   ) {
     super();
   }
@@ -68,10 +66,10 @@ export class VideoIntelligenceStepProcessor extends BaseStepProcessor<
    */
   async process(
     input: VideoIntelligenceStepInput,
-    job: Job<StepJobData>,
+    job: Job<StepJobData>
   ): Promise<VideoIntelligenceStepOutput> {
     this.logger.log(
-      `Processing video intelligence for media ${input.mediaId}, version ${input.version}`,
+      `Processing video intelligence for media ${input.mediaId}, version ${input.version}`
     );
 
     try {
@@ -79,12 +77,15 @@ export class VideoIntelligenceStepProcessor extends BaseStepProcessor<
       const cached = await this.labelCacheService.getCachedLabels(
         input.mediaId,
         input.version,
-        ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
+        ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE
       );
 
-      if (cached && this.labelCacheService.isCacheValid(cached, this.processorVersion)) {
+      if (
+        cached &&
+        this.labelCacheService.isCacheValid(cached, this.processorVersion)
+      ) {
         this.logger.log(
-          `Using cached video intelligence for media ${input.mediaId}, version ${input.version}`,
+          `Using cached video intelligence for media ${input.mediaId}, version ${input.version}`
         );
 
         const response = cached.response as VideoIntelligenceResponse;
@@ -100,7 +101,7 @@ export class VideoIntelligenceStepProcessor extends BaseStepProcessor<
 
       // Cache miss or invalid - make API call
       this.logger.log(
-        `Cache miss or invalid for media ${input.mediaId}, calling Video Intelligence API`,
+        `Cache miss or invalid for media ${input.mediaId}, calling Video Intelligence API`
       );
 
       // Get deterministic GCS URI - upload step ensures file exists there
@@ -125,11 +126,11 @@ export class VideoIntelligenceStepProcessor extends BaseStepProcessor<
         ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
         response,
         this.processorVersion,
-        features,
+        features
       );
 
       this.logger.log(
-        `Video intelligence completed for media ${input.mediaId}, stored to cache`,
+        `Video intelligence completed for media ${input.mediaId}, stored to cache`
       );
 
       return {
@@ -144,7 +145,7 @@ export class VideoIntelligenceStepProcessor extends BaseStepProcessor<
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       this.logger.error(
-        `Video intelligence failed for media ${input.mediaId}: ${errorMessage}`,
+        `Video intelligence failed for media ${input.mediaId}: ${errorMessage}`
       );
       throw new Error(`Video intelligence analysis failed: ${errorMessage}`);
     }
@@ -187,8 +188,9 @@ export class VideoIntelligenceStepProcessor extends BaseStepProcessor<
       fileName
     );
 
-    const exists = await this.googleCloudService.checkGcsFileExists(expectedGcsUri);
-    
+    const exists =
+      await this.googleCloudService.checkGcsFileExists(expectedGcsUri);
+
     if (exists) {
       this.logger.log(`Found existing file in GCS: ${expectedGcsUri}`);
       return expectedGcsUri;
@@ -217,14 +219,14 @@ export class VideoIntelligenceStepProcessor extends BaseStepProcessor<
 
     // For local or S3 files, we need to upload to GCS
     this.logger.log(`Resolving local file path for: ${fileRef}`);
-    
+
     // Get local file path (downloads from S3 if needed)
     const localPath = await this.storageService.resolveFilePath({
       storagePath: fileRef,
     });
 
     this.logger.log(`Uploading local file to GCS: ${localPath}`);
-    
+
     // Upload to GCS temp bucket
     const gcsUri = await this.googleCloudService.uploadToGcsTempBucket(
       localPath,
@@ -250,7 +252,7 @@ export class VideoIntelligenceStepProcessor extends BaseStepProcessor<
     if (filePath.includes('s3://') || filePath.startsWith('/')) {
       throw new Error(
         'Video Intelligence requires GCS URI (gs://). ' +
-          'File must be uploaded to Google Cloud Storage before analysis.',
+          'File must be uploaded to Google Cloud Storage before analysis.'
       );
     }
 

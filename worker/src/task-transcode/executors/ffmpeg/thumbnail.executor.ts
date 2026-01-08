@@ -1,6 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { FFmpegService } from '../../../shared/services/ffmpeg.service';
-import type { IThumbnailExecutor, ThumbnailConfig, ThumbnailResult } from '../interfaces';
+import type {
+  IThumbnailExecutor,
+  ThumbnailConfig,
+  ThumbnailResult,
+} from '../interfaces';
 
 /**
  * FFmpeg implementation of the Thumbnail Executor
@@ -19,9 +23,9 @@ export class FFmpegThumbnailExecutor implements IThumbnailExecutor {
     duration: number
   ): Promise<ThumbnailResult> {
     const timestamp = this.calculateTimestamp(config.timestamp, duration);
-    
+
     this.logger.debug(`Generating thumbnail at ${timestamp}s: ${outputPath}`);
-    
+
     await this.ffmpegService.generateThumbnail(
       filePath,
       outputPath,
@@ -33,7 +37,10 @@ export class FFmpegThumbnailExecutor implements IThumbnailExecutor {
     return { outputPath };
   }
 
-  private calculateTimestamp(timestamp: number | 'midpoint', duration: number): number {
+  private calculateTimestamp(
+    timestamp: number | 'midpoint',
+    duration: number
+  ): number {
     let calculated = timestamp === 'midpoint' ? duration / 2 : timestamp;
     calculated = Math.max(0, Math.min(calculated, duration - 1));
     return calculated;

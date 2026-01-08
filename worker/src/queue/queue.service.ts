@@ -18,7 +18,7 @@ export class QueueService {
     @InjectQueue(QUEUE_NAMES.TRANSCODE) private transcodeQueue: Queue,
     @InjectQueue(QUEUE_NAMES.INTELLIGENCE) private intelligenceQueue: Queue,
     @InjectQueue(QUEUE_NAMES.RENDER) private renderQueue: Queue,
-    private readonly flowService: FlowService,
+    private readonly flowService: FlowService
   ) {}
 
   /**
@@ -27,11 +27,13 @@ export class QueueService {
    */
   async addTranscodeJob(task: Task) {
     this.logger.log(`Adding transcode job for task ${task.id}`);
-    
+
     // Create the transcode flow via FlowService
     const parentJobId = await this.flowService.createFlow(task);
-    this.logger.log(`Created transcode flow for task ${task.id}, parent job: ${parentJobId}`);
-    
+    this.logger.log(
+      `Created transcode flow for task ${task.id}, parent job: ${parentJobId}`
+    );
+
     return parentJobId;
   }
 
@@ -41,11 +43,13 @@ export class QueueService {
    */
   async addIntelligenceJob(task: Task) {
     this.logger.log(`Adding intelligence job for task ${task.id}`);
-    
+
     // Create the intelligence flow via FlowService
     const parentJobId = await this.flowService.createFlow(task);
-    this.logger.log(`Created intelligence flow for task ${task.id}, parent job: ${parentJobId}`);
-    
+    this.logger.log(
+      `Created intelligence flow for task ${task.id}, parent job: ${parentJobId}`
+    );
+
     return parentJobId;
   }
 
@@ -55,11 +59,13 @@ export class QueueService {
    */
   async addRenderJob(task: Task) {
     this.logger.log(`Adding render job for task ${task.id}`);
-    
+
     // Create the render flow via FlowService
     const parentJobId = await this.flowService.createFlow(task);
-    this.logger.log(`Created render flow for task ${task.id}, parent job: ${parentJobId}`);
-    
+    this.logger.log(
+      `Created render flow for task ${task.id}, parent job: ${parentJobId}`
+    );
+
     return parentJobId;
   }
 

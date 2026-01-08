@@ -11,14 +11,14 @@ export interface BoundingBox {
 /**
  * Selects up to 10 representative bounding box samples from a larger set
  * Uses temporal distribution to ensure samples are spread across the time range
- * 
+ *
  * @param frames - Array of bounding boxes with time offsets
  * @param maxSamples - Maximum number of samples to return (default: 10)
  * @returns Array of representative bounding box samples
  */
 export function sampleBoundingBoxes(
   frames: BoundingBox[],
-  maxSamples: number = 10,
+  maxSamples: number = 10
 ): BoundingBox[] {
   if (frames.length === 0) {
     return [];
@@ -46,7 +46,7 @@ export function sampleBoundingBoxes(
 
 /**
  * Alternative sampling strategy: select frames at specific time intervals
- * 
+ *
  * @param frames - Array of bounding boxes with time offsets
  * @param startTime - Start time in seconds
  * @param endTime - End time in seconds
@@ -57,7 +57,7 @@ export function sampleBoundingBoxesByTime(
   frames: BoundingBox[],
   startTime: number,
   endTime: number,
-  maxSamples: number = 10,
+  maxSamples: number = 10
 ): BoundingBox[] {
   if (frames.length === 0) {
     return [];
@@ -107,18 +107,18 @@ export function sampleBoundingBoxesByTime(
 
 /**
  * Validates that the number of samples does not exceed the maximum
- * 
+ *
  * @param samples - Array of bounding box samples
  * @param maxSamples - Maximum allowed samples (default: 10)
  * @throws Error if samples exceed maximum
  */
 export function validateSampleCount(
   samples: BoundingBox[],
-  maxSamples: number = 10,
+  maxSamples: number = 10
 ): void {
   if (samples.length > maxSamples) {
     throw new Error(
-      `Sample count (${samples.length}) exceeds maximum (${maxSamples})`,
+      `Sample count (${samples.length}) exceeds maximum (${maxSamples})`
     );
   }
 }

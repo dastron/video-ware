@@ -14,7 +14,10 @@ import { MediaType, type MediaInput, type ProbeOutput } from '@project/shared';
  * Extracts metadata from the uploaded media file and creates Media record
  */
 @Injectable()
-export class ProbeStepProcessor extends BaseStepProcessor<ProbeStepInput, ProbeStepOutput> {
+export class ProbeStepProcessor extends BaseStepProcessor<
+  ProbeStepInput,
+  ProbeStepOutput
+> {
   protected readonly logger = new Logger(ProbeStepProcessor.name);
 
   constructor(
@@ -25,7 +28,10 @@ export class ProbeStepProcessor extends BaseStepProcessor<ProbeStepInput, ProbeS
     super();
   }
 
-  async process(input: ProbeStepInput, _job: Job<StepJobData>): Promise<ProbeStepOutput> {
+  async process(
+    input: ProbeStepInput,
+    _job: Job<StepJobData>
+  ): Promise<ProbeStepOutput> {
     // Resolve file path
     const filePath = await FileResolver.resolveFilePath(
       input.uploadId,
@@ -57,7 +63,6 @@ export class ProbeStepProcessor extends BaseStepProcessor<ProbeStepInput, ProbeS
 
     return { probeOutput, mediaId: media.id };
   }
-
 
   private determineMediaType(probeOutput: ProbeOutput): MediaType {
     if (probeOutput.video && probeOutput.width > 0 && probeOutput.height > 0) {

@@ -2,7 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { BaseStepProcessor } from '../../queue/processors/base-step.processor';
 import type { StepJobData } from '../../queue/types/job.types';
-import type { ResolveClipsStepInput, ResolveClipsOutput } from '../executors/interfaces';
+import type {
+  ResolveClipsStepInput,
+  ResolveClipsOutput,
+} from '../executors/interfaces';
 import { FFmpegResolveClipsExecutor } from '../executors';
 
 /**
@@ -31,9 +34,14 @@ export class ResolveClipsStepProcessor extends BaseStepProcessor<
     this.logger.log(`Resolving clips for timeline ${timelineId}`);
 
     // Delegate to executor
-    const result = await this.resolveClipsExecutor.execute(timelineId, editList);
+    const result = await this.resolveClipsExecutor.execute(
+      timelineId,
+      editList
+    );
 
-    this.logger.log(`Resolved ${Object.keys(result.clipMediaMap).length} clips`);
+    this.logger.log(
+      `Resolved ${Object.keys(result.clipMediaMap).length} clips`
+    );
     return result;
   }
 }

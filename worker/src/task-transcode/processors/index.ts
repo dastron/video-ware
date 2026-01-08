@@ -1,9 +1,9 @@
 /**
  * Transcode Processors
- * 
+ *
  * Step processors for the transcode queue.
  * Each processor handles a specific step in the media processing pipeline.
- * 
+ *
  * Architecture:
  * - Processors orchestrate the step execution
  * - Executors perform the actual media operations

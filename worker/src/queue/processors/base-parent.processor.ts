@@ -12,7 +12,7 @@ import type {
 /**
  * Abstract base class for parent processors
  * Provides common functionality for task status updates and event handling
- * 
+ *
  * Subclasses must implement:
  * - processParentJob: Orchestrate child steps and determine success/failure
  * - processStepJob: Dispatch to appropriate step processor
@@ -77,7 +77,7 @@ export abstract class BaseParentProcessor extends WorkerHost {
   @OnWorkerEvent('completed')
   async onCompleted(job: Job) {
     this.logger.log(`Job ${job.id} (${job.name}) completed`);
-    
+
     // Update task status when parent job completes successfully
     if (job.name === 'parent') {
       const parentData = job.data as ParentJobData;

@@ -2,7 +2,11 @@
  * Executor interfaces and step input/output types for render operations
  */
 
-import type { ProbeOutput, RenderTimelinePayload, Media } from '@project/shared';
+import type {
+  ProbeOutput,
+  RenderTimelinePayload,
+  Media,
+} from '@project/shared';
 
 // ============================================================================
 // Step Input Types
@@ -183,8 +187,5 @@ export interface IComposeExecutor {
  * Executor for uploading rendered files to storage
  */
 export interface IUploadExecutor {
-  execute(
-    outputPath: string,
-    storagePath: string
-  ): Promise<UploadResult>;
+  execute(outputPath: string, storagePath: string): Promise<UploadResult>;
 }

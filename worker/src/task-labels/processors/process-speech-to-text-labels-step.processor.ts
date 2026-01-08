@@ -37,13 +37,13 @@ export class ProcessSpeechToTextLabelsStepProcessor extends BaseStepProcessor<
   ProcessSpeechToTextLabelsStepOutput
 > {
   protected readonly logger = new Logger(
-    ProcessSpeechToTextLabelsStepProcessor.name,
+    ProcessSpeechToTextLabelsStepProcessor.name
   );
 
   constructor(
     private readonly labelNormalizerService: LabelNormalizerService,
     private readonly labelCacheService: LabelCacheService,
-    private readonly pocketbaseService: PocketBaseService,
+    private readonly pocketbaseService: PocketBaseService
   ) {
     super();
   }
@@ -54,10 +54,10 @@ export class ProcessSpeechToTextLabelsStepProcessor extends BaseStepProcessor<
    */
   async process(
     input: ProcessSpeechToTextLabelsStepInput,
-    job: Job<StepJobData>,
+    job: Job<StepJobData>
   ): Promise<ProcessSpeechToTextLabelsStepOutput> {
     this.logger.log(
-      `Processing speech-to-text labels for media ${input.mediaId}, version ${input.version}`,
+      `Processing speech-to-text labels for media ${input.mediaId}, version ${input.version}`
     );
 
     try {
@@ -65,18 +65,18 @@ export class ProcessSpeechToTextLabelsStepProcessor extends BaseStepProcessor<
       const cache = await this.labelCacheService.getCachedLabels(
         input.mediaId,
         input.version,
-        ProcessingProvider.GOOGLE_SPEECH,
+        ProcessingProvider.GOOGLE_SPEECH
       );
 
       if (!cache) {
         throw new Error(
-          `No speech-to-text cache found for media ${input.mediaId}, version ${input.version}`,
+          `No speech-to-text cache found for media ${input.mediaId}, version ${input.version}`
         );
       }
 
       // Normalize to label clips
       this.logger.log(
-        `Normalizing speech-to-text results for media ${input.mediaId}`,
+        `Normalizing speech-to-text results for media ${input.mediaId}`
       );
 
       const normalizedResult =
@@ -89,7 +89,7 @@ export class ProcessSpeechToTextLabelsStepProcessor extends BaseStepProcessor<
         });
 
       this.logger.log(
-        `Normalized ${normalizedResult.labelClips.length} speech segments`,
+        `Normalized ${normalizedResult.labelClips.length} speech segments`
       );
 
       // // Write to database
@@ -187,10 +187,10 @@ export class ProcessSpeechToTextLabelsStepProcessor extends BaseStepProcessor<
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       this.logger.error(
-        `Failed to process speech-to-text labels for media ${input.mediaId}: ${errorMessage}`,
+        `Failed to process speech-to-text labels for media ${input.mediaId}: ${errorMessage}`
       );
       throw new Error(
-        `Speech-to-text label processing failed: ${errorMessage}`,
+        `Speech-to-text label processing failed: ${errorMessage}`
       );
     }
   }

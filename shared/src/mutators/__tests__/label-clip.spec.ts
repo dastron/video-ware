@@ -118,7 +118,8 @@ describe('LabelClipMutator', () => {
         1,
         50,
         expect.objectContaining({
-          filter: 'labelType = "speech"&&confidence >= 0.9&&MediaRef = "media123"',
+          filter:
+            'labelType = "speech"&&confidence >= 0.9&&MediaRef = "media123"',
           sort: 'start',
         })
       );

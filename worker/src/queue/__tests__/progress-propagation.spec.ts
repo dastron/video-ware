@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  TranscodeStepType,
-  RenderStepType,
-} from '../types/step.types';
+import { TranscodeStepType, RenderStepType } from '../types/step.types';
 import type { StepType } from '../types/step.types';
 import * as fc from 'fast-check';
 
@@ -92,7 +89,7 @@ describe('Property 11: Progress Propagation', () => {
             TranscodeStepType.TRANSCODE,
             RenderStepType.RESOLVE_CLIPS,
             RenderStepType.COMPOSE,
-            RenderStepType.UPLOAD,
+            RenderStepType.UPLOAD
           ),
           progress: fc.integer({ min: 0, max: 100 }),
         }),
@@ -279,7 +276,7 @@ describe('Property 11: Progress Propagation', () => {
             TranscodeStepType.THUMBNAIL,
             TranscodeStepType.SPRITE,
             RenderStepType.RESOLVE_CLIPS,
-            RenderStepType.COMPOSE,
+            RenderStepType.COMPOSE
           ),
           progress: fc.integer({ min: 0, max: 100 }),
         }),

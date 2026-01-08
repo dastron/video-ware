@@ -86,10 +86,16 @@ describe('Property 6: Failure Isolation', () => {
                 height: fc.option(fc.integer({ min: 1, max: 2160 })),
               }),
               startedAt: fc
-                .integer({ min: Date.parse('2020-01-01'), max: Date.parse('2030-12-31') })
+                .integer({
+                  min: Date.parse('2020-01-01'),
+                  max: Date.parse('2030-12-31'),
+                })
                 .map((timestamp) => new Date(timestamp).toISOString()),
               completedAt: fc
-                .integer({ min: Date.parse('2020-01-01'), max: Date.parse('2030-12-31') })
+                .integer({
+                  min: Date.parse('2020-01-01'),
+                  max: Date.parse('2030-12-31'),
+                })
                 .map((timestamp) => new Date(timestamp).toISOString()),
             }),
             { minLength: 1, maxLength: 4 }
