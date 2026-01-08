@@ -3,15 +3,10 @@
  * Builds BullMQ flow definitions for label detection operations
  */
 
-import type {
-  Task,
-  DetectLabelsPayload,
-  ProcessingProvider,
-} from '@project/shared';
+import type { Task, DetectLabelsPayload } from '@project/shared';
 import { DetectLabelsStepType } from '../types/step.types';
 import { getStepJobOptions } from '../config/step-options';
 import { QUEUE_NAMES } from '../queue.constants';
-import { getLabelCachePath } from '../../task-labels/utils/cache-keys';
 import type { LabelsFlowDefinition } from './types';
 
 export class LabelsFlowBuilder {
@@ -19,14 +14,19 @@ export class LabelsFlowBuilder {
    * Build a detect_labels flow definition for DETECT_LABELS tasks
    * Builds a parent-child job hierarchy:
    * 1. UPLOAD_TO_GCS (runs first, uploads file to GCS)
-   * 2. VIDEO_INTELLIGENCE → PROCESS_VIDEO_INTELLIGENCE_LABELS (parallel branch)
-   * 3. SPEECH_TO_TEXT → PROCESS_SPEECH_TO_TEXT_LABELS (parallel branch)
+   * 2. Five new GCVI processors run in parallel (after UPLOAD_TO_GCS):
+   *    - LABEL_DETECTION (labels + shot changes)
+   *    - OBJECT_TRACKING (tracked objects with keyframes)
+   *    - FACE_DETECTION (tracked faces with attributes)
+   *    - PERSON_DETECTION (tracked persons with landmarks)
+   *    - SPEECH_TRANSCRIPTION (speech-to-text)
    *
-   * Each extraction step processes and writes its own data independently
+   * Each processor processes and writes its own data independently.
+   * Legacy processors (VIDEO_INTELLIGENCE, SPEECH_TO_TEXT) are kept for backward compatibility.
    */
   static buildFlow(task: Task): LabelsFlowDefinition {
     const payload = task.payload as DetectLabelsPayload;
-    const { mediaId, fileRef, config } = payload;
+    const { mediaId, fileRef } = payload;
 
     // Build base job data
     const baseJobData = {
@@ -38,7 +38,9 @@ export class LabelsFlowBuilder {
     // Get current version from Media record (will be incremented on success)
     // For now, we'll use version 1 as default - the actual version should come from payload
     const version = 1;
-    const processorVersion = 'detect-labels:1.0.0';
+
+    // Processors will resolve gcsUri themselves using getTempGcsUri(workspaceId, mediaId)
+    // The upload step uses a deterministic temp path, so processors can compute it
 
     // Create parent job with children
     const flow: LabelsFlowDefinition = {
@@ -65,6 +67,7 @@ export class LabelsFlowBuilder {
         input: {
           type: 'upload_to_gcs',
           mediaId,
+          workspaceRef: task.WorkspaceRef,
           fileRef,
         },
       },
@@ -77,43 +80,30 @@ export class LabelsFlowBuilder {
       },
     });
 
-    // VIDEO_INTELLIGENCE step (depends on UPLOAD_TO_GCS)
-    const videoIntelligenceOptions = getStepJobOptions(
-      DetectLabelsStepType.VIDEO_INTELLIGENCE
-    );
-    const videoCacheKey = getLabelCachePath(
-      mediaId,
-      version,
-      'google_video_intelligence' as ProcessingProvider
+    // LABEL_DETECTION step (depends on UPLOAD_TO_GCS)
+    const labelDetectionOptions = getStepJobOptions(
+      DetectLabelsStepType.LABEL_DETECTION
     );
 
     flow.children.push({
-      name: DetectLabelsStepType.VIDEO_INTELLIGENCE,
+      name: DetectLabelsStepType.LABEL_DETECTION,
       queueName: QUEUE_NAMES.LABELS,
       data: {
         ...baseJobData,
-        stepType: DetectLabelsStepType.VIDEO_INTELLIGENCE,
+        stepType: DetectLabelsStepType.LABEL_DETECTION,
         parentJobId: '',
         input: {
-          type: 'video_intelligence',
           mediaId,
-          fileRef,
-          provider: 'google_video_intelligence' as ProcessingProvider,
-          config: {
-            detectLabels: config.detectLabels !== false,
-            detectObjects: config.detectObjects !== false,
-            confidenceThreshold: config.confidenceThreshold || 0.5,
-          },
-          cacheKey: videoCacheKey,
+          workspaceRef: task.WorkspaceRef,
+          taskRef: task.id,
           version,
-          processor: processorVersion,
         },
       },
       opts: {
-        attempts: videoIntelligenceOptions.attempts,
+        attempts: labelDetectionOptions.attempts,
         backoff: {
           type: 'exponential',
-          delay: videoIntelligenceOptions.backoff,
+          delay: labelDetectionOptions.backoff,
         },
       },
       children: [
@@ -124,38 +114,30 @@ export class LabelsFlowBuilder {
       ],
     });
 
-    // SPEECH_TO_TEXT step (depends on UPLOAD_TO_GCS)
-    const speechToTextOptions = getStepJobOptions(
-      DetectLabelsStepType.SPEECH_TO_TEXT
-    );
-    const speechCacheKey = getLabelCachePath(
-      mediaId,
-      version,
-      'google_speech' as ProcessingProvider
+    // OBJECT_TRACKING step (depends on UPLOAD_TO_GCS)
+    const objectTrackingOptions = getStepJobOptions(
+      DetectLabelsStepType.OBJECT_TRACKING
     );
 
     flow.children.push({
-      name: DetectLabelsStepType.SPEECH_TO_TEXT,
+      name: DetectLabelsStepType.OBJECT_TRACKING,
       queueName: QUEUE_NAMES.LABELS,
       data: {
         ...baseJobData,
-        stepType: DetectLabelsStepType.SPEECH_TO_TEXT,
+        stepType: DetectLabelsStepType.OBJECT_TRACKING,
         parentJobId: '',
         input: {
-          type: 'speech_to_text',
           mediaId,
-          fileRef,
-          provider: 'google_speech' as ProcessingProvider,
-          cacheKey: speechCacheKey,
+          workspaceRef: task.WorkspaceRef,
+          taskRef: task.id,
           version,
-          processor: processorVersion,
         },
       },
       opts: {
-        attempts: speechToTextOptions.attempts,
+        attempts: objectTrackingOptions.attempts,
         backoff: {
           type: 'exponential',
-          delay: speechToTextOptions.backoff,
+          delay: objectTrackingOptions.backoff,
         },
       },
       children: [
@@ -166,73 +148,103 @@ export class LabelsFlowBuilder {
       ],
     });
 
-    // PROCESS_VIDEO_INTELLIGENCE_LABELS step (depends on VIDEO_INTELLIGENCE)
-    const processVideoLabelsOptions = getStepJobOptions(
-      DetectLabelsStepType.PROCESS_VIDEO_INTELLIGENCE_LABELS
+    // FACE_DETECTION step (depends on UPLOAD_TO_GCS)
+    const faceDetectionOptions = getStepJobOptions(
+      DetectLabelsStepType.FACE_DETECTION
     );
 
     flow.children.push({
-      name: DetectLabelsStepType.PROCESS_VIDEO_INTELLIGENCE_LABELS,
+      name: DetectLabelsStepType.FACE_DETECTION,
       queueName: QUEUE_NAMES.LABELS,
       data: {
         ...baseJobData,
-        stepType: DetectLabelsStepType.PROCESS_VIDEO_INTELLIGENCE_LABELS,
+        stepType: DetectLabelsStepType.FACE_DETECTION,
         parentJobId: '',
         input: {
-          type: 'process_video_intelligence_labels',
           mediaId,
           workspaceRef: task.WorkspaceRef,
           taskRef: task.id,
           version,
-          processor: processorVersion,
         },
       },
       opts: {
-        attempts: processVideoLabelsOptions.attempts,
+        attempts: faceDetectionOptions.attempts,
         backoff: {
           type: 'exponential',
-          delay: processVideoLabelsOptions.backoff,
+          delay: faceDetectionOptions.backoff,
         },
       },
       children: [
         {
-          name: DetectLabelsStepType.VIDEO_INTELLIGENCE,
+          name: DetectLabelsStepType.UPLOAD_TO_GCS,
           queueName: QUEUE_NAMES.LABELS,
         },
       ],
     });
 
-    // PROCESS_SPEECH_TO_TEXT_LABELS step (depends on SPEECH_TO_TEXT)
-    const processSpeechLabelsOptions = getStepJobOptions(
-      DetectLabelsStepType.PROCESS_SPEECH_TO_TEXT_LABELS
+    // PERSON_DETECTION step (depends on UPLOAD_TO_GCS)
+    const personDetectionOptions = getStepJobOptions(
+      DetectLabelsStepType.PERSON_DETECTION
     );
 
     flow.children.push({
-      name: DetectLabelsStepType.PROCESS_SPEECH_TO_TEXT_LABELS,
+      name: DetectLabelsStepType.PERSON_DETECTION,
       queueName: QUEUE_NAMES.LABELS,
       data: {
         ...baseJobData,
-        stepType: DetectLabelsStepType.PROCESS_SPEECH_TO_TEXT_LABELS,
+        stepType: DetectLabelsStepType.PERSON_DETECTION,
         parentJobId: '',
         input: {
-          type: 'process_speech_to_text_labels',
           mediaId,
           workspaceRef: task.WorkspaceRef,
           taskRef: task.id,
           version,
-          processor: processorVersion,
         },
       },
       opts: {
-        attempts: processSpeechLabelsOptions.attempts,
+        attempts: personDetectionOptions.attempts,
         backoff: {
           type: 'exponential',
-          delay: processSpeechLabelsOptions.backoff,
+          delay: personDetectionOptions.backoff,
         },
       },
       children: [
         {
-          name: DetectLabelsStepType.SPEECH_TO_TEXT,
+          name: DetectLabelsStepType.UPLOAD_TO_GCS,
+          queueName: QUEUE_NAMES.LABELS,
+        },
+      ],
+    });
+
+    // SPEECH_TRANSCRIPTION step (depends on UPLOAD_TO_GCS)
+    const speechTranscriptionOptions = getStepJobOptions(
+      DetectLabelsStepType.SPEECH_TRANSCRIPTION
+    );
+
+    flow.children.push({
+      name: DetectLabelsStepType.SPEECH_TRANSCRIPTION,
+      queueName: QUEUE_NAMES.LABELS,
+      data: {
+        ...baseJobData,
+        stepType: DetectLabelsStepType.SPEECH_TRANSCRIPTION,
+        parentJobId: '',
+        input: {
+          mediaId,
+          workspaceRef: task.WorkspaceRef,
+          taskRef: task.id,
+          version,
+        },
+      },
+      opts: {
+        attempts: speechTranscriptionOptions.attempts,
+        backoff: {
+          type: 'exponential',
+          delay: speechTranscriptionOptions.backoff,
+        },
+      },
+      children: [
+        {
+          name: DetectLabelsStepType.UPLOAD_TO_GCS,
           queueName: QUEUE_NAMES.LABELS,
         },
       ],

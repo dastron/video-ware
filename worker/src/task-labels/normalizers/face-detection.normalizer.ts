@@ -159,11 +159,9 @@ export class FaceDetectionNormalizer {
       ) {
         const clipHash = this.generateClipHash(
           mediaId,
-          LabelType.PERSON,
-          'Face',
           start,
           end,
-          version
+          LabelType.PERSON
         );
 
         labelClips.push({
@@ -315,17 +313,23 @@ export class FaceDetectionNormalizer {
 
   /**
    * Generate clip hash for deduplication
+   *
+   * Hash format: mediaId:start:end:labelType
+   * This ensures unique clips based on media, time range, and label type
+   *
+   * @param mediaId Media ID
+   * @param start Start time
+   * @param end End time
+   * @param labelType Label type
+   * @returns SHA-256 hash
    */
   private generateClipHash(
     mediaId: string,
-    labelType: LabelType,
-    label: string,
     start: number,
     end: number,
-    version: number
+    labelType: LabelType
   ): string {
-    const normalizedLabel = label.trim().toLowerCase();
-    const hashInput = `${mediaId}:${labelType}:${normalizedLabel}:${start.toFixed(3)}:${end.toFixed(3)}:${version}`;
+    const hashInput = `${mediaId}:${start.toFixed(3)}:${end.toFixed(3)}:${labelType}`;
     return createHash('sha256').update(hashInput).digest('hex');
   }
 }

@@ -148,11 +148,9 @@ export class ObjectTrackingNormalizer {
       ) {
         const clipHash = this.generateClipHash(
           mediaId,
-          LabelType.OBJECT,
-          obj.entity,
           start,
           end,
-          version
+          LabelType.OBJECT
         );
 
         labelClips.push({
@@ -230,17 +228,23 @@ export class ObjectTrackingNormalizer {
 
   /**
    * Generate clip hash for deduplication
+   *
+   * Hash format: mediaId:start:end:labelType
+   * This ensures unique clips based on media, time range, and label type
+   *
+   * @param mediaId Media ID
+   * @param start Start time
+   * @param end End time
+   * @param labelType Label type
+   * @returns SHA-256 hash
    */
   private generateClipHash(
     mediaId: string,
-    labelType: LabelType,
-    label: string,
     start: number,
     end: number,
-    version: number
+    labelType: LabelType
   ): string {
-    const normalizedLabel = label.trim().toLowerCase();
-    const hashInput = `${mediaId}:${labelType}:${normalizedLabel}:${start.toFixed(3)}:${end.toFixed(3)}:${version}`;
+    const hashInput = `${mediaId}:${start.toFixed(3)}:${end.toFixed(3)}:${labelType}`;
     return createHash('sha256').update(hashInput).digest('hex');
   }
 }

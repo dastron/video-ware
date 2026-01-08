@@ -39,16 +39,16 @@ export class LabelDetectionExecutor {
    * @returns Normalized label detection response
    */
   async execute(
-    gcsUri: string,
+    workspaceId: string,
+    mediaId: string,
     config: LabelDetectionConfig = {}
   ): Promise<LabelDetectionResponse> {
-    this.logger.log(`Executing label detection for: ${gcsUri}`);
+    this.logger.log(`Executing label detection for media ${mediaId}`);
+    const gcsUri = this.googleCloudService.getTempGcsUri(workspaceId, mediaId);
 
     try {
-      // Import the Video Intelligence client directly for fine-grained control
-      const { VideoIntelligenceServiceClient } =
-        await import('@google-cloud/video-intelligence');
-      const client = new VideoIntelligenceServiceClient();
+      // Use the authenticated client from GoogleCloudService
+      const client = this.googleCloudService.getVideoIntelligenceClient();
 
       // Map string mode to enum
       const modeMap = {
@@ -90,8 +90,18 @@ export class LabelDetectionExecutor {
       this.logger.log(`Label detection operation started: ${operation.name}`);
 
       // Wait for operation to complete
+      // Note: operation.promise() will throw if the operation fails (e.g., file not found)
       const [result] = await operation.promise();
 
+      // Validate that we got a valid result
+      if (!result) {
+        const errorMsg =
+          'Label detection operation completed but returned no result';
+        this.logger.error(errorMsg);
+        throw new Error(errorMsg);
+      }
+
+      // Validate annotation results exist
       if (!result.annotationResults || result.annotationResults.length === 0) {
         this.logger.warn('No annotation results returned from label detection');
         return {
@@ -157,7 +167,22 @@ export class LabelDetectionExecutor {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-      this.logger.error(`Label detection failed: ${errorMessage}`);
+
+      // Log additional context for debugging
+      this.logger.error(
+        `Label detection failed for media ${mediaId} (GCS URI: ${this.googleCloudService.getTempGcsUri(workspaceId, mediaId)}): ${errorMessage}`
+      );
+
+      // Check if it's a NOT_FOUND error (file doesn't exist in GCS)
+      if (
+        errorMessage.includes('NOT_FOUND') ||
+        errorMessage.includes('not found')
+      ) {
+        throw new Error(
+          `Label detection failed: GCS file not found. Please ensure the video file exists at the expected location. Original error: ${errorMessage}`
+        );
+      }
+
       throw new Error(`Label detection execution failed: ${errorMessage}`);
     }
   }

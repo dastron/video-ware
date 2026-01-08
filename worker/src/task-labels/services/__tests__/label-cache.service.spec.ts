@@ -33,12 +33,13 @@ describe('LabelCacheService', () => {
       const result = await service.getCachedLabels(
         'media123',
         1,
-        ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE
+        ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
+        'label-detection:1.0.0'
       );
 
       expect(result).toBeNull();
       expect(mockStorageService.exists).toHaveBeenCalledWith(
-        'labels/media123/v1/google_video_intelligence.json'
+        'labels/media123/v1/label-detection_google_video_intelligence.json'
       );
     });
 
@@ -76,12 +77,13 @@ describe('LabelCacheService', () => {
       const result = await service.getCachedLabels(
         'media123',
         1,
-        ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE
+        ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
+        'label-detection:1.0.0'
       );
 
       expect(result).toEqual(cacheData);
       expect(mockStorageService.download).toHaveBeenCalledWith(
-        'labels/media123/v1/google_video_intelligence.json'
+        'labels/media123/v1/label-detection_google_video_intelligence.json'
       );
     });
 
@@ -94,7 +96,8 @@ describe('LabelCacheService', () => {
       const result = await service.getCachedLabels(
         'media123',
         1,
-        ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE
+        ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
+        'label-detection:1.0.0'
       );
 
       expect(result).toBeNull();
@@ -136,7 +139,8 @@ describe('LabelCacheService', () => {
       const result = await service.getCachedLabels(
         'media123',
         1,
-        ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE
+        ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
+        'label-detection:1.0.0'
       );
 
       expect(result).toEqual(cacheData);
@@ -159,7 +163,7 @@ describe('LabelCacheService', () => {
       );
 
       expect(mockStorageService.upload).toHaveBeenCalledWith(
-        'labels/media123/v1/google_video_intelligence.json',
+        'labels/media123/v1/video-intelligence_google_video_intelligence.json',
         expect.any(Buffer)
       );
 

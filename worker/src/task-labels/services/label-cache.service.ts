@@ -21,14 +21,16 @@ export class LabelCacheService {
    * @param mediaId - Media record ID
    * @param version - Data version number
    * @param provider - Processing provider
+   * @param processorVersion - Processor version string (e.g., "label-detection:1.0.0")
    * @returns Cached label data if exists, null otherwise
    */
   async getCachedLabels(
     mediaId: string,
     version: number,
-    provider: ProcessingProvider
+    provider: ProcessingProvider,
+    processorVersion: string
   ): Promise<RawLabelCacheFile | null> {
-    const cachePath = getLabelCachePath(mediaId, version, provider);
+    const cachePath = getLabelCachePath(mediaId, version, provider, processorVersion);
 
     try {
       // Check if cache exists
@@ -95,7 +97,7 @@ export class LabelCacheService {
     processor: string,
     features: string[] = []
   ): Promise<void> {
-    const cachePath = getLabelCachePath(mediaId, version, provider);
+    const cachePath = getLabelCachePath(mediaId, version, provider, processor);
 
     try {
       const cacheFile: RawLabelCacheFile = {

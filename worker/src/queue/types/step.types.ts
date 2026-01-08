@@ -26,15 +26,6 @@ export enum DetectLabelsStepType {
   FACE_DETECTION = 'labels:face_detection',
   PERSON_DETECTION = 'labels:person_detection',
   SPEECH_TRANSCRIPTION = 'labels:speech_transcription',
-
-  // @deprecated Use LABEL_DETECTION instead
-  VIDEO_INTELLIGENCE = 'labels:video_intelligence',
-  // @deprecated Use LABEL_DETECTION normalizer instead
-  PROCESS_VIDEO_INTELLIGENCE_LABELS = 'labels:process_video_intelligence_labels',
-  // @deprecated Use SPEECH_TRANSCRIPTION instead
-  SPEECH_TO_TEXT = 'labels:speech_to_text',
-  // @deprecated Use SPEECH_TRANSCRIPTION normalizer instead
-  PROCESS_SPEECH_TO_TEXT_LABELS = 'labels:process_speech_to_text_labels',
 }
 
 /**

@@ -10,6 +10,7 @@ import { PocketBaseService } from '../../shared/services/pocketbase.service';
 import type { StepJobData } from '../../queue/types/job.types';
 import type { SpeechTranscriptionStepInput } from '../types/step-inputs';
 import type { SpeechTranscriptionStepOutput } from '../types/step-outputs';
+import type { LabelClipData } from '../types/normalizer-outputs';
 
 // Re-export types for parent processor
 export type { SpeechTranscriptionStepInput, SpeechTranscriptionStepOutput };
@@ -39,9 +40,6 @@ export class SpeechTranscriptionStepProcessor extends BaseStepProcessor<
   protected readonly logger = new Logger(SpeechTranscriptionStepProcessor.name);
   private readonly processorVersion = 'speech-transcription:1.0.0';
 
-  private labelClipMutator: any;
-  private labelMediaMutator: any;
-
   constructor(
     private readonly labelCacheService: LabelCacheService,
     private readonly labelEntityService: LabelEntityService,
@@ -50,24 +48,6 @@ export class SpeechTranscriptionStepProcessor extends BaseStepProcessor<
     private readonly pocketBaseService: PocketBaseService
   ) {
     super();
-  }
-
-  /**
-   * Initialize mutators after module initialization
-   */
-  async onModuleInit() {
-    const sharedModule = await (eval(`import('@project/shared')`) as Promise<
-      typeof import('@project/shared')
-    >);
-
-    this.labelClipMutator = new sharedModule.LabelClipMutator(
-      this.pocketBaseService.getClient()
-    );
-    this.labelMediaMutator = new sharedModule.MediaLabelMutator(
-      this.pocketBaseService.getClient()
-    );
-
-    this.logger.log('SpeechTranscriptionStepProcessor initialized');
   }
 
   /**
@@ -88,7 +68,8 @@ export class SpeechTranscriptionStepProcessor extends BaseStepProcessor<
       const cached = await this.labelCacheService.getCachedLabels(
         input.mediaId,
         input.version,
-        ProcessingProvider.GOOGLE_SPEECH
+        ProcessingProvider.GOOGLE_SPEECH,
+        this.processorVersion
       );
 
       let response: any;
@@ -110,7 +91,8 @@ export class SpeechTranscriptionStepProcessor extends BaseStepProcessor<
         );
 
         response = await this.speechTranscriptionExecutor.execute(
-          input.gcsUri,
+          input.workspaceRef,
+          input.mediaId,
           input.config
         );
 
@@ -143,26 +125,26 @@ export class SpeechTranscriptionStepProcessor extends BaseStepProcessor<
       );
 
       // Step 4: Batch insert LabelEntity records (for significant words/phrases)
-      const entityIds = await this.batchInsertLabelEntities(
-        normalizedData.labelEntities
-      );
-      this.logger.debug(
-        `Inserted ${entityIds.length} label entities for media ${input.mediaId}`
-      );
+      // const entityIds = await this.batchInsertLabelEntities(
+      //   normalizedData.labelEntities
+      // );
+      // this.logger.debug(
+      //   `Inserted ${entityIds.length} label entities for media ${input.mediaId}`
+      // );
 
       // Step 5: Batch insert LabelClip records (for speech segments)
-      const clipIds = await this.batchInsertLabelClips(
-        normalizedData.labelClips
-      );
-      this.logger.debug(
-        `Inserted ${clipIds.length} label clips for media ${input.mediaId}`
-      );
+      // const clipIds = await this.batchInsertLabelClips(
+      //   normalizedData.labelClips
+      // );
+      // this.logger.debug(
+      //   `Inserted ${clipIds.length} label clips for media ${input.mediaId}`
+      // );
 
       // Step 6: Update LabelMedia with aggregated data (transcript, word counts)
-      await this.updateLabelMedia(
-        input.mediaId,
-        normalizedData.labelMediaUpdate
-      );
+      // await this.updateLabelMedia(
+      //   input.mediaId,
+      //   normalizedData.labelMediaUpdate
+      // );
       this.logger.debug(`Updated LabelMedia for media ${input.mediaId}`);
 
       // Clear entity cache after processing
@@ -179,9 +161,9 @@ export class SpeechTranscriptionStepProcessor extends BaseStepProcessor<
           transcriptLength:
             normalizedData.labelMediaUpdate.transcriptLength || 0,
           wordCount: normalizedData.labelMediaUpdate.wordCount || 0,
-          labelEntityCount: entityIds.length,
+          labelEntityCount: 0,
           labelTrackCount: 0, // Speech transcription doesn't create tracks
-          labelClipCount: clipIds.length,
+          labelClipCount: 0,
         },
       };
     } catch (error) {
@@ -242,32 +224,188 @@ export class SpeechTranscriptionStepProcessor extends BaseStepProcessor<
   /**
    * Batch insert LabelClip records
    * Inserts in batches of 100 for performance
+   * Handles duplicate labelHash by checking for existing records first
+   * Filters out invalid clips before insertion
    */
-  private async batchInsertLabelClips(clips: Array<any>): Promise<string[]> {
+  private async batchInsertLabelClips(clips: Array<LabelClipData>): Promise<string[]> {
+    // Filter out invalid clips before processing
+    const validClips = clips.filter((clip) => this.isValidLabelClip(clip));
+
+    if (validClips.length < clips.length) {
+      this.logger.warn(
+        `Filtered out ${clips.length - validClips.length} invalid label clips`
+      );
+    }
+
     const clipIds: string[] = [];
     const batchSize = 100;
 
-    for (let i = 0; i < clips.length; i += batchSize) {
-      const batch = clips.slice(i, i + batchSize);
+    for (let i = 0; i < validClips.length; i += batchSize) {
+      const batch = validClips.slice(i, i + batchSize);
+      let insertedCount = 0;
+      let skippedCount = 0;
+      let errorCount = 0;
 
       for (const clip of batch) {
         try {
-          const created = await this.labelClipMutator.create(clip);
-          clipIds.push(created.id);
-        } catch (error) {
-          // Log error but continue with other clips
-          this.logger.warn(
-            `Failed to insert label clip: ${error instanceof Error ? error.message : String(error)}`
+          // Check if a clip with this labelHash already exists
+          const existing = await this.pocketBaseService.labelClipMutator.getList(
+            1,
+            1,
+            `labelHash = "${clip.labelHash}"`
           );
+
+          if (existing.items.length > 0) {
+            // Clip already exists, use existing ID
+            clipIds.push(existing.items[0].id);
+            skippedCount++;
+            this.logger.debug(
+              `Skipped duplicate label clip with hash ${clip.labelHash}`
+            );
+          } else {
+            // Clip doesn't exist, create it
+            const created = await this.pocketBaseService.labelClipMutator.create({
+              ...clip,
+              provider: clip.provider as ProcessingProvider.GOOGLE_SPEECH,
+            });
+            clipIds.push(created.id);
+            insertedCount++;
+          }
+        } catch (error) {
+          // Check if this is a unique constraint error (race condition)
+          if (this.isUniqueConstraintError(error)) {
+            // Try to fetch the existing record
+            try {
+              const existing =
+                await this.pocketBaseService.labelClipMutator.getList(
+                  1,
+                  1,
+                  `labelHash = "${clip.labelHash}"`
+                );
+              if (existing.items.length > 0) {
+                clipIds.push(existing.items[0].id);
+                skippedCount++;
+                this.logger.debug(
+                  `Resolved duplicate label clip with hash ${clip.labelHash} (race condition)`
+                );
+              } else {
+                // Shouldn't happen, but log it
+                this.logger.warn(
+                  `Unique constraint error for labelHash ${clip.labelHash} but record not found`
+                );
+                errorCount++;
+              }
+            } catch (fetchError) {
+              this.logger.error(
+                `Failed to fetch existing label clip after unique constraint error: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`
+              );
+              errorCount++;
+            }
+          } else {
+            // Some other error occurred
+            this.logger.error(
+              `Failed to insert label clip: ${error instanceof Error ? error.message : String(error)}`
+            );
+            errorCount++;
+          }
         }
       }
 
       this.logger.debug(
-        `Inserted batch ${Math.floor(i / batchSize) + 1}: ${batch.length} clips`
+        `Batch ${Math.floor(i / batchSize) + 1}: Inserted ${insertedCount}, skipped ${skippedCount} duplicate clips, ${errorCount} errors`
       );
     }
 
     return clipIds;
+  }
+
+  /**
+   * Check if a label clip is valid before insertion
+   *
+   * @param clip The clip to validate
+   * @returns True if the clip is valid
+   */
+  private isValidLabelClip(clip: LabelClipData): boolean {
+    // Check required fields
+    if (!clip.labelHash || clip.labelHash.trim().length === 0) {
+      return false;
+    }
+    if (!clip.WorkspaceRef || clip.WorkspaceRef.trim().length === 0) {
+      return false;
+    }
+    if (!clip.MediaRef || clip.MediaRef.trim().length === 0) {
+      return false;
+    }
+
+    // Check time values
+    if (
+      typeof clip.start !== 'number' ||
+      clip.start < 0 ||
+      !Number.isFinite(clip.start)
+    ) {
+      return false;
+    }
+    if (
+      typeof clip.end !== 'number' ||
+      clip.end < 0 ||
+      !Number.isFinite(clip.end)
+    ) {
+      return false;
+    }
+
+    // End must be greater than start
+    if (clip.end <= clip.start) {
+      return false;
+    }
+
+    // Check duration (should be positive and match end - start)
+    if (
+      typeof clip.duration !== 'number' ||
+      clip.duration <= 0 ||
+      !Number.isFinite(clip.duration)
+    ) {
+      return false;
+    }
+
+    // Check confidence (must be between 0 and 1)
+    if (
+      typeof clip.confidence !== 'number' ||
+      clip.confidence < 0 ||
+      clip.confidence > 1 ||
+      !Number.isFinite(clip.confidence)
+    ) {
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Check if an error is a unique constraint violation
+   *
+   * @param error The error to check
+   * @returns True if the error is a unique constraint violation
+   */
+  private isUniqueConstraintError(error: unknown): boolean {
+    if (!error) return false;
+
+    // Check for PocketBase error structure
+    if (typeof error === 'object' && 'data' in error) {
+      const data = (error as { data?: { labelHash?: { code?: string } } })
+        .data;
+      if (data?.labelHash?.code === 'validation_not_unique') {
+        return true;
+      }
+    }
+
+    // Check error message
+    const message = error instanceof Error ? error.message : String(error);
+    return (
+      message.includes('unique constraint') ||
+      message.includes('UNIQUE constraint') ||
+      message.includes('validation_not_unique') ||
+      message.includes('labelHash')
+    );
   }
 
   /**
@@ -279,7 +417,7 @@ export class SpeechTranscriptionStepProcessor extends BaseStepProcessor<
   ): Promise<void> {
     try {
       // Try to get existing LabelMedia record
-      const existing = await this.labelMediaMutator.getList(
+      const existing = await this.pocketBaseService.labelMediaMutator.getList(
         1,
         1,
         `MediaRef = "${mediaId}"`
@@ -287,10 +425,10 @@ export class SpeechTranscriptionStepProcessor extends BaseStepProcessor<
 
       if (existing.items.length > 0) {
         // Update existing record
-        await this.labelMediaMutator.update(existing.items[0].id, update);
+        await this.pocketBaseService.labelMediaMutator.update(existing.items[0].id, update);
       } else {
         // Create new record
-        await this.labelMediaMutator.create({
+        await this.pocketBaseService.labelMediaMutator.create({
           MediaRef: mediaId,
           ...update,
         });

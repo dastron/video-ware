@@ -99,6 +99,8 @@ RUN mkdir -p /app/pb/pb_migrations
 FROM base AS runner
 WORKDIR /app
 
+# Set default log level to warn (only warnings and errors)
+ENV LOG_LEVEL=warn
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
@@ -114,7 +116,9 @@ ENV POCKETBASE_URL="http://localhost:8090"
 ENV REDIS_URL=""
 
 # Install supervisor, nginx, curl, and ffmpeg for worker processing
-RUN apk add --no-cache supervisor nginx curl ffmpeg
+# Using --no-cache and cleaning apk cache reduces image size
+RUN apk add --no-cache supervisor nginx curl ffmpeg && \
+    rm -rf /var/cache/apk/*
 
 # Install Yarn v4
 RUN corepack enable && corepack prepare yarn@4.12.0 --activate
@@ -199,6 +203,10 @@ ENV HOSTNAME="0.0.0.0"
 # SIGTERM is the standard signal for graceful shutdown
 # Supervisord will propagate this to all managed processes
 STOPSIGNAL SIGTERM
+
+# Health check to ensure all services are running
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD curl -f http://localhost/health || exit 1
 
 # Run as root initially to start supervisor (which will manage processes as appropriate users)
 CMD ["/app/start.sh"]

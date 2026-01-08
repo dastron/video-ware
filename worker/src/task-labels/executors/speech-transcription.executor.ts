@@ -1,7 +1,7 @@
 /**
  * Speech Transcription Executor
  *
- * Executes Google Cloud Speech-to-Text API calls for SPEECH_TRANSCRIPTION feature.
+ * Executes Google Cloud Video Intelligence API calls for SPEECH_TRANSCRIPTION feature.
  * This is a pure strategy implementation with no database operations.
  */
 
@@ -11,7 +11,7 @@ import type {
   SpeechTranscriptionResponse,
   TranscribedWord,
 } from '../types/executor-responses';
-import { SpeechClient } from '@google-cloud/speech';
+import { protos } from '@google-cloud/video-intelligence';
 
 /**
  * Configuration for speech transcription
@@ -19,9 +19,9 @@ import { SpeechClient } from '@google-cloud/speech';
 export interface SpeechTranscriptionConfig {
   languageCode?: string; // default: 'en-US'
   enableAutomaticPunctuation?: boolean; // default: true
-  enableWordTimeOffsets?: boolean; // default: true
-  model?: string; // default: 'video' (optimized for video audio)
-  useEnhanced?: boolean; // default: true
+  enableSpeakerDiarization?: boolean; // default: false
+  diarizationSpeakerCount?: number; // required if enableSpeakerDiarization is true
+  maxAlternatives?: number; // default: 1
 }
 
 /**
@@ -34,33 +34,49 @@ export class SpeechTranscriptionExecutor {
   constructor(private readonly googleCloudService: GoogleCloudService) {}
 
   /**
-   * Execute speech transcription on an audio/video file
+   * Execute speech transcription on a video file using Video Intelligence API
    *
-   * @param gcsUri - GCS URI of the audio/video file (gs://bucket/path)
+   * @param gcsUri - GCS URI of the video file (gs://bucket/path)
    * @param config - Speech transcription configuration
    * @returns Normalized speech transcription response
    */
   async execute(
-    gcsUri: string,
+    workspaceId: string,
+    mediaId: string,
     config: SpeechTranscriptionConfig = {}
   ): Promise<SpeechTranscriptionResponse> {
-    this.logger.log(`Executing speech transcription for: ${gcsUri}`);
+    this.logger.log(`Executing speech transcription for media ${mediaId}`);
+    const gcsUri = this.googleCloudService.getTempGcsUri(workspaceId, mediaId);
 
     try {
-      // Create Speech client
-      const client = new SpeechClient();
+      // Use the authenticated Video Intelligence client from GoogleCloudService
+      const client = this.googleCloudService.getVideoIntelligenceClient();
+
+      // Build speech transcription config
+      const speechTranscriptionConfig: protos.google.cloud.videointelligence.v1.ISpeechTranscriptionConfig =
+        {
+          languageCode: config.languageCode || 'en-US',
+          enableAutomaticPunctuation: config.enableAutomaticPunctuation ?? true,
+          maxAlternatives: config.maxAlternatives || 1,
+        };
+
+      // Add speaker diarization if enabled
+      if (config.enableSpeakerDiarization) {
+        speechTranscriptionConfig.enableSpeakerDiarization = true;
+        if (config.diarizationSpeakerCount) {
+          speechTranscriptionConfig.diarizationSpeakerCount =
+            config.diarizationSpeakerCount;
+        }
+      }
 
       // Build request
       const request = {
-        audio: {
-          uri: gcsUri,
-        },
-        config: {
-          languageCode: config.languageCode || 'en-US',
-          enableWordTimeOffsets: config.enableWordTimeOffsets ?? true,
-          enableAutomaticPunctuation: config.enableAutomaticPunctuation ?? true,
-          model: config.model || 'video', // Optimized for video audio quality
-          useEnhanced: config.useEnhanced ?? true,
+        inputUri: gcsUri,
+        features: [
+          protos.google.cloud.videointelligence.v1.Feature.SPEECH_TRANSCRIPTION,
+        ],
+        videoContext: {
+          speechTranscriptionConfig: speechTranscriptionConfig,
         },
       };
 
@@ -68,37 +84,60 @@ export class SpeechTranscriptionExecutor {
         `Speech transcription request: ${JSON.stringify({
           gcsUri,
           languageCode: config.languageCode || 'en-US',
-          model: config.model || 'video',
+          enableAutomaticPunctuation: config.enableAutomaticPunctuation ?? true,
+          enableSpeakerDiarization: config.enableSpeakerDiarization ?? false,
         })}`
       );
 
-      // Execute API call (long-running operation)
-      const [operation] = await client.longRunningRecognize(request);
+      // Execute API call
+      const [operation] = await client.annotateVideo(request);
       this.logger.log(
         `Speech transcription operation started: ${operation.name}`
       );
 
       // Wait for operation to complete
-      const [response] = await operation.promise();
+      const [result] = await operation.promise();
 
-      if (!response.results || response.results.length === 0) {
-        this.logger.warn('No speech transcription results returned');
-        return {
-          transcript: '',
-          confidence: 0,
-          words: [],
-          languageCode: config.languageCode || 'en-US',
-        };
+      // Validate that we got a valid result
+      if (!result) {
+        const errorMsg =
+          'Speech transcription operation completed but returned no result';
+        this.logger.error(errorMsg);
+        throw new Error(errorMsg);
       }
 
-      // Combine all results
+      // Validate annotation results exist
+      if (!result.annotationResults || result.annotationResults.length === 0) {
+        const errorMsg =
+          'Speech transcription operation completed but returned no annotation results';
+        this.logger.error(errorMsg);
+        throw new Error(errorMsg);
+      }
+
+      const annotation = result.annotationResults[0];
+
+      // Validate speech transcriptions exist
+      if (
+        !annotation.speechTranscriptions ||
+        annotation.speechTranscriptions.length === 0
+      ) {
+        const errorMsg =
+          'Speech transcription operation completed but returned no speech transcriptions';
+        this.logger.error(errorMsg);
+        throw new Error(errorMsg);
+      }
+
+      // Combine all transcriptions (usually there's one, but we handle multiple)
       let fullTranscript = '';
       let totalConfidence = 0;
       const allWords: TranscribedWord[] = [];
 
-      for (const result of response.results) {
-        if (result.alternatives && result.alternatives.length > 0) {
-          const alternative = result.alternatives[0];
+      for (const speechTranscription of annotation.speechTranscriptions) {
+        if (
+          speechTranscription.alternatives &&
+          speechTranscription.alternatives.length > 0
+        ) {
+          const alternative = speechTranscription.alternatives[0];
           fullTranscript += alternative.transcript + ' ';
           totalConfidence += alternative.confidence || 0;
 
@@ -117,8 +156,8 @@ export class SpeechTranscriptionExecutor {
       }
 
       const avgConfidence =
-        response.results.length > 0
-          ? totalConfidence / response.results.length
+        annotation.speechTranscriptions.length > 0
+          ? totalConfidence / annotation.speechTranscriptions.length
           : 0;
 
       this.logger.log(
@@ -143,11 +182,13 @@ export class SpeechTranscriptionExecutor {
   /**
    * Parse Google Cloud time offset to seconds
    */
-  private parseTimeOffset(timeOffset: any): number {
+  private parseTimeOffset(
+    timeOffset: protos.google.protobuf.IDuration | null | undefined
+  ): number {
     if (!timeOffset) return 0;
 
-    const seconds = parseInt(timeOffset.seconds || '0');
-    const nanos = parseInt(timeOffset.nanos || '0');
+    const seconds = parseInt(String(timeOffset.seconds || '0'), 10);
+    const nanos = parseInt(String(timeOffset.nanos || '0'), 10);
 
     return seconds + nanos / 1000000000;
   }

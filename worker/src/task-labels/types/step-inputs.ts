@@ -12,7 +12,6 @@ export interface BaseStepInput {
   mediaId: string;
   workspaceRef: string;
   taskRef: string;
-  gcsUri: string;
   version: number;
 }
 
@@ -23,9 +22,9 @@ export interface BaseStepInput {
  * Features: LABEL_DETECTION, SHOT_CHANGE_DETECTION
  */
 export interface LabelDetectionStepInput extends BaseStepInput {
-  config: {
-    labelDetectionMode: 'SHOT_MODE' | 'SHOT_AND_FRAME_MODE';
-    videoConfidenceThreshold: number; // default: 0.2
+  config?: {
+    labelDetectionMode?: 'SHOT_MODE' | 'SHOT_AND_FRAME_MODE';
+    videoConfidenceThreshold?: number; // default: 0.2
   };
 }
 
@@ -46,9 +45,9 @@ export interface ObjectTrackingStepInput extends BaseStepInput {
  * Features: FACE_DETECTION
  */
 export interface FaceDetectionStepInput extends BaseStepInput {
-  config: {
-    includeBoundingBoxes: boolean; // default: true
-    includeAttributes: boolean; // default: true
+  config?: {
+    includeBoundingBoxes?: boolean; // default: true
+    includeAttributes?: boolean; // default: true
   };
 }
 
@@ -59,10 +58,10 @@ export interface FaceDetectionStepInput extends BaseStepInput {
  * Features: PERSON_DETECTION
  */
 export interface PersonDetectionStepInput extends BaseStepInput {
-  config: {
-    includeBoundingBoxes: boolean; // default: true
-    includePoseLandmarks: boolean; // default: true
-    includeAttributes: boolean; // default: true
+  config?: {
+    includeBoundingBoxes?: boolean; // default: true
+    includePoseLandmarks?: boolean; // default: true
+    includeAttributes?: boolean; // default: true
   };
 }
 
@@ -73,8 +72,8 @@ export interface PersonDetectionStepInput extends BaseStepInput {
  * Features: SPEECH_TRANSCRIPTION
  */
 export interface SpeechTranscriptionStepInput extends BaseStepInput {
-  config: {
-    languageCode: string; // default: 'en-US'
-    enableAutomaticPunctuation: boolean; // default: true
+  config?: {
+    languageCode?: string; // default: 'en-US'
+    enableAutomaticPunctuation?: boolean; // default: true
   };
 }

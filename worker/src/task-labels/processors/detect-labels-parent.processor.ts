@@ -153,6 +153,7 @@ export class DetectLabelsParentProcessor extends WorkerHost {
     // Aggregate step results from children
     const aggregatedResults: Record<string, StepResult> = { ...stepResults };
 
+    // First, collect results from successfully completed children
     for (const [, childResult] of Object.entries(childrenValues)) {
       if (
         childResult &&
@@ -162,6 +163,55 @@ export class DetectLabelsParentProcessor extends WorkerHost {
         const result = childResult as StepResult;
         aggregatedResults[result.stepType] = result;
       }
+    }
+
+    // Then, check for failed child jobs that didn't return results
+    // This handles cases where jobs fail after exhausting retries
+    // We'll query the queue for jobs with this parent job ID
+    try {
+      // Get all jobs in the queue and filter for children of this parent
+      // Note: This is a fallback - ideally getChildrenValues would include failed jobs
+      const allJobs = await this.labelsQueue.getJobs(
+        ['failed', 'completed'],
+        0,
+        -1
+      );
+
+      for (const childJob of allJobs) {
+        const childData = childJob.data as StepJobData | undefined;
+        if (!childData || !childData.stepType) continue;
+
+        // Check if this is a child of the current parent job
+        if (childData.parentJobId !== job.id) continue;
+
+        // If we don't have a result for this step type and the job failed, create a failed result
+        if (!aggregatedResults[childData.stepType]) {
+          const jobState = await childJob.getState();
+
+          if (jobState === 'failed') {
+            const failedResult: StepResult = {
+              stepType: childData.stepType,
+              status: 'failed',
+              error: childJob.failedReason || 'Job failed without reason',
+              startedAt: childJob.timestamp
+                ? new Date(childJob.timestamp).toISOString()
+                : undefined,
+              completedAt: childJob.finishedOn
+                ? new Date(childJob.finishedOn).toISOString()
+                : undefined,
+            };
+            aggregatedResults[childData.stepType] = failedResult;
+            this.logger.warn(
+              `Found failed child job for step ${childData.stepType} that wasn't in childrenValues`
+            );
+          }
+        }
+      }
+    } catch (error) {
+      this.logger.warn(
+        `Failed to check for failed child jobs: ${error instanceof Error ? error.message : String(error)}`
+      );
+      // Continue processing even if we can't check for failed jobs
     }
 
     // Cache step results in parent job data for retry scenarios
@@ -187,74 +237,76 @@ export class DetectLabelsParentProcessor extends WorkerHost {
     const speechTranscriptionResult =
       aggregatedResults[DetectLabelsStepType.SPEECH_TRANSCRIPTION];
 
-    // Check which legacy processors succeeded (for backward compatibility)
-    const videoIntelligenceResult =
-      aggregatedResults[DetectLabelsStepType.VIDEO_INTELLIGENCE];
-    const speechToTextResult =
-      aggregatedResults[DetectLabelsStepType.SPEECH_TO_TEXT];
-    const processVideoLabelsResult =
-      aggregatedResults[DetectLabelsStepType.PROCESS_VIDEO_INTELLIGENCE_LABELS];
-    const processSpeechLabelsResult =
-      aggregatedResults[DetectLabelsStepType.PROCESS_SPEECH_TO_TEXT_LABELS];
-
     // Determine which processors succeeded
     const successfulProcessors: string[] = [];
     const failedProcessors: string[] = [];
 
     // Check new processors
+    // For enabled processors, they should have a result. If not, mark as failed.
     if (this.processorsConfigService.enableLabelDetection) {
       if (labelDetectionResult?.status === 'completed') {
         successfulProcessors.push('LABEL_DETECTION');
-      } else if (labelDetectionResult) {
+      } else {
+        // Processor is enabled but either failed or has no result
         failedProcessors.push('LABEL_DETECTION');
+        if (!labelDetectionResult) {
+          this.logger.warn(
+            `LABEL_DETECTION is enabled but has no result - marking as failed`
+          );
+        }
       }
     }
 
     if (this.processorsConfigService.enableObjectTracking) {
       if (objectTrackingResult?.status === 'completed') {
         successfulProcessors.push('OBJECT_TRACKING');
-      } else if (objectTrackingResult) {
+      } else {
         failedProcessors.push('OBJECT_TRACKING');
+        if (!objectTrackingResult) {
+          this.logger.warn(
+            `OBJECT_TRACKING is enabled but has no result - marking as failed`
+          );
+        }
       }
     }
 
     if (this.processorsConfigService.enableFaceDetection) {
       if (faceDetectionResult?.status === 'completed') {
         successfulProcessors.push('FACE_DETECTION');
-      } else if (faceDetectionResult) {
+      } else {
         failedProcessors.push('FACE_DETECTION');
+        if (!faceDetectionResult) {
+          this.logger.warn(
+            `FACE_DETECTION is enabled but has no result - marking as failed`
+          );
+        }
       }
     }
 
     if (this.processorsConfigService.enablePersonDetection) {
       if (personDetectionResult?.status === 'completed') {
         successfulProcessors.push('PERSON_DETECTION');
-      } else if (personDetectionResult) {
+      } else {
         failedProcessors.push('PERSON_DETECTION');
+        if (!personDetectionResult) {
+          this.logger.warn(
+            `PERSON_DETECTION is enabled but has no result - marking as failed`
+          );
+        }
       }
     }
 
     if (this.processorsConfigService.enableSpeechTranscription) {
       if (speechTranscriptionResult?.status === 'completed') {
         successfulProcessors.push('SPEECH_TRANSCRIPTION');
-      } else if (speechTranscriptionResult) {
+      } else {
         failedProcessors.push('SPEECH_TRANSCRIPTION');
+        if (!speechTranscriptionResult) {
+          this.logger.warn(
+            `SPEECH_TRANSCRIPTION is enabled but has no result - marking as failed`
+          );
+        }
       }
-    }
-
-    // Check legacy processors (for backward compatibility)
-    const videoBranchSucceeded =
-      videoIntelligenceResult?.status === 'completed' &&
-      processVideoLabelsResult?.status === 'completed';
-    const speechBranchSucceeded =
-      speechToTextResult?.status === 'completed' &&
-      processSpeechLabelsResult?.status === 'completed';
-
-    if (videoBranchSucceeded) {
-      successfulProcessors.push('VIDEO_INTELLIGENCE (legacy)');
-    }
-    if (speechBranchSucceeded) {
-      successfulProcessors.push('SPEECH_TO_TEXT (legacy)');
     }
 
     // Log results
@@ -413,10 +465,7 @@ export class DetectLabelsParentProcessor extends WorkerHost {
         stepType === DetectLabelsStepType.OBJECT_TRACKING ||
         stepType === DetectLabelsStepType.FACE_DETECTION ||
         stepType === DetectLabelsStepType.PERSON_DETECTION ||
-        stepType === DetectLabelsStepType.SPEECH_TRANSCRIPTION ||
-        // Legacy processors
-        stepType === DetectLabelsStepType.VIDEO_INTELLIGENCE ||
-        stepType === DetectLabelsStepType.SPEECH_TO_TEXT
+        stepType === DetectLabelsStepType.SPEECH_TRANSCRIPTION
       ) {
         this.logger.warn(
           `Step ${stepType} failed but allowing partial success`
@@ -478,29 +527,6 @@ export class DetectLabelsParentProcessor extends WorkerHost {
         this.logger.error(
           `Step ${stepType} exhausted all ${maxAttempts} retry attempts for task ${taskId}`
         );
-
-        // For detect labels tasks, only mark as failed if it's a critical step
-        // New GCVI processor failures are allowed (partial success)
-        // Processing steps failures should mark task as failed
-        if (
-          stepType === DetectLabelsStepType.PROCESS_VIDEO_INTELLIGENCE_LABELS ||
-          stepType === DetectLabelsStepType.PROCESS_SPEECH_TO_TEXT_LABELS
-        ) {
-          if (parentJobId) {
-            try {
-              await this.updateTaskStatus(taskId, TaskStatus.FAILED);
-              this.logger.log(
-                `Marked task ${taskId} as failed due to ${stepType} retry exhaustion`
-              );
-            } catch (updateError) {
-              this.logger.error(`Failed to update task status: ${updateError}`);
-            }
-          }
-        } else {
-          this.logger.warn(
-            `Step ${stepType} exhausted retries but allowing partial success for detect labels task ${taskId}`
-          );
-        }
       }
     }
   }

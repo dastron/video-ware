@@ -4,194 +4,13 @@ import { Storage } from '@google-cloud/storage';
 import * as path from 'path';
 
 // Google Cloud Video Intelligence
-import {
-  VideoIntelligenceServiceClient,
-  protos,
-} from '@google-cloud/video-intelligence';
+import { VideoIntelligenceServiceClient } from '@google-cloud/video-intelligence';
 
 // Google Cloud Speech-to-Text
 import { SpeechClient } from '@google-cloud/speech';
 
 // Google Cloud Transcoder
 import { TranscoderServiceClient } from '@google-cloud/video-transcoder';
-
-type gcLabelDetectionMode =
-  protos.google.cloud.videointelligence.v1.LabelDetectionMode;
-type gcObjectAnnotation =
-  protos.google.cloud.videointelligence.v1.IObjectTrackingAnnotation;
-type gcLabelAnnotation =
-  protos.google.cloud.videointelligence.v1.ILabelAnnotation;
-type gcFaceAnnotation =
-  protos.google.cloud.videointelligence.v1.IFaceDetectionAnnotation;
-type gcPersonAnnotation =
-  protos.google.cloud.videointelligence.v1.IPersonDetectionAnnotation;
-type gcFeatures = protos.google.cloud.videointelligence.v1.Feature[];
-
-/**
- * Face attributes detected in a frame
- */
-export interface FaceAttributes {
-  headwear?: string;
-  glasses?: string;
-  lookingAtCamera?: boolean;
-}
-
-/**
- * Face frame with bounding box, confidence, and attributes
- */
-export interface FaceFrame {
-  timeOffset: number; // seconds (float)
-  boundingBox: {
-    left: number;
-    top: number;
-    right: number;
-    bottom: number;
-  };
-  confidence: number;
-  attributes?: FaceAttributes;
-}
-
-/**
- * Face Detection Result
- */
-export interface FaceDetectionResult {
-  faces: Array<{
-    trackId: string;
-    frames: FaceFrame[];
-  }>;
-}
-
-/**
- * Person attributes detected in a frame
- */
-export interface PersonAttributes {
-  upperClothingColor?: string;
-  lowerClothingColor?: string;
-}
-
-/**
- * Pose landmark with position and confidence
- */
-export interface PoseLandmark {
-  type: string; // e.g., "NOSE", "LEFT_EYE", "RIGHT_SHOULDER"
-  position: {
-    x: number;
-    y: number;
-    z: number;
-  };
-  confidence: number;
-}
-
-/**
- * Person frame with bounding box, confidence, attributes, and landmarks
- */
-export interface PersonFrame {
-  timeOffset: number; // seconds (float)
-  boundingBox: {
-    left: number;
-    top: number;
-    right: number;
-    bottom: number;
-  };
-  confidence: number;
-  attributes?: PersonAttributes;
-  landmarks?: PoseLandmark[];
-}
-
-/**
- * Person Detection Result
- */
-export interface PersonDetectionResult {
-  persons: Array<{
-    trackId: string;
-    frames: PersonFrame[];
-  }>;
-}
-
-/**
- * Configuration for face detection
- */
-export interface FaceDetectionConfig {
-  includeBoundingBoxes?: boolean; // default: true
-  includeAttributes?: boolean; // default: true
-  confidenceThreshold?: number; // default: 0.7
-  model?: string; // default: 'builtin/latest'
-}
-
-/**
- * Configuration for person detection
- */
-export interface PersonDetectionConfig {
-  includeBoundingBoxes?: boolean; // default: true
-  includePoseLandmarks?: boolean; // default: true
-  includeAttributes?: boolean; // default: true
-  confidenceThreshold?: number; // default: 0.7
-  model?: string; // default: 'builtin/latest'
-}
-
-export interface VideoIntelligenceResult {
-  labels: Array<{
-    entity: string;
-    confidence: number;
-    segments: Array<{
-      startTime: number;
-      endTime: number;
-      confidence: number;
-    }>;
-  }>;
-  objects: Array<{
-    entity: string;
-    confidence: number;
-    frames: Array<{
-      timeOffset: number;
-      boundingBox: {
-        left: number;
-        top: number;
-        right: number;
-        bottom: number;
-      };
-    }>;
-  }>;
-  sceneChanges: Array<{
-    timeOffset: number;
-  }>;
-  persons: Array<{
-    confidence: number;
-    frames: Array<{
-      timeOffset: number;
-      boundingBox: {
-        left: number;
-        top: number;
-        right: number;
-        bottom: number;
-      };
-    }>;
-  }>;
-  faces: Array<{
-    confidence: number;
-    frames: Array<{
-      timeOffset: number;
-      boundingBox: {
-        left: number;
-        top: number;
-        right: number;
-        bottom: number;
-      };
-    }>;
-  }>;
-}
-
-export interface SpeechTranscriptionResult {
-  transcript: string;
-  confidence: number;
-  words: Array<{
-    word: string;
-    startTime: number;
-    endTime: number;
-    confidence: number;
-  }>;
-  languageCode: string;
-}
 
 export interface TranscoderJobResult {
   jobId: string;
@@ -248,10 +67,6 @@ export class GoogleCloudService implements OnModuleInit {
     await this.initializeClients();
   }
 
-  async transcribeAudio(gcsUri: string): Promise<SpeechTranscriptionResult> {
-    return this.transcribeSpeech(gcsUri);
-  }
-
   private async initializeClients() {
     if (!this.projectId) {
       this.logger.warn(
@@ -275,21 +90,49 @@ export class GoogleCloudService implements OnModuleInit {
       this.logger.log('Using Application Default Credentials');
     }
 
+    // Check if any GCVI processors that need Video Intelligence are enabled
+    const hasVideoIntelligenceProcessor =
+      this.enabled.videoIntelligence ||
+      this.configService.get<boolean>(
+        'processors.enableLabelDetection',
+        false
+      ) ||
+      this.configService.get<boolean>(
+        'processors.enableObjectTracking',
+        false
+      ) ||
+      this.configService.get<boolean>(
+        'processors.enableFaceDetection',
+        false
+      ) ||
+      this.configService.get<boolean>(
+        'processors.enablePersonDetection',
+        false
+      );
+
+    // Check if Speech Transcription is enabled (needs Speech client)
+    const hasSpeechProcessor =
+      this.enabled.speech ||
+      this.configService.get<boolean>(
+        'processors.enableSpeechTranscription',
+        false
+      );
+
     try {
       // Initialize Storage client (always needed for temp uploads)
       this.storageClient = new Storage(clientConfig);
       this.logger.log('Google Cloud Storage client initialized');
 
-      // Initialize Video Intelligence client
-      if (this.enabled.videoIntelligence) {
+      // Initialize Video Intelligence client if explicitly enabled or if any GCVI processor needs it
+      if (hasVideoIntelligenceProcessor) {
         this.videoIntelligenceClient = new VideoIntelligenceServiceClient(
           clientConfig
         );
         this.logger.log('Google Cloud Video Intelligence client initialized');
       }
 
-      // Initialize Speech client
-      if (this.enabled.speech) {
+      // Initialize Speech client if explicitly enabled or if Speech Transcription is enabled
+      if (hasSpeechProcessor) {
         this.speechClient = new SpeechClient(clientConfig);
         this.logger.log('Google Cloud Speech-to-Text client initialized');
       }
@@ -306,467 +149,6 @@ export class GoogleCloudService implements OnModuleInit {
         `Failed to initialize Google Cloud clients: ${error instanceof Error ? error.message : String(error)}`
       );
       throw error;
-    }
-  }
-
-  /**
-   * Analyze video for labels, objects, and scene changes
-   */
-  async analyzeVideo(
-    gcsUri: string,
-    features: string[] = [
-      'LABEL_DETECTION',
-      'OBJECT_TRACKING',
-      'SHOT_CHANGE_DETECTION',
-    ]
-  ): Promise<VideoIntelligenceResult> {
-    if (!this.videoIntelligenceClient) {
-      throw new Error('Video Intelligence client not initialized');
-    }
-
-    try {
-      this.logger.log(`Starting video analysis for: ${gcsUri}`);
-
-      const request = {
-        inputUri: gcsUri,
-        features: features as unknown as gcFeatures,
-        videoContext: {
-          labelDetectionConfig: {
-            labelDetectionMode:
-              'SHOT_AND_FRAME_MODE' as unknown as gcLabelDetectionMode,
-            stationaryCamera: false,
-          },
-          objectTrackingConfig: {
-            model: 'builtin/latest',
-          },
-          shotChangeDetectionConfig: {
-            model: 'builtin/latest',
-          },
-        },
-      };
-      const [operation] =
-        await this.videoIntelligenceClient.annotateVideo(request);
-      this.logger.log(`Video analysis operation started: ${operation.name}`);
-
-      // Wait for operation to complete
-      const [result] = await operation.promise();
-
-      if (!result.annotationResults || result.annotationResults.length === 0) {
-        throw new Error('No annotation results returned');
-      }
-
-      const annotation = result.annotationResults[0];
-
-      // Process labels
-      const labels = (annotation.segmentLabelAnnotations || []).map(
-        (label: gcLabelAnnotation) => ({
-          entity: label.entity?.description || '',
-          confidence: label.segments?.[0]?.confidence || 0,
-          segments: (label.segments || []).map((segment: any) => ({
-            startTime: this.parseTimeOffset(segment.segment?.startTimeOffset),
-            endTime: this.parseTimeOffset(segment.segment?.endTimeOffset),
-            confidence: segment.confidence || 0,
-          })),
-        })
-      );
-
-      // Process objects
-      const objects = (annotation.objectAnnotations || []).map(
-        (obj: gcObjectAnnotation) => ({
-          entity: obj.entity?.description || '',
-          confidence: obj.confidence || 0,
-          frames: (obj.frames || []).map((frame) => ({
-            timeOffset: this.parseTimeOffset(frame.timeOffset),
-            boundingBox: {
-              left: frame.normalizedBoundingBox?.left || 0,
-              top: frame.normalizedBoundingBox?.top || 0,
-              right: frame.normalizedBoundingBox?.right || 0,
-              bottom: frame.normalizedBoundingBox?.bottom || 0,
-            },
-          })),
-        })
-      );
-
-      // Process scene changes
-      const sceneChanges = (annotation.shotAnnotations || []).map(
-        (shot: any) => ({
-          timeOffset: this.parseTimeOffset(shot.startTimeOffset),
-        })
-      );
-
-      this.logger.log(
-        `Video analysis completed: ${labels.length} labels, ${objects.length} objects, ${sceneChanges.length} scene changes`
-      );
-
-      return {
-        labels,
-        objects,
-        sceneChanges,
-        persons: [], // Not populated by analyzeVideo - use detectPersons() instead
-        faces: [], // Not populated by analyzeVideo - use detectFaces() instead
-      };
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      this.logger.error(`Video analysis failed: ${errorMessage}`);
-      throw new Error(`Video Intelligence analysis failed: ${errorMessage}`);
-    }
-  }
-
-  /**
-   * Detect faces in video with attributes
-   */
-  async detectFaces(
-    gcsUri: string,
-    config: FaceDetectionConfig = {}
-  ): Promise<FaceDetectionResult> {
-    if (!this.videoIntelligenceClient) {
-      throw new Error('Video Intelligence client not initialized');
-    }
-
-    try {
-      this.logger.log(`Starting face detection for: ${gcsUri}`);
-
-      const request = {
-        inputUri: gcsUri,
-        features: [
-          protos.google.cloud.videointelligence.v1.Feature.FACE_DETECTION,
-        ],
-        videoContext: {
-          faceDetectionConfig: {
-            model: config.model || 'builtin/latest',
-            includeBoundingBoxes: config.includeBoundingBoxes ?? true,
-            includeAttributes: config.includeAttributes ?? true,
-          },
-        },
-      };
-
-      const [operation] =
-        await this.videoIntelligenceClient.annotateVideo(request);
-      this.logger.log(`Face detection operation started: ${operation.name}`);
-
-      // Wait for operation to complete
-      const [result] = await operation.promise();
-
-      if (!result.annotationResults || result.annotationResults.length === 0) {
-        this.logger.warn('No annotation results returned from face detection');
-        return {
-          faces: [],
-        };
-      }
-
-      const annotation = result.annotationResults[0];
-      const threshold = config.confidenceThreshold ?? 0.7;
-
-      // Process face annotations
-      const faces = (annotation.faceDetectionAnnotations || []).map(
-        (face: gcFaceAnnotation) => {
-          // Extract track ID from the first track (faces typically have one track)
-          const track = face.tracks?.[0];
-          const trackId = track ? String((track as any).trackId || '') : '';
-
-          // Process frames with bounding boxes and attributes
-          const frames: FaceFrame[] = (track?.timestampedObjects || []).map(
-            (obj: any) => {
-              const attributes: FaceAttributes = {};
-
-              // Extract attributes if available
-              if (config.includeAttributes && obj.attributes) {
-                for (const attr of obj.attributes) {
-                  const name = attr.name?.toLowerCase() || '';
-                  const value = attr.value || '';
-
-                  if (name === 'headwear') {
-                    attributes.headwear = value;
-                  } else if (name === 'glasses') {
-                    attributes.glasses = value;
-                  } else if (name === 'looking_at_camera') {
-                    attributes.lookingAtCamera =
-                      value === 'true' || value === 'yes';
-                  }
-                }
-              }
-
-              return {
-                timeOffset: this.parseTimeOffset(obj.timeOffset),
-                boundingBox: {
-                  left: obj.normalizedBoundingBox?.left || 0,
-                  top: obj.normalizedBoundingBox?.top || 0,
-                  right: obj.normalizedBoundingBox?.right || 0,
-                  bottom: obj.normalizedBoundingBox?.bottom || 0,
-                },
-                confidence: track?.confidence || 0,
-                attributes:
-                  Object.keys(attributes).length > 0 ? attributes : undefined,
-              };
-            }
-          );
-
-          return {
-            trackId,
-            frames,
-          };
-        }
-      );
-
-      // Apply confidence threshold if specified
-      const filteredFaces = faces.filter((face) => {
-        // Check if any frame meets the confidence threshold
-        return face.frames.some((frame) => frame.confidence >= threshold);
-      });
-
-      this.logger.log(
-        `Face detection completed: ${filteredFaces.length} faces tracked ` +
-          `(${faces.length - filteredFaces.length} filtered by confidence threshold)`
-      );
-
-      return {
-        faces: filteredFaces,
-      };
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      this.logger.error(`Face detection failed: ${errorMessage}`);
-      throw new Error(`Face detection failed: ${errorMessage}`);
-    }
-  }
-
-  /**
-   * Detect persons in video with pose landmarks and attributes
-   */
-  async detectPersons(
-    gcsUri: string,
-    config: PersonDetectionConfig = {}
-  ): Promise<PersonDetectionResult> {
-    if (!this.videoIntelligenceClient) {
-      throw new Error('Video Intelligence client not initialized');
-    }
-
-    try {
-      this.logger.log(`Starting person detection for: ${gcsUri}`);
-
-      const request = {
-        inputUri: gcsUri,
-        features: [
-          protos.google.cloud.videointelligence.v1.Feature.PERSON_DETECTION,
-        ],
-        videoContext: {
-          personDetectionConfig: {
-            includeBoundingBoxes: config.includeBoundingBoxes ?? true,
-            includePoseLandmarks: config.includePoseLandmarks ?? true,
-            includeAttributes: config.includeAttributes ?? true,
-          },
-        },
-      };
-
-      const [operation] =
-        await this.videoIntelligenceClient.annotateVideo(request);
-      this.logger.log(`Person detection operation started: ${operation.name}`);
-
-      // Wait for operation to complete
-      const [result] = await operation.promise();
-
-      if (!result.annotationResults || result.annotationResults.length === 0) {
-        this.logger.warn(
-          'No annotation results returned from person detection'
-        );
-        return {
-          persons: [],
-        };
-      }
-
-      const annotation = result.annotationResults[0];
-      const threshold = config.confidenceThreshold ?? 0.7;
-
-      // Process person annotations
-      const persons = (annotation.personDetectionAnnotations || []).map(
-        (person: gcPersonAnnotation) => {
-          // Extract track ID from the first track (persons typically have one track)
-          const track = person.tracks?.[0];
-          const trackId = track ? String((track as any).trackId || '') : '';
-
-          // Process frames with bounding boxes, attributes, and landmarks
-          const frames: PersonFrame[] = (track?.timestampedObjects || []).map(
-            (obj: any) => {
-              const attributes: PersonAttributes = {};
-              const landmarks: PoseLandmark[] = [];
-
-              // Extract attributes if available
-              if (config.includeAttributes && obj.attributes) {
-                for (const attr of obj.attributes) {
-                  const name = attr.name?.toLowerCase() || '';
-                  const value = attr.value || '';
-
-                  if (name === 'upper_clothing_color') {
-                    attributes.upperClothingColor = value;
-                  } else if (name === 'lower_clothing_color') {
-                    attributes.lowerClothingColor = value;
-                  }
-                }
-              }
-
-              // Extract pose landmarks if available
-              if (config.includePoseLandmarks && obj.landmarks) {
-                for (const landmark of obj.landmarks) {
-                  const point = landmark.point as any; // Use any to access z coordinate
-                  landmarks.push({
-                    type: landmark.name || '',
-                    position: {
-                      x: point?.x || 0,
-                      y: point?.y || 0,
-                      z: point?.z || 0, // z may not be in type definition but exists in API
-                    },
-                    confidence: landmark.confidence || 0,
-                  });
-                }
-              }
-
-              return {
-                timeOffset: this.parseTimeOffset(obj.timeOffset),
-                boundingBox: {
-                  left: obj.normalizedBoundingBox?.left || 0,
-                  top: obj.normalizedBoundingBox?.top || 0,
-                  right: obj.normalizedBoundingBox?.right || 0,
-                  bottom: obj.normalizedBoundingBox?.bottom || 0,
-                },
-                confidence: track?.confidence || 0,
-                attributes:
-                  Object.keys(attributes).length > 0 ? attributes : undefined,
-                landmarks: landmarks.length > 0 ? landmarks : undefined,
-              };
-            }
-          );
-
-          return {
-            trackId,
-            frames,
-          };
-        }
-      );
-
-      // Apply confidence threshold if specified
-      const filteredPersons = persons.filter((person) => {
-        // Check if any frame meets the confidence threshold
-        return person.frames.some((frame) => frame.confidence >= threshold);
-      });
-
-      this.logger.log(
-        `Person detection completed: ${filteredPersons.length} persons tracked ` +
-          `(${persons.length - filteredPersons.length} filtered by confidence threshold)`
-      );
-
-      return {
-        persons: filteredPersons,
-      };
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      this.logger.error(`Person detection failed: ${errorMessage}`);
-      throw new Error(`Person detection failed: ${errorMessage}`);
-    }
-  }
-
-  /**
-   * Transcribe speech from audio file
-   * Note: Input must be an audio file (FLAC, WAV, MP3, etc.), not a video file
-   * Use extractAudioForSpeech() first if you have a video file
-   */
-  async transcribeSpeech(
-    gcsUri: string,
-    languageCode: string = 'en-US',
-    enableWordTimeOffsets: boolean = true
-  ): Promise<SpeechTranscriptionResult> {
-    if (!this.speechClient) {
-      throw new Error('Speech client not initialized');
-    }
-
-    try {
-      this.logger.log(`Starting speech transcription for: ${gcsUri}`);
-
-      // Configuration for audio transcription
-      // Don't specify encoding - let Google auto-detect from FLAC header
-      // This avoids channel count and sample rate mismatches
-      const request = {
-        audio: {
-          uri: gcsUri,
-        },
-        config: {
-          languageCode: languageCode,
-          enableWordTimeOffsets: enableWordTimeOffsets,
-          enableAutomaticPunctuation: true,
-          model: 'video', // Optimized for video audio quality
-          useEnhanced: true,
-        },
-      };
-
-      const [operation] = await this.speechClient.longRunningRecognize(request);
-      this.logger.log(
-        `Speech transcription operation started: ${operation.name}`
-      );
-
-      // Wait for operation to complete
-      const [response] = await operation.promise();
-
-      if (!response.results || response.results.length === 0) {
-        this.logger.warn('No speech transcription results returned');
-        return {
-          transcript: '',
-          confidence: 0,
-          words: [],
-          languageCode,
-        };
-      }
-
-      // Combine all results
-      let fullTranscript = '';
-      let totalConfidence = 0;
-      const allWords: Array<{
-        word: string;
-        startTime: number;
-        endTime: number;
-        confidence: number;
-      }> = [];
-
-      for (const result of response.results) {
-        if (result.alternatives && result.alternatives.length > 0) {
-          const alternative = result.alternatives[0];
-          fullTranscript += alternative.transcript + ' ';
-          totalConfidence += alternative.confidence || 0;
-
-          // Process word-level timing
-          if (alternative.words) {
-            for (const word of alternative.words) {
-              allWords.push({
-                word: word.word || '',
-                startTime: this.parseTimeOffset(word.startTime),
-                endTime: this.parseTimeOffset(word.endTime),
-                confidence: alternative.confidence || 0,
-              });
-            }
-          }
-        }
-      }
-
-      const avgConfidence =
-        response.results.length > 0
-          ? totalConfidence / response.results.length
-          : 0;
-
-      this.logger.log(
-        `Speech transcription completed: ${fullTranscript.length} characters, ${allWords.length} words`
-      );
-
-      return {
-        transcript: fullTranscript.trim(),
-        confidence: avgConfidence,
-        words: allWords,
-        languageCode,
-      };
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      this.logger.error(`Speech transcription failed: ${errorMessage}`);
-      throw new Error(`Speech transcription failed: ${errorMessage}`);
     }
   }
 
@@ -940,18 +322,6 @@ export class GoogleCloudService implements OnModuleInit {
   }
 
   /**
-   * Parse Google Cloud time offset to seconds
-   */
-  private parseTimeOffset(timeOffset: any): number {
-    if (!timeOffset) return 0;
-
-    const seconds = parseInt(timeOffset.seconds || '0');
-    const nanos = parseInt(timeOffset.nanos || '0');
-
-    return seconds + nanos / 1000000000;
-  }
-
-  /**
    * Get enabled services
    */
   getEnabledServices(): string[] {
@@ -963,11 +333,53 @@ export class GoogleCloudService implements OnModuleInit {
   }
 
   /**
+   * Get the authenticated Video Intelligence client
+   */
+  getVideoIntelligenceClient(): VideoIntelligenceServiceClient {
+    if (!this.videoIntelligenceClient) {
+      throw new Error('Video Intelligence client not initialized');
+    }
+    return this.videoIntelligenceClient;
+  }
+
+  /**
+   * Get the authenticated Speech client
+   */
+  getSpeechClient(): SpeechClient {
+    if (!this.speechClient) {
+      throw new Error('Speech client not initialized');
+    }
+    return this.speechClient;
+  }
+
+  /**
+   * Get the GCS path for a temporary file (for processing)
+   * Path structure: temp/{workspaceId}/{mediaId}
+   */
+  private getTempGcsPath(workspaceId: string, mediaId: string): string {
+    return `temp/${workspaceId}/${mediaId}`;
+  }
+
+  /**
+   * Get the GCS URI for a temporary file (for processing)
+   * Returns: gs://{bucket}/temp/{workspaceId}/{mediaId}
+   */
+  getTempGcsUri(workspaceId: string, mediaId: string): string {
+    if (!this.gcsBucket) {
+      throw new Error('GCS_BUCKET not configured');
+    }
+    const gcsPath = this.getTempGcsPath(workspaceId, mediaId);
+    return `gs://${this.gcsBucket}/${gcsPath}`;
+  }
+
+  /**
    * Upload a local file to GCS temporarily for processing
+   * Uses deterministic path: temp/{workspaceId}/{mediaId}
    * Returns the GCS URI (gs://bucket/path)
    */
   async uploadToGcsTempBucket(
     localFilePath: string,
+    workspaceId: string,
     mediaId: string
   ): Promise<string> {
     if (!this.storageClient) {
@@ -981,26 +393,24 @@ export class GoogleCloudService implements OnModuleInit {
     }
 
     try {
-      const fileName = path.basename(localFilePath);
-      const gcsPath = `temp/${mediaId}/${fileName}`;
+      const gcsPath = this.getTempGcsPath(workspaceId, mediaId);
       const bucket = this.storageClient.bucket(this.gcsBucket);
+      const gcsUri = this.getTempGcsUri(workspaceId, mediaId);
 
-      this.logger.log(
-        `Uploading ${localFilePath} to gs://${this.gcsBucket}/${gcsPath}`
-      );
+      this.logger.log(`Uploading ${localFilePath} to ${gcsUri}`);
 
       await bucket.upload(localFilePath, {
         destination: gcsPath,
         metadata: {
           metadata: {
             uploadedAt: new Date().toISOString(),
+            workspaceId: workspaceId,
             mediaId: mediaId,
             temporary: 'true',
           },
         },
       });
 
-      const gcsUri = `gs://${this.gcsBucket}/${gcsPath}`;
       this.logger.log(`Successfully uploaded to ${gcsUri}`);
 
       return gcsUri;
@@ -1010,17 +420,6 @@ export class GoogleCloudService implements OnModuleInit {
       this.logger.error(`Failed to upload to GCS: ${errorMessage}`);
       throw new Error(`GCS upload failed: ${errorMessage}`);
     }
-  }
-
-  /**
-   * Get expected GCS URI for a media file (deterministic path)
-   */
-  async getExpectedGcsUri(mediaId: string, fileName: string): Promise<string> {
-    if (!this.gcsBucket) {
-      throw new Error('GCS_BUCKET not configured');
-    }
-    const gcsPath = `temp/${mediaId}/${fileName}`;
-    return `gs://${this.gcsBucket}/${gcsPath}`;
   }
 
   /**

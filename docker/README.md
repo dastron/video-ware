@@ -179,9 +179,16 @@ The container automatically creates a PocketBase superuser on startup if `POCKET
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `LOG_LEVEL` | `info` | Log level (`debug`, `info`, `warn`, `error`) |
+| `LOG_LEVEL` | `warn` | Log level (`debug`, `info`, `warn`, `error`). Default `warn` shows only warnings and errors for cleaner production logs. Set to `debug` or `verbose` for detailed logging. |
 | `METRICS_ENABLED` | `false` | Enable Prometheus metrics endpoint |
 | `HEALTH_CHECK_PORT` | `8090` | Port for health check endpoint |
+
+**Logging Best Practices:**
+- **Production**: Use `LOG_LEVEL=warn` (default) to only show warnings and errors
+- **Debugging**: Use `LOG_LEVEL=debug` for detailed logs
+- **Development**: Use `LOG_LEVEL=verbose` for maximum verbosity
+- Nginx access logs are disabled by default to reduce log volume
+- All services respect the `LOG_LEVEL` environment variable
 
 ### Container Behavior
 
@@ -199,7 +206,7 @@ docker run -p 8888:80 \
   -e POCKETBASE_ADMIN_PASSWORD=your-secure-password \
   -e PB_DATA_DIR=/app/pb/pb_data \
   -e WORKER_PROVIDER=ffmpeg \
-  -e LOG_LEVEL=debug \
+  -e LOG_LEVEL=warn \
   -e GRACEFUL_SHUTDOWN_TIMEOUT=60 \
   -v $(pwd)/pb_data:/app/pb/pb_data \
   -v $(pwd)/worker_data:/app/data \
@@ -249,7 +256,7 @@ Configuration Summary:
 
   Container:
     - Node Environment: production
-    - Log Level: info
+    - Log Level: warn (only warnings and errors)
     - Graceful Shutdown Timeout: 30s
     - Metrics Enabled: false
 ```
@@ -377,6 +384,57 @@ To manually trigger a Docker build (for testing):
 3. Optionally enable "Push image to registry"
 4. Click "Run workflow"
 
+## Docker Best Practices
+
+This Docker setup follows production best practices:
+
+### Security
+- ✅ **Non-root user**: All application processes run as `nextjs` user (UID 1001)
+- ✅ **Minimal base image**: Uses `node:20-alpine` for smaller attack surface
+- ✅ **Multi-stage build**: Reduces final image size by excluding build dependencies
+- ✅ **Health checks**: Built-in health check ensures services are running
+- ✅ **Read-only filesystem**: Consider mounting volumes as read-only where possible
+- ✅ **No secrets in image**: All sensitive data via environment variables
+
+### Performance
+- ✅ **Layer caching**: Optimized layer order for better Docker cache utilization
+- ✅ **Alpine Linux**: Minimal OS footprint reduces image size
+- ✅ **Compression**: Gzip compression enabled in Nginx
+- ✅ **Static file caching**: Browser caching for static assets
+- ✅ **Connection pooling**: Keepalive connections for upstream servers
+
+### Logging
+- ✅ **Configurable log levels**: Default `warn` level shows only warnings and errors
+- ✅ **Reduced verbosity**: Startup scripts only log when `LOG_LEVEL=debug` or `verbose`
+- ✅ **Nginx access logs disabled**: Reduce log volume in production
+- ✅ **Centralized logging**: All logs go to stdout/stderr for container log aggregation
+
+### Reliability
+- ✅ **Graceful shutdown**: Proper signal handling with configurable timeout
+- ✅ **Process monitoring**: Supervisor automatically restarts crashed processes
+- ✅ **Health checks**: Container health check via `/health` endpoint
+- ✅ **Retry logic**: Automatic retries for failed process starts
+
+### Resource Management
+
+For production deployments, consider setting resource limits:
+
+```bash
+docker run -p 8888:80 \
+  --memory="2g" \
+  --memory-swap="2g" \
+  --cpus="2.0" \
+  --oom-kill-disable=false \
+  video-ware:latest
+```
+
+### Monitoring Recommendations
+
+1. **Container metrics**: Monitor CPU, memory, and network usage
+2. **Log aggregation**: Forward logs to centralized logging (e.g., ELK, Loki)
+3. **Health checks**: Use Kubernetes/Docker Swarm health checks
+4. **Resource limits**: Set appropriate memory and CPU limits based on workload
+
 ## Notes
 
 - The PocketBase data directory (`pb_data`) is created at runtime and should be persisted via volumes in production
@@ -388,4 +446,5 @@ To manually trigger a Docker build (for testing):
 - Static files are cached for better performance
 - FFmpeg is included for media processing by the worker service
 - Multi-architecture builds are supported for linux/amd64 and linux/arm64
+- **Logging**: Default log level is `warn` - only warnings and errors are shown in production
 

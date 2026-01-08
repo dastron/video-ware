@@ -2,10 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { BaseStepProcessor } from '../../queue/processors/base-step.processor';
 import {
-  LabelClipMutator,
-  LabelMediaMutator,
-  LabelTrackMutator,
   ProcessingProvider,
+  LabelType,
+  LabelMediaUpdate,
 } from '@project/shared';
 import { LabelCacheService } from '../services/label-cache.service';
 import { LabelEntityService } from '../services/label-entity.service';
@@ -15,6 +14,8 @@ import { PocketBaseService } from '../../shared/services/pocketbase.service';
 import type { StepJobData } from '../../queue/types/job.types';
 import type { PersonDetectionStepInput } from '../types/step-inputs';
 import type { PersonDetectionStepOutput } from '../types/step-outputs';
+import type { PersonDetectionResponse } from '../types/executor-responses';
+import type { LabelClipData } from '../types/normalizer-outputs';
 
 // Re-export types for parent processor
 export type { PersonDetectionStepInput, PersonDetectionStepOutput };
@@ -42,10 +43,6 @@ export class PersonDetectionStepProcessor extends BaseStepProcessor<
   protected readonly logger = new Logger(PersonDetectionStepProcessor.name);
   private readonly processorVersion = 'person-detection:1.0.0';
 
-  private labelClipMutator: LabelClipMutator;
-  private labelTrackMutator: LabelTrackMutator;
-  private labelMediaMutator: LabelMediaMutator;
-
   constructor(
     private readonly labelCacheService: LabelCacheService,
     private readonly labelEntityService: LabelEntityService,
@@ -54,9 +51,6 @@ export class PersonDetectionStepProcessor extends BaseStepProcessor<
     private readonly pocketBaseService: PocketBaseService
   ) {
     super();
-    this.labelClipMutator = this.pocketBaseService.labelClipMutator;
-    this.labelTrackMutator = this.pocketBaseService.labelTrackMutator;
-    this.labelMediaMutator = this.pocketBaseService.labelMediaMutator;
   }
 
   /**
@@ -64,7 +58,7 @@ export class PersonDetectionStepProcessor extends BaseStepProcessor<
    */
   async process(
     input: PersonDetectionStepInput,
-    job: Job<StepJobData>
+    _job: Job<StepJobData>
   ): Promise<PersonDetectionStepOutput> {
     const startTime = Date.now();
 
@@ -77,10 +71,11 @@ export class PersonDetectionStepProcessor extends BaseStepProcessor<
       const cached = await this.labelCacheService.getCachedLabels(
         input.mediaId,
         input.version,
-        ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE
+        ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
+        this.processorVersion
       );
 
-      let response: any;
+      let response: PersonDetectionResponse;
       let cacheHit = false;
 
       if (
@@ -90,7 +85,7 @@ export class PersonDetectionStepProcessor extends BaseStepProcessor<
         this.logger.log(
           `Using cached person detection for media ${input.mediaId}`
         );
-        response = cached.response;
+        response = cached.response as PersonDetectionResponse;
         cacheHit = true;
       } else {
         // Step 2: Cache miss - call executor
@@ -99,7 +94,8 @@ export class PersonDetectionStepProcessor extends BaseStepProcessor<
         );
 
         response = await this.personDetectionExecutor.execute(
-          input.gcsUri,
+          input.workspaceRef,
+          input.mediaId,
           input.config
         );
 
@@ -212,9 +208,9 @@ export class PersonDetectionStepProcessor extends BaseStepProcessor<
   private async batchInsertLabelEntities(
     entities: Array<{
       WorkspaceRef: string;
-      labelType: any;
+      labelType: LabelType;
       canonicalName: string;
-      provider: any;
+      provider: ProcessingProvider;
       processor: string;
       metadata?: Record<string, unknown>;
     }>
@@ -226,7 +222,9 @@ export class PersonDetectionStepProcessor extends BaseStepProcessor<
         entity.WorkspaceRef,
         entity.labelType,
         entity.canonicalName,
-        entity.provider,
+        entity.provider as
+          | ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE
+          | ProcessingProvider.GOOGLE_SPEECH,
         entity.processor,
         entity.metadata
       );
@@ -272,28 +270,99 @@ export class PersonDetectionStepProcessor extends BaseStepProcessor<
   /**
    * Batch insert LabelClip records
    * Inserts in batches of 100 for performance
+   * Handles duplicate labelHash by checking for existing records first
+   * Filters out invalid clips before insertion
    */
-  private async batchInsertLabelClips(clips: Array<any>): Promise<string[]> {
+  private async batchInsertLabelClips(
+    clips: Array<LabelClipData>
+  ): Promise<string[]> {
+    // Filter out invalid clips before processing
+    const validClips = clips.filter((clip) => this.isValidLabelClip(clip));
+
+    if (validClips.length < clips.length) {
+      this.logger.warn(
+        `Filtered out ${clips.length - validClips.length} invalid label clips`
+      );
+    }
+
     const clipIds: string[] = [];
     const batchSize = 100;
 
-    for (let i = 0; i < clips.length; i += batchSize) {
-      const batch = clips.slice(i, i + batchSize);
+    for (let i = 0; i < validClips.length; i += batchSize) {
+      const batch = validClips.slice(i, i + batchSize);
+      let insertedCount = 0;
+      let skippedCount = 0;
+      let errorCount = 0;
 
       for (const clip of batch) {
         try {
-          const created = await this.labelClipMutator.create(clip);
-          clipIds.push(created.id);
-        } catch (error) {
-          // Log error but continue with other clips
-          this.logger.warn(
-            `Failed to insert label clip: ${error instanceof Error ? error.message : String(error)}`
+          // Check if a clip with this labelHash already exists
+          const existing = await this.pocketBaseService.labelClipMutator.getList(
+            1,
+            1,
+            `labelHash = "${clip.labelHash}"`
           );
+
+          if (existing.items.length > 0) {
+            // Clip already exists, use existing ID
+            clipIds.push(existing.items[0].id);
+            skippedCount++;
+            this.logger.debug(
+              `Skipped duplicate label clip with hash ${clip.labelHash}`
+            );
+          } else {
+            // Clip doesn't exist, create it
+            const created = await this.pocketBaseService.labelClipMutator.create({
+              ...clip,
+              provider: clip.provider as
+                | ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE
+                | ProcessingProvider.GOOGLE_SPEECH,
+            });
+            clipIds.push(created.id);
+            insertedCount++;
+          }
+        } catch (error) {
+          // Check if this is a unique constraint error (race condition)
+          if (this.isUniqueConstraintError(error)) {
+            // Try to fetch the existing record
+            try {
+              const existing =
+                await this.pocketBaseService.labelClipMutator.getList(
+                  1,
+                  1,
+                  `labelHash = "${clip.labelHash}"`
+                );
+              if (existing.items.length > 0) {
+                clipIds.push(existing.items[0].id);
+                skippedCount++;
+                this.logger.debug(
+                  `Resolved duplicate label clip with hash ${clip.labelHash} (race condition)`
+                );
+              } else {
+                // Shouldn't happen, but log it
+                this.logger.warn(
+                  `Unique constraint error for labelHash ${clip.labelHash} but record not found`
+                );
+                errorCount++;
+              }
+            } catch (fetchError) {
+              this.logger.error(
+                `Failed to fetch existing label clip after unique constraint error: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`
+              );
+              errorCount++;
+            }
+          } else {
+            // Some other error occurred
+            this.logger.error(
+              `Failed to insert label clip: ${error instanceof Error ? error.message : String(error)}`
+            );
+            errorCount++;
+          }
         }
       }
 
       this.logger.debug(
-        `Inserted batch ${Math.floor(i / batchSize) + 1}: ${batch.length} clips`
+        `Batch ${Math.floor(i / batchSize) + 1}: Inserted ${insertedCount}, skipped ${skippedCount} duplicate clips, ${errorCount} errors`
       );
     }
 
@@ -301,15 +370,105 @@ export class PersonDetectionStepProcessor extends BaseStepProcessor<
   }
 
   /**
+   * Check if a label clip is valid before insertion
+   *
+   * @param clip The clip to validate
+   * @returns True if the clip is valid
+   */
+  private isValidLabelClip(clip: LabelClipData): boolean {
+    // Check required fields
+    if (!clip.labelHash || clip.labelHash.trim().length === 0) {
+      return false;
+    }
+    if (!clip.WorkspaceRef || clip.WorkspaceRef.trim().length === 0) {
+      return false;
+    }
+    if (!clip.MediaRef || clip.MediaRef.trim().length === 0) {
+      return false;
+    }
+
+    // Check time values
+    if (
+      typeof clip.start !== 'number' ||
+      clip.start < 0 ||
+      !Number.isFinite(clip.start)
+    ) {
+      return false;
+    }
+    if (
+      typeof clip.end !== 'number' ||
+      clip.end < 0 ||
+      !Number.isFinite(clip.end)
+    ) {
+      return false;
+    }
+
+    // End must be greater than start
+    if (clip.end <= clip.start) {
+      return false;
+    }
+
+    // Check duration (should be positive and match end - start)
+    // Must be more than 5 seconds
+    if (
+      typeof clip.duration !== 'number' ||
+      clip.duration <= 5 ||
+      !Number.isFinite(clip.duration)
+    ) {
+      return false;
+    }
+
+    // Check confidence (must be between 0 and 1, and greater than 0.7)
+    if (
+      typeof clip.confidence !== 'number' ||
+      clip.confidence < 0.7 ||
+      clip.confidence > 1 ||
+      !Number.isFinite(clip.confidence)
+    ) {
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Check if an error is a unique constraint violation
+   *
+   * @param error The error to check
+   * @returns True if the error is a unique constraint violation
+   */
+  private isUniqueConstraintError(error: unknown): boolean {
+    if (!error) return false;
+
+    // Check for PocketBase error structure
+    if (typeof error === 'object' && 'data' in error) {
+      const data = (error as { data?: { labelHash?: { code?: string } } })
+        .data;
+      if (data?.labelHash?.code === 'validation_not_unique') {
+        return true;
+      }
+    }
+
+    // Check error message
+    const message = error instanceof Error ? error.message : String(error);
+    return (
+      message.includes('unique constraint') ||
+      message.includes('UNIQUE constraint') ||
+      message.includes('validation_not_unique') ||
+      message.includes('labelHash')
+    );
+  }
+
+  /**
    * Update LabelMedia with aggregated data
    */
   private async updateLabelMedia(
     mediaId: string,
-    update: Record<string, any>
+    update: LabelMediaUpdate
   ): Promise<void> {
     try {
       // Try to get existing LabelMedia record
-      const existing = await this.labelMediaMutator.getList(
+      const existing = await this.pocketBaseService.labelMediaMutator.getList(
         1,
         1,
         `MediaRef = "${mediaId}"`
@@ -317,10 +476,13 @@ export class PersonDetectionStepProcessor extends BaseStepProcessor<
 
       if (existing.items.length > 0) {
         // Update existing record
-        await this.labelMediaMutator.update(existing.items[0].id, update);
+        await this.pocketBaseService.labelMediaMutator.update(
+          existing.items[0].id,
+          update
+        );
       } else {
         // Create new record
-        await this.labelMediaMutator.create({
+        await this.pocketBaseService.labelMediaMutator.create({
           MediaRef: mediaId,
           ...update,
         });

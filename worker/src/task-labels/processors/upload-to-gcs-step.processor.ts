@@ -10,6 +10,7 @@ import type { StepJobData } from '../../queue/types/job.types';
  */
 export interface UploadToGcsStepInput {
   type: 'upload_to_gcs';
+  workspaceRef: string;
   mediaId: string;
   fileRef: string;
 }
@@ -60,20 +61,19 @@ export class UploadToGcsStepProcessor extends BaseStepProcessor<
         };
       }
 
-      // Get deterministic GCS path
-      const fileName = input.fileRef.split('/').pop() || 'video';
-      const expectedGcsUri = await this.googleCloudService.getExpectedGcsUri(
-        input.mediaId,
-        fileName
+      // Get deterministic GCS path for temp storage
+      const tempGcsUri = this.googleCloudService.getTempGcsUri(
+        input.workspaceRef,
+        input.mediaId
       );
 
       // Check if file already exists in GCS
       const exists =
-        await this.googleCloudService.checkGcsFileExists(expectedGcsUri);
+        await this.googleCloudService.checkGcsFileExists(tempGcsUri);
       if (exists) {
-        this.logger.log(`File already exists in GCS: ${expectedGcsUri}`);
+        this.logger.log(`File already exists in GCS: ${tempGcsUri}`);
         return {
-          gcsUri: expectedGcsUri,
+          gcsUri: tempGcsUri,
           uploaded: false,
           alreadyExists: true,
         };
@@ -85,10 +85,11 @@ export class UploadToGcsStepProcessor extends BaseStepProcessor<
         storagePath: input.fileRef,
       });
 
-      // Upload to GCS with deterministic path
+      // Upload to GCS with deterministic temp path
       this.logger.log(`Uploading local file to GCS: ${localPath}`);
       const gcsUri = await this.googleCloudService.uploadToGcsTempBucket(
         localPath,
+        input.workspaceRef,
         input.mediaId
       );
 
