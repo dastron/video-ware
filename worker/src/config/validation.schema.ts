@@ -16,7 +16,8 @@ export const validationSchema = Joi.object({
           new URL(value);
         } catch {
           return helpers.message({
-            custom: 'REDIS_URL must be a valid URL (e.g., redis://:password@host:port)',
+            custom:
+              'REDIS_URL must be a valid URL (e.g., redis://:password@host:port)',
           });
         }
       }
@@ -51,6 +52,13 @@ export const validationSchema = Joi.object({
   ENABLE_GOOGLE_TRANSCODER: Joi.string().optional(),
   ENABLE_GOOGLE_VIDEO_INTELLIGENCE: Joi.string().optional(),
   ENABLE_GOOGLE_SPEECH: Joi.string().optional(),
+
+  // GCVI Processor configuration
+  ENABLE_LABEL_DETECTION: Joi.string().optional(),
+  ENABLE_OBJECT_TRACKING: Joi.string().optional(),
+  ENABLE_FACE_DETECTION: Joi.string().optional(),
+  ENABLE_PERSON_DETECTION: Joi.string().optional(),
+  ENABLE_SPEECH_TRANSCRIPTION: Joi.string().optional(),
 
   // S3 Watcher configuration
   ENABLE_S3_WATCHER: Joi.string().optional(),

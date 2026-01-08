@@ -3,7 +3,7 @@ import { Job } from 'bullmq';
 import { BaseStepProcessor } from '../../queue/processors/base-step.processor';
 import { ProcessingProvider } from '@project/shared';
 import { LabelCacheService } from '../services/label-cache.service';
-import { GoogleSpeechToTextExecutor } from '../executors';
+import { GoogleSpeechToTextExecutor } from '../executors/google/speech-to-text.executor';
 import { GoogleCloudService } from '../../shared/services/google-cloud.service';
 import { StorageService } from '../../shared/services/storage.service';
 import { FFmpegService } from '../../shared/services/ffmpeg.service';

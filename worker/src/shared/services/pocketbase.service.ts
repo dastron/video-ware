@@ -7,6 +7,7 @@ import {
   type MediaClipMutator,
   type MediaLabelMutator,
   type LabelClipMutator,
+  type LabelEntityMutator,
   type FileMutator,
   type TaskMutator,
   type WorkspaceMutator,
@@ -35,6 +36,7 @@ export class PocketBaseService implements OnModuleInit {
   // Mutators for data operations
   public fileMutator!: FileMutator;
   public labelClipMutator!: LabelClipMutator;
+  public labelEntityMutator!: LabelEntityMutator;
   public mediaClipMutator!: MediaClipMutator;
   public mediaMutator!: MediaMutator;
   public mediaLabelMutator!: MediaLabelMutator;
@@ -99,6 +101,7 @@ export class PocketBaseService implements OnModuleInit {
 
     this.fileMutator = new sharedModule.FileMutator(this.pb);
     this.labelClipMutator = new sharedModule.LabelClipMutator(this.pb);
+    this.labelEntityMutator = new sharedModule.LabelEntityMutator(this.pb);
     this.mediaClipMutator = new sharedModule.MediaClipMutator(this.pb);
     this.mediaMutator = new sharedModule.MediaMutator(this.pb);
     this.mediaLabelMutator = new sharedModule.MediaLabelMutator(this.pb);

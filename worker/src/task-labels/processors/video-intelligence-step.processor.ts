@@ -3,7 +3,7 @@ import { Job } from 'bullmq';
 import { BaseStepProcessor } from '../../queue/processors/base-step.processor';
 import { ProcessingProvider } from '@project/shared';
 import { LabelCacheService } from '../services/label-cache.service';
-import { GoogleVideoIntelligenceExecutor } from '../executors';
+import { GoogleVideoIntelligenceExecutor } from '../executors/google/video-intelligence.executor';
 import { GoogleCloudService } from '../../shared/services/google-cloud.service';
 import { StorageService } from '../../shared/services/storage.service';
 import type { StepJobData } from '../../queue/types/job.types';

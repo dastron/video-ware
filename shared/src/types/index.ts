@@ -17,6 +17,7 @@ import type { TimelineRender } from '../schema/timeline-render';
 import type { WatchedFile } from '../schema/watched-file';
 import { MediaLabel } from '../schema/media-label';
 import type { LabelClip } from '../schema/label-clip';
+import type { LabelEntity } from '../schema/label-entity';
 
 export * from './video-ware.js';
 export * from './task-contracts.js';
@@ -28,6 +29,7 @@ export * from './raw-label-cache.js';
 export interface TypedPocketBase extends PocketBase {
   collection(idOrName: 'Files'): RecordService<File>;
   collection(idOrName: 'LabelClips'): RecordService<LabelClip>;
+  collection(idOrName: 'LabelEntity'): RecordService<LabelEntity>;
   collection(idOrName: 'Media'): RecordService<Media>;
   collection(idOrName: 'MediaClips'): RecordService<MediaClip>;
   collection(idOrName: 'MediaLabels'): RecordService<MediaLabel>;

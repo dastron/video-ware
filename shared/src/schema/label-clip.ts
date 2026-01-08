@@ -16,6 +16,8 @@ export const LabelClipSchema = z
     WorkspaceRef: RelationField({ collection: 'Workspaces' }),
     MediaRef: RelationField({ collection: 'Media' }),
     TaskRef: RelationField({ collection: 'Tasks' }).optional(),
+    LabelEntityRef: RelationField({ collection: 'LabelEntity' }).optional(), // NEW: Reference to LabelEntity
+    LabelTrackRef: RelationField({ collection: 'LabelTrack' }).optional(), // NEW: Reference to LabelTrack (optional)
     labelHash: TextField({ min: 1 }),
     labelType: SelectField([
       LabelType.OBJECT,
@@ -23,7 +25,7 @@ export const LabelClipSchema = z
       LabelType.PERSON,
       LabelType.SPEECH,
     ]),
-    type: TextField(),
+    type: TextField(), // DEPRECATED: Use LabelEntityRef instead (kept for backward compatibility)
     start: NumberField({ min: 0 }), // seconds (float)
     end: NumberField({ min: 0 }), // seconds (float)
     duration: NumberField({ min: 0 }), // seconds (float)
@@ -43,6 +45,8 @@ export const LabelClipInputSchema = z.object({
   WorkspaceRef: z.string().min(1, 'Workspace is required'),
   MediaRef: z.string().min(1, 'Media is required'),
   TaskRef: z.string().optional(),
+  LabelEntityRef: z.string().optional(), // NEW: Reference to LabelEntity
+  LabelTrackRef: z.string().optional(), // NEW: Reference to LabelTrack
   labelHash: z.string().min(1, 'Label hash is required'),
   labelType: z.enum([
     LabelType.OBJECT,
@@ -50,7 +54,7 @@ export const LabelClipInputSchema = z.object({
     LabelType.PERSON,
     LabelType.SPEECH,
   ]),
-  type: z.string().min(1, 'Type is required'),
+  type: z.string().min(1, 'Type is required'), // DEPRECATED: Use LabelEntityRef instead
   start: z.number().min(0),
   end: z.number().min(0),
   duration: z.number().min(0),
