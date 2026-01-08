@@ -22,6 +22,8 @@ import {
   type TimelineRenderInput,
   type FileType,
   type FileSource,
+  type LabelTrackMutator,
+  type LabelMediaMutator,
   FileStatus,
   FileInput,
   File,
@@ -48,6 +50,8 @@ export class PocketBaseService implements OnModuleInit {
   public userMutator!: UserMutator;
   public watchedFileMutator!: WatchedFileMutator;
   public workspaceMutator!: WorkspaceMutator;
+  public labelTrackMutator!: LabelTrackMutator;
+  public labelMediaMutator!: LabelMediaMutator;
 
   constructor(
     private readonly configService: ConfigService,

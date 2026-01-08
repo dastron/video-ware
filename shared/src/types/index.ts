@@ -18,6 +18,8 @@ import type { WatchedFile } from '../schema/watched-file';
 import { MediaLabel } from '../schema/media-label';
 import type { LabelClip } from '../schema/label-clip';
 import type { LabelEntity } from '../schema/label-entity';
+import { LabelMedia } from '../schema/label-media';
+import { LabelTrack } from '../schema/label-track';
 
 export * from './video-ware.js';
 export * from './task-contracts.js';
@@ -30,6 +32,8 @@ export interface TypedPocketBase extends PocketBase {
   collection(idOrName: 'Files'): RecordService<File>;
   collection(idOrName: 'LabelClips'): RecordService<LabelClip>;
   collection(idOrName: 'LabelEntity'): RecordService<LabelEntity>;
+  collection(idOrName: 'LabelMedia'): RecordService<LabelMedia>;
+  collection(idOrName: 'LabelTrack'): RecordService<LabelTrack>;
   collection(idOrName: 'Media'): RecordService<Media>;
   collection(idOrName: 'MediaClips'): RecordService<MediaClip>;
   collection(idOrName: 'MediaLabels'): RecordService<MediaLabel>;

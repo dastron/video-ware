@@ -85,6 +85,7 @@ video-ware/
 ## 📚 Documentation
 
 - **[Development Guide](docs/DEVELOPMENT.md)** - Comprehensive development documentation
+- **[GCVI Configuration Guide](docs/GCVI_CONFIGURATION.md)** - Google Cloud Video Intelligence processor configuration and cost optimization
 - **[Planning Overview](planning/overview.md)** - Product vision and architecture details
 - **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment instructions
 - **[PocketBase Docs](docs/)** - PocketBase-specific documentation

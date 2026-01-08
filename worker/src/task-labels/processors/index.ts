@@ -1,12 +1,7 @@
-/**
- * Label detection processors
- *
- * Exports all BullMQ job processors for the labels module.
- */
-
-export * from './detect-labels-parent.processor';
-export * from './upload-to-gcs-step.processor';
-export * from './video-intelligence-step.processor';
-export * from './speech-to-text-step.processor';
-export * from './process-video-intelligence-labels-step.processor';
-export * from './process-speech-to-text-labels-step.processor';
+export { DetectLabelsParentProcessor } from './detect-labels-parent.processor';
+export { UploadToGcsStepProcessor } from './upload-to-gcs-step.processor';
+export { LabelDetectionStepProcessor } from './label-detection-step.processor';
+export { ObjectTrackingStepProcessor } from './object-tracking-step.processor';
+export { FaceDetectionStepProcessor } from './face-detection-step.processor';
+export { PersonDetectionStepProcessor } from './person-detection-step.processor';
+export { SpeechTranscriptionStepProcessor } from './speech-transcription-step.processor';

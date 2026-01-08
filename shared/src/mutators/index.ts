@@ -10,6 +10,8 @@ export { UploadMutator } from './upload';
 export { FileMutator } from './file';
 export { MediaMutator } from './media';
 export { MediaLabelMutator } from './media-label';
+export { LabelMediaMutator } from './label-media';
+export { LabelTrackMutator } from './label-track';
 export { MediaClipMutator } from './media-clip';
 export { LabelClipMutator } from './label-clip';
 export { LabelEntityMutator } from './label-entity';

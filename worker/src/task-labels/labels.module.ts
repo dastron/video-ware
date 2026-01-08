@@ -6,22 +6,29 @@ import { LabelsService } from './labels.service';
 import {
   DetectLabelsParentProcessor,
   UploadToGcsStepProcessor,
-  VideoIntelligenceStepProcessor,
-  SpeechToTextStepProcessor,
-  ProcessVideoIntelligenceLabelsStepProcessor,
-  ProcessSpeechToTextLabelsStepProcessor,
-} from './processors';
-// TODO: Import new executors when processors are refactored
-// import {
-//   LabelDetectionExecutor,
-//   ObjectTrackingExecutor,
-//   FaceDetectionExecutor,
-//   PersonDetectionExecutor,
-//   SpeechTranscriptionExecutor,
-// } from './executors';
-import { LabelNormalizerService } from './services/label-normalizer.service';
+  LabelDetectionStepProcessor,
+  ObjectTrackingStepProcessor,
+  FaceDetectionStepProcessor,
+  PersonDetectionStepProcessor,
+  SpeechTranscriptionStepProcessor,
+} from './processors/index';
+import {
+  LabelDetectionExecutor,
+  ObjectTrackingExecutor,
+  FaceDetectionExecutor,
+  PersonDetectionExecutor,
+  SpeechTranscriptionExecutor,
+} from './executors/index';
+
 import { LabelCacheService } from './services/label-cache.service';
 import { LabelEntityService } from './services/label-entity.service';
+import {
+  LabelDetectionNormalizer,
+  ObjectTrackingNormalizer,
+  FaceDetectionNormalizer,
+  PersonDetectionNormalizer,
+  SpeechTranscriptionNormalizer,
+} from './normalizers/index';
 
 @Module({
   imports: [SharedModule, QueueModule],
@@ -32,30 +39,35 @@ import { LabelEntityService } from './services/label-entity.service';
     // Service
     LabelsService,
 
-    // Executors (strategy implementations)
-    // TODO: Register new executors when processors are refactored
-    // LabelDetectionExecutor,
-    // ObjectTrackingExecutor,
-    // FaceDetectionExecutor,
-    // PersonDetectionExecutor,
-    // SpeechTranscriptionExecutor,
+    // Executors
+    LabelDetectionExecutor,
+    ObjectTrackingExecutor,
+    FaceDetectionExecutor,
+    PersonDetectionExecutor,
+    SpeechTranscriptionExecutor,
 
     // Services
-    LabelNormalizerService,
     LabelCacheService,
     LabelEntityService,
+
+    // Normalizers
+    LabelDetectionNormalizer,
+    ObjectTrackingNormalizer,
+    FaceDetectionNormalizer,
+    PersonDetectionNormalizer,
+    SpeechTranscriptionNormalizer,
 
     // Processors
     DetectLabelsParentProcessor,
     UploadToGcsStepProcessor,
-    VideoIntelligenceStepProcessor,
-    SpeechToTextStepProcessor,
-    ProcessVideoIntelligenceLabelsStepProcessor,
-    ProcessSpeechToTextLabelsStepProcessor,
+    LabelDetectionStepProcessor,
+    ObjectTrackingStepProcessor,
+    FaceDetectionStepProcessor,
+    PersonDetectionStepProcessor,
+    SpeechTranscriptionStepProcessor,
   ],
   exports: [
     LabelsService,
-    LabelNormalizerService,
     LabelCacheService,
     LabelEntityService,
     ProcessorsConfigService,

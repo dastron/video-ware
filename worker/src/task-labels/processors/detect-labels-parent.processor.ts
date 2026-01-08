@@ -5,26 +5,37 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { QUEUE_NAMES } from '../../queue/queue.constants';
 import { DetectLabelsStepType } from '../../queue/types/step.types';
 import { PocketBaseService } from '../../shared/services/pocketbase.service';
+import { ProcessorsConfigService } from '../../config/processors.config';
 import {
   UploadToGcsStepProcessor,
   type UploadToGcsStepInput,
 } from './upload-to-gcs-step.processor';
 import {
-  VideoIntelligenceStepProcessor,
-  type VideoIntelligenceStepInput,
-} from './video-intelligence-step.processor';
+  LabelDetectionStepProcessor,
+  type LabelDetectionStepInput,
+  type LabelDetectionStepOutput,
+} from './label-detection-step.processor';
 import {
-  SpeechToTextStepProcessor,
-  type SpeechToTextStepInput,
-} from './speech-to-text-step.processor';
+  ObjectTrackingStepProcessor,
+  type ObjectTrackingStepInput,
+  type ObjectTrackingStepOutput,
+} from './object-tracking-step.processor';
 import {
-  ProcessVideoIntelligenceLabelsStepProcessor,
-  type ProcessVideoIntelligenceLabelsStepInput,
-} from './process-video-intelligence-labels-step.processor';
+  FaceDetectionStepProcessor,
+  type FaceDetectionStepInput,
+  type FaceDetectionStepOutput,
+} from './face-detection-step.processor';
 import {
-  ProcessSpeechToTextLabelsStepProcessor,
-  type ProcessSpeechToTextLabelsStepInput,
-} from './process-speech-to-text-labels-step.processor';
+  PersonDetectionStepProcessor,
+  type PersonDetectionStepInput,
+  type PersonDetectionStepOutput,
+} from './person-detection-step.processor';
+import {
+  SpeechTranscriptionStepProcessor,
+  type SpeechTranscriptionStepInput,
+  type SpeechTranscriptionStepOutput,
+} from './speech-transcription-step.processor';
+
 import type {
   ParentJobData,
   StepJobData,
@@ -37,21 +48,37 @@ import { TaskStatus } from '@project/shared';
  */
 type DetectLabelsStepInput =
   | UploadToGcsStepInput
-  | VideoIntelligenceStepInput
-  | SpeechToTextStepInput
-  | ProcessVideoIntelligenceLabelsStepInput
-  | ProcessSpeechToTextLabelsStepInput;
+  | LabelDetectionStepInput
+  | ObjectTrackingStepInput
+  | FaceDetectionStepInput
+  | PersonDetectionStepInput
+  | SpeechTranscriptionStepInput;
+
+/**
+ * Union type of all possible step outputs
+ */
+type DetectLabelsStepOutput =
+  | LabelDetectionStepOutput
+  | ObjectTrackingStepOutput
+  | FaceDetectionStepOutput
+  | PersonDetectionStepOutput
+  | SpeechTranscriptionStepOutput;
 
 /**
  * Parent processor for detect_labels tasks
  * Orchestrates child step processors and aggregates results
  *
  * Key features:
- * - Allows partial success (one analysis step can fail while others succeed)
+ * - Allows partial success (one processor can fail while others succeed)
  * - UPLOAD_TO_GCS runs first to upload file to GCS
- * - VIDEO_INTELLIGENCE → PROCESS_VIDEO_INTELLIGENCE_LABELS (parallel branch)
- * - SPEECH_TO_TEXT → PROCESS_SPEECH_TO_TEXT_LABELS (parallel branch)
- * - Each extraction step processes and writes its own data independently
+ * - Five new GCVI processors run in parallel (if enabled):
+ *   - LABEL_DETECTION (labels + shot changes)
+ *   - OBJECT_TRACKING (tracked objects with keyframes)
+ *   - FACE_DETECTION (tracked faces with attributes)
+ *   - PERSON_DETECTION (tracked persons with landmarks)
+ *   - SPEECH_TRANSCRIPTION (speech-to-text)
+ * - Each processor processes and writes its own data independently
+ * - Task succeeds if at least one enabled processor succeeds
  */
 @Processor(QUEUE_NAMES.LABELS)
 export class DetectLabelsParentProcessor extends WorkerHost {
@@ -61,11 +88,14 @@ export class DetectLabelsParentProcessor extends WorkerHost {
     @InjectQueue(QUEUE_NAMES.LABELS)
     private readonly labelsQueue: Queue,
     private readonly pocketbaseService: PocketBaseService,
+    private readonly processorsConfigService: ProcessorsConfigService,
     private readonly uploadToGcsStepProcessor: UploadToGcsStepProcessor,
-    private readonly videoIntelligenceStepProcessor: VideoIntelligenceStepProcessor,
-    private readonly speechToTextStepProcessor: SpeechToTextStepProcessor,
-    private readonly processVideoIntelligenceLabelsStepProcessor: ProcessVideoIntelligenceLabelsStepProcessor,
-    private readonly processSpeechToTextLabelsStepProcessor: ProcessSpeechToTextLabelsStepProcessor
+    // New GCVI processors
+    private readonly labelDetectionStepProcessor: LabelDetectionStepProcessor,
+    private readonly objectTrackingStepProcessor: ObjectTrackingStepProcessor,
+    private readonly faceDetectionStepProcessor: FaceDetectionStepProcessor,
+    private readonly personDetectionStepProcessor: PersonDetectionStepProcessor,
+    private readonly speechTranscriptionStepProcessor: SpeechTranscriptionStepProcessor
   ) {
     super();
   }
@@ -100,10 +130,9 @@ export class DetectLabelsParentProcessor extends WorkerHost {
    * Process parent job - orchestrates child steps and aggregates results
    *
    * Detect labels tasks allow partial success:
-   * - If VIDEO_INTELLIGENCE fails but SPEECH_TO_TEXT succeeds, task succeeds
-   * - If SPEECH_TO_TEXT fails but VIDEO_INTELLIGENCE succeeds, task succeeds
-   * - If both analysis steps fail, task fails
-   * - NORMALIZE_LABELS and STORE_RESULTS only run if at least one analysis step succeeds
+   * - Task succeeds if at least one enabled processor completes successfully
+   * - Task fails only if all enabled processors fail
+   * - Disabled processors are skipped and don't affect success/failure
    */
   private async processParentJob(job: Job<ParentJobData>): Promise<void> {
     const { task, stepResults } = job.data;
@@ -146,7 +175,19 @@ export class DetectLabelsParentProcessor extends WorkerHost {
       `Cached ${Object.keys(aggregatedResults).length} step results for task ${task.id}`
     );
 
-    // Check which steps succeeded
+    // Check which new processors succeeded
+    const labelDetectionResult =
+      aggregatedResults[DetectLabelsStepType.LABEL_DETECTION];
+    const objectTrackingResult =
+      aggregatedResults[DetectLabelsStepType.OBJECT_TRACKING];
+    const faceDetectionResult =
+      aggregatedResults[DetectLabelsStepType.FACE_DETECTION];
+    const personDetectionResult =
+      aggregatedResults[DetectLabelsStepType.PERSON_DETECTION];
+    const speechTranscriptionResult =
+      aggregatedResults[DetectLabelsStepType.SPEECH_TRANSCRIPTION];
+
+    // Check which legacy processors succeeded (for backward compatibility)
     const videoIntelligenceResult =
       aggregatedResults[DetectLabelsStepType.VIDEO_INTELLIGENCE];
     const speechToTextResult =
@@ -156,54 +197,103 @@ export class DetectLabelsParentProcessor extends WorkerHost {
     const processSpeechLabelsResult =
       aggregatedResults[DetectLabelsStepType.PROCESS_SPEECH_TO_TEXT_LABELS];
 
-    const videoIntelligenceSucceeded =
-      videoIntelligenceResult?.status === 'completed';
-    const speechToTextSucceeded = speechToTextResult?.status === 'completed';
-    const processVideoLabelsSucceeded =
+    // Determine which processors succeeded
+    const successfulProcessors: string[] = [];
+    const failedProcessors: string[] = [];
+
+    // Check new processors
+    if (this.processorsConfigService.enableLabelDetection) {
+      if (labelDetectionResult?.status === 'completed') {
+        successfulProcessors.push('LABEL_DETECTION');
+      } else if (labelDetectionResult) {
+        failedProcessors.push('LABEL_DETECTION');
+      }
+    }
+
+    if (this.processorsConfigService.enableObjectTracking) {
+      if (objectTrackingResult?.status === 'completed') {
+        successfulProcessors.push('OBJECT_TRACKING');
+      } else if (objectTrackingResult) {
+        failedProcessors.push('OBJECT_TRACKING');
+      }
+    }
+
+    if (this.processorsConfigService.enableFaceDetection) {
+      if (faceDetectionResult?.status === 'completed') {
+        successfulProcessors.push('FACE_DETECTION');
+      } else if (faceDetectionResult) {
+        failedProcessors.push('FACE_DETECTION');
+      }
+    }
+
+    if (this.processorsConfigService.enablePersonDetection) {
+      if (personDetectionResult?.status === 'completed') {
+        successfulProcessors.push('PERSON_DETECTION');
+      } else if (personDetectionResult) {
+        failedProcessors.push('PERSON_DETECTION');
+      }
+    }
+
+    if (this.processorsConfigService.enableSpeechTranscription) {
+      if (speechTranscriptionResult?.status === 'completed') {
+        successfulProcessors.push('SPEECH_TRANSCRIPTION');
+      } else if (speechTranscriptionResult) {
+        failedProcessors.push('SPEECH_TRANSCRIPTION');
+      }
+    }
+
+    // Check legacy processors (for backward compatibility)
+    const videoBranchSucceeded =
+      videoIntelligenceResult?.status === 'completed' &&
       processVideoLabelsResult?.status === 'completed';
-    const processSpeechLabelsSucceeded =
+    const speechBranchSucceeded =
+      speechToTextResult?.status === 'completed' &&
       processSpeechLabelsResult?.status === 'completed';
 
-    // Log results of analysis steps
+    if (videoBranchSucceeded) {
+      successfulProcessors.push('VIDEO_INTELLIGENCE (legacy)');
+    }
+    if (speechBranchSucceeded) {
+      successfulProcessors.push('SPEECH_TO_TEXT (legacy)');
+    }
+
+    // Log results
     this.logger.log(`Detect labels results for task ${task.id}:`, {
-      videoIntelligence: videoIntelligenceSucceeded ? 'success' : 'failed',
-      speechToText: speechToTextSucceeded ? 'success' : 'failed',
-      processVideoLabels: processVideoLabelsSucceeded ? 'success' : 'failed',
-      processSpeechLabels: processSpeechLabelsSucceeded ? 'success' : 'failed',
+      successful: successfulProcessors,
+      failed: failedProcessors,
     });
 
     // Determine overall task status
-    // Task succeeds if at least one complete branch succeeded:
-    // - VIDEO_INTELLIGENCE → PROCESS_VIDEO_INTELLIGENCE_LABELS (complete branch)
-    // - SPEECH_TO_TEXT → PROCESS_SPEECH_TO_TEXT_LABELS (complete branch)
-    const videoBranchSucceeded =
-      videoIntelligenceSucceeded && processVideoLabelsSucceeded;
-    const speechBranchSucceeded =
-      speechToTextSucceeded && processSpeechLabelsSucceeded;
-
-    if (!videoBranchSucceeded && !speechBranchSucceeded) {
-      // Both branches failed completely
+    // Task succeeds if at least one processor succeeded
+    if (successfulProcessors.length === 0) {
+      // All enabled processors failed
       this.logger.error(
-        `Task ${task.id} failed: both video and speech processing branches failed`
+        `Task ${task.id} failed: all enabled processors failed`,
+        {
+          failedProcessors,
+        }
       );
       await this.updateTaskStatus(task.id, TaskStatus.FAILED);
       throw new Error(
-        'Detect labels task failed: both processing branches failed'
+        `Detect labels task failed: all enabled processors failed (${failedProcessors.join(', ')})`
       );
     }
 
-    // Task succeeded with at least one complete branch
-    if (videoBranchSucceeded && speechBranchSucceeded) {
+    // Task succeeded with at least one processor
+    if (failedProcessors.length === 0) {
       this.logger.log(
-        `Task ${task.id} completed successfully with full label data (video + speech)`
-      );
-    } else if (videoBranchSucceeded) {
-      this.logger.log(
-        `Task ${task.id} completed successfully with video intelligence only (speech branch failed)`
+        `Task ${task.id} completed successfully with all processors`,
+        {
+          successfulProcessors,
+        }
       );
     } else {
       this.logger.log(
-        `Task ${task.id} completed successfully with speech-to-text only (video branch failed)`
+        `Task ${task.id} completed successfully with partial results`,
+        {
+          successfulProcessors,
+          failedProcessors,
+        }
       );
     }
 
@@ -248,35 +338,41 @@ export class DetectLabelsParentProcessor extends WorkerHost {
           );
           break;
 
-        case DetectLabelsStepType.VIDEO_INTELLIGENCE:
-          output = await this.videoIntelligenceStepProcessor.process(
-            input as VideoIntelligenceStepInput,
+        // New GCVI processors
+        case DetectLabelsStepType.LABEL_DETECTION:
+          output = await this.labelDetectionStepProcessor.process(
+            input as LabelDetectionStepInput,
             job
           );
           break;
 
-        case DetectLabelsStepType.SPEECH_TO_TEXT:
-          output = await this.speechToTextStepProcessor.process(
-            input as SpeechToTextStepInput,
+        case DetectLabelsStepType.OBJECT_TRACKING:
+          output = await this.objectTrackingStepProcessor.process(
+            input as ObjectTrackingStepInput,
             job
           );
           break;
 
-        case DetectLabelsStepType.PROCESS_VIDEO_INTELLIGENCE_LABELS:
-          output =
-            await this.processVideoIntelligenceLabelsStepProcessor.process(
-              input as ProcessVideoIntelligenceLabelsStepInput,
-              job
-            );
-          break;
-
-        case DetectLabelsStepType.PROCESS_SPEECH_TO_TEXT_LABELS:
-          output = await this.processSpeechToTextLabelsStepProcessor.process(
-            input as ProcessSpeechToTextLabelsStepInput,
+        case DetectLabelsStepType.FACE_DETECTION:
+          output = await this.faceDetectionStepProcessor.process(
+            input as FaceDetectionStepInput,
             job
           );
           break;
 
+        case DetectLabelsStepType.PERSON_DETECTION:
+          output = await this.personDetectionStepProcessor.process(
+            input as PersonDetectionStepInput,
+            job
+          );
+          break;
+
+        case DetectLabelsStepType.SPEECH_TRANSCRIPTION:
+          output = await this.speechTranscriptionStepProcessor.process(
+            input as SpeechTranscriptionStepInput,
+            job
+          );
+          break;
         default:
           throw new Error(`Unknown step type: ${stepType}`);
       }
@@ -310,9 +406,15 @@ export class DetectLabelsParentProcessor extends WorkerHost {
       };
 
       // For detect labels tasks, we allow partial success
-      // Don't re-throw for VIDEO_INTELLIGENCE or SPEECH_TO_TEXT failures
+      // Don't re-throw for new GCVI processor failures
       // Let the parent job handle the partial success logic
       if (
+        stepType === DetectLabelsStepType.LABEL_DETECTION ||
+        stepType === DetectLabelsStepType.OBJECT_TRACKING ||
+        stepType === DetectLabelsStepType.FACE_DETECTION ||
+        stepType === DetectLabelsStepType.PERSON_DETECTION ||
+        stepType === DetectLabelsStepType.SPEECH_TRANSCRIPTION ||
+        // Legacy processors
         stepType === DetectLabelsStepType.VIDEO_INTELLIGENCE ||
         stepType === DetectLabelsStepType.SPEECH_TO_TEXT
       ) {
@@ -378,7 +480,7 @@ export class DetectLabelsParentProcessor extends WorkerHost {
         );
 
         // For detect labels tasks, only mark as failed if it's a critical step
-        // VIDEO_INTELLIGENCE and SPEECH_TO_TEXT failures are allowed (partial success)
+        // New GCVI processor failures are allowed (partial success)
         // Processing steps failures should mark task as failed
         if (
           stepType === DetectLabelsStepType.PROCESS_VIDEO_INTELLIGENCE_LABELS ||
@@ -442,7 +544,6 @@ export class DetectLabelsParentProcessor extends WorkerHost {
       );
     } catch (error) {
       this.logger.warn(`Failed to update parent progress: ${error}`);
-      // Don't throw - progress updates are non-critical
     }
   }
 }

@@ -1,7 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Storage } from '@google-cloud/storage';
-import * as fs from 'fs';
 import * as path from 'path';
 
 // Google Cloud Video Intelligence
@@ -9,9 +8,6 @@ import {
   VideoIntelligenceServiceClient,
   protos,
 } from '@google-cloud/video-intelligence';
-const Feature = protos.google.cloud.videointelligence.v1.Feature;
-const LabelDetectionMode =
-  protos.google.cloud.videointelligence.v1.LabelDetectionMode;
 
 // Google Cloud Speech-to-Text
 import { SpeechClient } from '@google-cloud/speech';
@@ -25,7 +21,113 @@ type gcObjectAnnotation =
   protos.google.cloud.videointelligence.v1.IObjectTrackingAnnotation;
 type gcLabelAnnotation =
   protos.google.cloud.videointelligence.v1.ILabelAnnotation;
+type gcFaceAnnotation =
+  protos.google.cloud.videointelligence.v1.IFaceDetectionAnnotation;
+type gcPersonAnnotation =
+  protos.google.cloud.videointelligence.v1.IPersonDetectionAnnotation;
 type gcFeatures = protos.google.cloud.videointelligence.v1.Feature[];
+
+/**
+ * Face attributes detected in a frame
+ */
+export interface FaceAttributes {
+  headwear?: string;
+  glasses?: string;
+  lookingAtCamera?: boolean;
+}
+
+/**
+ * Face frame with bounding box, confidence, and attributes
+ */
+export interface FaceFrame {
+  timeOffset: number; // seconds (float)
+  boundingBox: {
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
+  };
+  confidence: number;
+  attributes?: FaceAttributes;
+}
+
+/**
+ * Face Detection Result
+ */
+export interface FaceDetectionResult {
+  faces: Array<{
+    trackId: string;
+    frames: FaceFrame[];
+  }>;
+}
+
+/**
+ * Person attributes detected in a frame
+ */
+export interface PersonAttributes {
+  upperClothingColor?: string;
+  lowerClothingColor?: string;
+}
+
+/**
+ * Pose landmark with position and confidence
+ */
+export interface PoseLandmark {
+  type: string; // e.g., "NOSE", "LEFT_EYE", "RIGHT_SHOULDER"
+  position: {
+    x: number;
+    y: number;
+    z: number;
+  };
+  confidence: number;
+}
+
+/**
+ * Person frame with bounding box, confidence, attributes, and landmarks
+ */
+export interface PersonFrame {
+  timeOffset: number; // seconds (float)
+  boundingBox: {
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
+  };
+  confidence: number;
+  attributes?: PersonAttributes;
+  landmarks?: PoseLandmark[];
+}
+
+/**
+ * Person Detection Result
+ */
+export interface PersonDetectionResult {
+  persons: Array<{
+    trackId: string;
+    frames: PersonFrame[];
+  }>;
+}
+
+/**
+ * Configuration for face detection
+ */
+export interface FaceDetectionConfig {
+  includeBoundingBoxes?: boolean; // default: true
+  includeAttributes?: boolean; // default: true
+  confidenceThreshold?: number; // default: 0.7
+  model?: string; // default: 'builtin/latest'
+}
+
+/**
+ * Configuration for person detection
+ */
+export interface PersonDetectionConfig {
+  includeBoundingBoxes?: boolean; // default: true
+  includePoseLandmarks?: boolean; // default: true
+  includeAttributes?: boolean; // default: true
+  confidenceThreshold?: number; // default: 0.7
+  model?: string; // default: 'builtin/latest'
+}
 
 export interface VideoIntelligenceResult {
   labels: Array<{
@@ -52,6 +154,30 @@ export interface VideoIntelligenceResult {
   }>;
   sceneChanges: Array<{
     timeOffset: number;
+  }>;
+  persons: Array<{
+    confidence: number;
+    frames: Array<{
+      timeOffset: number;
+      boundingBox: {
+        left: number;
+        top: number;
+        right: number;
+        bottom: number;
+      };
+    }>;
+  }>;
+  faces: Array<{
+    confidence: number;
+    frames: Array<{
+      timeOffset: number;
+      boundingBox: {
+        left: number;
+        top: number;
+        right: number;
+        bottom: number;
+      };
+    }>;
   }>;
 }
 
@@ -276,12 +402,267 @@ export class GoogleCloudService implements OnModuleInit {
         labels,
         objects,
         sceneChanges,
+        persons: [], // Not populated by analyzeVideo - use detectPersons() instead
+        faces: [], // Not populated by analyzeVideo - use detectFaces() instead
       };
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       this.logger.error(`Video analysis failed: ${errorMessage}`);
       throw new Error(`Video Intelligence analysis failed: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Detect faces in video with attributes
+   */
+  async detectFaces(
+    gcsUri: string,
+    config: FaceDetectionConfig = {}
+  ): Promise<FaceDetectionResult> {
+    if (!this.videoIntelligenceClient) {
+      throw new Error('Video Intelligence client not initialized');
+    }
+
+    try {
+      this.logger.log(`Starting face detection for: ${gcsUri}`);
+
+      const request = {
+        inputUri: gcsUri,
+        features: [
+          protos.google.cloud.videointelligence.v1.Feature.FACE_DETECTION,
+        ],
+        videoContext: {
+          faceDetectionConfig: {
+            model: config.model || 'builtin/latest',
+            includeBoundingBoxes: config.includeBoundingBoxes ?? true,
+            includeAttributes: config.includeAttributes ?? true,
+          },
+        },
+      };
+
+      const [operation] =
+        await this.videoIntelligenceClient.annotateVideo(request);
+      this.logger.log(`Face detection operation started: ${operation.name}`);
+
+      // Wait for operation to complete
+      const [result] = await operation.promise();
+
+      if (!result.annotationResults || result.annotationResults.length === 0) {
+        this.logger.warn('No annotation results returned from face detection');
+        return {
+          faces: [],
+        };
+      }
+
+      const annotation = result.annotationResults[0];
+      const threshold = config.confidenceThreshold ?? 0.7;
+
+      // Process face annotations
+      const faces = (annotation.faceDetectionAnnotations || []).map(
+        (face: gcFaceAnnotation) => {
+          // Extract track ID from the first track (faces typically have one track)
+          const track = face.tracks?.[0];
+          const trackId = track ? String((track as any).trackId || '') : '';
+
+          // Process frames with bounding boxes and attributes
+          const frames: FaceFrame[] = (track?.timestampedObjects || []).map(
+            (obj: any) => {
+              const attributes: FaceAttributes = {};
+
+              // Extract attributes if available
+              if (config.includeAttributes && obj.attributes) {
+                for (const attr of obj.attributes) {
+                  const name = attr.name?.toLowerCase() || '';
+                  const value = attr.value || '';
+
+                  if (name === 'headwear') {
+                    attributes.headwear = value;
+                  } else if (name === 'glasses') {
+                    attributes.glasses = value;
+                  } else if (name === 'looking_at_camera') {
+                    attributes.lookingAtCamera =
+                      value === 'true' || value === 'yes';
+                  }
+                }
+              }
+
+              return {
+                timeOffset: this.parseTimeOffset(obj.timeOffset),
+                boundingBox: {
+                  left: obj.normalizedBoundingBox?.left || 0,
+                  top: obj.normalizedBoundingBox?.top || 0,
+                  right: obj.normalizedBoundingBox?.right || 0,
+                  bottom: obj.normalizedBoundingBox?.bottom || 0,
+                },
+                confidence: track?.confidence || 0,
+                attributes:
+                  Object.keys(attributes).length > 0 ? attributes : undefined,
+              };
+            }
+          );
+
+          return {
+            trackId,
+            frames,
+          };
+        }
+      );
+
+      // Apply confidence threshold if specified
+      const filteredFaces = faces.filter((face) => {
+        // Check if any frame meets the confidence threshold
+        return face.frames.some((frame) => frame.confidence >= threshold);
+      });
+
+      this.logger.log(
+        `Face detection completed: ${filteredFaces.length} faces tracked ` +
+          `(${faces.length - filteredFaces.length} filtered by confidence threshold)`
+      );
+
+      return {
+        faces: filteredFaces,
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.error(`Face detection failed: ${errorMessage}`);
+      throw new Error(`Face detection failed: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Detect persons in video with pose landmarks and attributes
+   */
+  async detectPersons(
+    gcsUri: string,
+    config: PersonDetectionConfig = {}
+  ): Promise<PersonDetectionResult> {
+    if (!this.videoIntelligenceClient) {
+      throw new Error('Video Intelligence client not initialized');
+    }
+
+    try {
+      this.logger.log(`Starting person detection for: ${gcsUri}`);
+
+      const request = {
+        inputUri: gcsUri,
+        features: [
+          protos.google.cloud.videointelligence.v1.Feature.PERSON_DETECTION,
+        ],
+        videoContext: {
+          personDetectionConfig: {
+            includeBoundingBoxes: config.includeBoundingBoxes ?? true,
+            includePoseLandmarks: config.includePoseLandmarks ?? true,
+            includeAttributes: config.includeAttributes ?? true,
+          },
+        },
+      };
+
+      const [operation] =
+        await this.videoIntelligenceClient.annotateVideo(request);
+      this.logger.log(`Person detection operation started: ${operation.name}`);
+
+      // Wait for operation to complete
+      const [result] = await operation.promise();
+
+      if (!result.annotationResults || result.annotationResults.length === 0) {
+        this.logger.warn(
+          'No annotation results returned from person detection'
+        );
+        return {
+          persons: [],
+        };
+      }
+
+      const annotation = result.annotationResults[0];
+      const threshold = config.confidenceThreshold ?? 0.7;
+
+      // Process person annotations
+      const persons = (annotation.personDetectionAnnotations || []).map(
+        (person: gcPersonAnnotation) => {
+          // Extract track ID from the first track (persons typically have one track)
+          const track = person.tracks?.[0];
+          const trackId = track ? String((track as any).trackId || '') : '';
+
+          // Process frames with bounding boxes, attributes, and landmarks
+          const frames: PersonFrame[] = (track?.timestampedObjects || []).map(
+            (obj: any) => {
+              const attributes: PersonAttributes = {};
+              const landmarks: PoseLandmark[] = [];
+
+              // Extract attributes if available
+              if (config.includeAttributes && obj.attributes) {
+                for (const attr of obj.attributes) {
+                  const name = attr.name?.toLowerCase() || '';
+                  const value = attr.value || '';
+
+                  if (name === 'upper_clothing_color') {
+                    attributes.upperClothingColor = value;
+                  } else if (name === 'lower_clothing_color') {
+                    attributes.lowerClothingColor = value;
+                  }
+                }
+              }
+
+              // Extract pose landmarks if available
+              if (config.includePoseLandmarks && obj.landmarks) {
+                for (const landmark of obj.landmarks) {
+                  const point = landmark.point as any; // Use any to access z coordinate
+                  landmarks.push({
+                    type: landmark.name || '',
+                    position: {
+                      x: point?.x || 0,
+                      y: point?.y || 0,
+                      z: point?.z || 0, // z may not be in type definition but exists in API
+                    },
+                    confidence: landmark.confidence || 0,
+                  });
+                }
+              }
+
+              return {
+                timeOffset: this.parseTimeOffset(obj.timeOffset),
+                boundingBox: {
+                  left: obj.normalizedBoundingBox?.left || 0,
+                  top: obj.normalizedBoundingBox?.top || 0,
+                  right: obj.normalizedBoundingBox?.right || 0,
+                  bottom: obj.normalizedBoundingBox?.bottom || 0,
+                },
+                confidence: track?.confidence || 0,
+                attributes:
+                  Object.keys(attributes).length > 0 ? attributes : undefined,
+                landmarks: landmarks.length > 0 ? landmarks : undefined,
+              };
+            }
+          );
+
+          return {
+            trackId,
+            frames,
+          };
+        }
+      );
+
+      // Apply confidence threshold if specified
+      const filteredPersons = persons.filter((person) => {
+        // Check if any frame meets the confidence threshold
+        return person.frames.some((frame) => frame.confidence >= threshold);
+      });
+
+      this.logger.log(
+        `Person detection completed: ${filteredPersons.length} persons tracked ` +
+          `(${persons.length - filteredPersons.length} filtered by confidence threshold)`
+      );
+
+      return {
+        persons: filteredPersons,
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.error(`Person detection failed: ${errorMessage}`);
+      throw new Error(`Person detection failed: ${errorMessage}`);
     }
   }
 
@@ -603,7 +984,6 @@ export class GoogleCloudService implements OnModuleInit {
       const fileName = path.basename(localFilePath);
       const gcsPath = `temp/${mediaId}/${fileName}`;
       const bucket = this.storageClient.bucket(this.gcsBucket);
-      const file = bucket.file(gcsPath);
 
       this.logger.log(
         `Uploading ${localFilePath} to gs://${this.gcsBucket}/${gcsPath}`
