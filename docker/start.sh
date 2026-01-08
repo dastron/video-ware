@@ -24,6 +24,14 @@ export WORKER_MAX_RETRIES="${WORKER_MAX_RETRIES:-3}"
 export WORKER_PROVIDER="${WORKER_PROVIDER:-ffmpeg}"
 export WORKER_POLL_INTERVAL="${WORKER_POLL_INTERVAL:-5000}"
 
+# Redis Configuration for NestJS worker
+# REDIS_URL can be set to a full Redis URL (e.g., redis://:password@host:port)
+# If not set, falls back to individual REDIS_HOST, REDIS_PORT, REDIS_PASSWORD
+export REDIS_URL="${REDIS_URL:-}"
+export REDIS_HOST="${REDIS_HOST:-localhost}"
+export REDIS_PORT="${REDIS_PORT:-6379}"
+export REDIS_PASSWORD="${REDIS_PASSWORD:-}"
+
 # Container Behavior
 export GRACEFUL_SHUTDOWN_TIMEOUT="${GRACEFUL_SHUTDOWN_TIMEOUT:-30}"
 

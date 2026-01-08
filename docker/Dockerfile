@@ -82,7 +82,10 @@ RUN echo "Building Next.js with NEXT_PUBLIC_POCKETBASE_URL=${NEXT_PUBLIC_POCKETB
 RUN yarn workspace @project/webapp build
 
 # Build worker TypeScript to JavaScript
-RUN yarn workspace @project/worker build
+RUN yarn workspace @project/worker build && \
+    # Verify the build output exists
+    test -f /app/worker/dist/main.js || (echo "ERROR: Worker build failed - dist/main.js not found" && exit 1) && \
+    echo "✅ Worker build successful - dist/main.js exists"
 
 # Ensure optional files/directories exist for runner stage
 RUN mkdir -p /app/pb/pb_migrations && \
@@ -103,6 +106,12 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # Server-side code (API routes, Server Actions) and worker processes
 # bypass nginx and connect directly to PocketBase at localhost:8090
 ENV POCKETBASE_URL="http://localhost:8090"
+
+# Redis configuration for NestJS worker
+# Can be set at runtime via environment variable
+# Format: redis://:password@host:port or redis://host:port
+# If not set, falls back to REDIS_HOST, REDIS_PORT, REDIS_PASSWORD
+ENV REDIS_URL=""
 
 # Install supervisor, nginx, curl, and ffmpeg for worker processing
 RUN apk add --no-cache supervisor nginx curl ffmpeg

@@ -5,9 +5,26 @@ export const validationSchema = Joi.object({
   PORT: Joi.string().optional(),
 
   // Redis configuration
-  REDIS_HOST: Joi.string().optional(),
-  REDIS_PORT: Joi.string().optional(),
-  REDIS_PASSWORD: Joi.string().optional(),
+  // Allow empty string - if empty, will fall back to REDIS_HOST/REDIS_PORT/REDIS_PASSWORD
+  REDIS_URL: Joi.string()
+    .allow('')
+    .optional()
+    .custom((value, helpers) => {
+      // Only validate URI format if value is provided and not empty
+      if (value && value.trim().length > 0) {
+        try {
+          new URL(value);
+        } catch {
+          return helpers.message({
+            custom: 'REDIS_URL must be a valid URL (e.g., redis://:password@host:port)',
+          });
+        }
+      }
+      return value; // Allow empty string or valid URI
+    }),
+  REDIS_HOST: Joi.string().allow('').optional(),
+  REDIS_PORT: Joi.string().allow('').optional(),
+  REDIS_PASSWORD: Joi.string().allow('').optional(),
 
   // PocketBase configuration (required)
   POCKETBASE_URL: Joi.string().uri().required().messages({

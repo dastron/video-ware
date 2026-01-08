@@ -1,11 +1,48 @@
-export default () => ({
-  port: parseInt(process.env.PORT || '3001', 10),
+/**
+ * Parse Redis URL into connection parameters
+ * Supports formats:
+ * - redis://:password@host:port
+ * - rediss://:password@host:port (TLS)
+ * - redis://host:port
+ * - redis://:password@host:port/db
+ */
+function parseRedisUrl(url?: string): {
+  host: string;
+  port: number;
+  password?: string;
+} {
+  if (!url) {
+    return {
+      host: process.env.REDIS_HOST || 'localhost',
+      port: parseInt(process.env.REDIS_PORT || '6379', 10),
+      password: process.env.REDIS_PASSWORD,
+    };
+  }
 
-  redis: {
-    host: process.env.REDIS_HOST || 'localhost',
-    port: parseInt(process.env.REDIS_PORT || '6379', 10),
-    password: process.env.REDIS_PASSWORD,
-  },
+  try {
+    const parsed = new URL(url);
+    return {
+      host: parsed.hostname,
+      port: parsed.port ? parseInt(parsed.port, 10) : 6379,
+      password: parsed.password || undefined,
+    };
+  } catch (error) {
+    // If URL parsing fails, fall back to individual env vars
+    return {
+      host: process.env.REDIS_HOST || 'localhost',
+      port: parseInt(process.env.REDIS_PORT || '6379', 10),
+      password: process.env.REDIS_PASSWORD,
+    };
+  }
+}
+
+export default () => {
+  const redisConfig = parseRedisUrl(process.env.REDIS_URL);
+
+  return {
+    port: parseInt(process.env.PORT || '3001', 10),
+
+    redis: redisConfig,
 
   pocketbase: {
     url: process.env.POCKETBASE_URL,
@@ -54,4 +91,5 @@ export default () => ({
       10
     ),
   },
-});
+  };
+};
