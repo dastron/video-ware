@@ -21,6 +21,9 @@ describe('MediaClipMutator - Derived Clips', () => {
     it('should find existing derived clip by mediaRef and sourceLabelId', async () => {
       const mockClip: MediaClip = {
         id: 'clip123',
+        collectionId: 'mediaclips',
+        collectionName: 'MediaClips',
+        expand: {},
         WorkspaceRef: 'ws1',
         MediaRef: 'media1',
         type: ClipType.SHOT,
@@ -74,8 +77,12 @@ describe('MediaClipMutator - Derived Clips', () => {
   describe('createFromLabel', () => {
     const mockLabelClip: LabelClip = {
       id: 'label123',
+      collectionId: 'labelclips',
+      collectionName: 'LabelClips',
+      expand: {},
       WorkspaceRef: 'ws1',
       MediaRef: 'media1',
+      labelHash: 'hash123',
       labelType: LabelType.SHOT,
       type: 'shot',
       start: 10.5,
@@ -106,6 +113,9 @@ describe('MediaClipMutator - Derived Clips', () => {
 
       const mockCreatedClip: MediaClip = {
         id: 'clip123',
+        collectionId: 'mediaclips',
+        collectionName: 'MediaClips',
+        expand: {},
         WorkspaceRef: 'ws1',
         MediaRef: 'media1',
         type: ClipType.SHOT,
@@ -189,6 +199,9 @@ describe('MediaClipMutator - Derived Clips', () => {
     it('should return existing clip if deduplication finds one', async () => {
       const existingClip: MediaClip = {
         id: 'existing_clip',
+        collectionId: 'mediaclips',
+        collectionName: 'MediaClips',
+        expand: {},
         WorkspaceRef: 'ws1',
         MediaRef: 'media1',
         type: ClipType.SHOT,
