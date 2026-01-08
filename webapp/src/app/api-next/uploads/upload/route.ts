@@ -194,7 +194,6 @@ export async function PUT(req: Request) {
       try {
         const payload: ProcessUploadPayload = {
           uploadId,
-          originalFileRef: uploadId,
           provider: ProcessingProvider.FFMPEG,
           sprite: {
             fps: 1,

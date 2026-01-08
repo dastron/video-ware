@@ -11,7 +11,7 @@ export const TimelineRenderSchema = z
   .object({
     TimelineRef: RelationField({ collection: 'Timelines' }),
     FileRef: RelationField({ collection: 'Files' }),
-    timelineVersion: NumberField({ min: 0 }), // Version of the timeline when rendered
+    version: NumberField().default(1).optional(), // Version of the timeline when rendered
   })
   .extend(baseSchema);
 
@@ -19,7 +19,7 @@ export const TimelineRenderSchema = z
 export const TimelineRenderInputSchema = z.object({
   TimelineRef: z.string().min(1, 'Timeline is required'),
   FileRef: z.string().min(1, 'File is required'),
-  timelineVersion: z.number().min(1, 'Timeline version must be at least 1'),
+  version: NumberField().default(1).optional(),
 });
 
 // Define the collection with workspace-scoped permissions

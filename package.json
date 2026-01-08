@@ -11,7 +11,7 @@
   ],
   "scripts": {
     "setup": "yarn workspace @project/pb setup",
-    "dev": "concurrently --names \"shared,webapp,pocket,worker\" \"yarn workspace @project/shared dev\" \"sleep 2 && yarn workspace @project/webapp dev\" \"sleep 2 && yarn workspace @project/pb dev\" \"sleep 2 && yarn workspace @project/worker dev\"",
+    "dev": "concurrently --names \"shared,webapp,pocket,worker\" \"yarn workspace @project/shared dev\" \"sleep 9 && yarn workspace @project/webapp dev\" \"yarn workspace @project/pb dev\" \"sleep 9 && yarn workspace @project/worker dev\"",
     "build": "yarn workspaces foreach -A run build",
     "test": "yarn workspace @project/shared test && yarn workspace @project/webapp test",
     "test:watch": "concurrently \"yarn workspace @project/shared test:watch\" \"yarn workspace @project/webapp test:watch\"",

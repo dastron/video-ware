@@ -321,7 +321,6 @@ export class UploadService {
     // Default processing configuration
     const payload: ProcessUploadPayload = {
       uploadId,
-      originalFileRef: uploadId, // Will be resolved by worker
       provider: this.config.defaultProvider,
       sprite: {
         fps: 1,

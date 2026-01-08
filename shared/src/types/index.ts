@@ -15,6 +15,7 @@ import type { Timeline } from '../schema/timeline';
 import type { TimelineClip } from '../schema/timeline-clip';
 import type { TimelineRender } from '../schema/timeline-render';
 import type { WatchedFile } from '../schema/watched-file';
+import { MediaLabel } from '../schema/media-label';
 
 export * from './video-ware.js';
 export * from './task-contracts.js';
@@ -22,19 +23,20 @@ export * from './processor.js';
 
 // Typed PocketBase interface
 export interface TypedPocketBase extends PocketBase {
-  collection(idOrName: 'Users'): RecordService<User>;
-  collection(idOrName: 'Tasks'): RecordService<Task>;
-  collection(idOrName: 'MediaClips'): RecordService<MediaClip>;
-  collection(idOrName: 'Uploads'): RecordService<Upload>;
   collection(idOrName: 'Files'): RecordService<File>;
   collection(idOrName: 'Media'): RecordService<Media>;
-  collection(idOrName: 'Workspaces'): RecordService<Workspace>;
-  collection(idOrName: 'WorkspaceMembers'): RecordService<WorkspaceMember>;
-  collection(idOrName: 'Todos'): RecordService<Todo>;
-  collection(idOrName: 'Timelines'): RecordService<Timeline>;
+  collection(idOrName: 'MediaClips'): RecordService<MediaClip>;
+  collection(idOrName: 'MediaLabels'): RecordService<MediaLabel>;
+  collection(idOrName: 'Tasks'): RecordService<Task>;
   collection(idOrName: 'TimelineClips'): RecordService<TimelineClip>;
   collection(idOrName: 'TimelineRenders'): RecordService<TimelineRender>;
+  collection(idOrName: 'Timelines'): RecordService<Timeline>;
+  collection(idOrName: 'Todos'): RecordService<Todo>;
+  collection(idOrName: 'Uploads'): RecordService<Upload>;
+  collection(idOrName: 'Users'): RecordService<User>;
   collection(idOrName: 'WatchedFiles'): RecordService<WatchedFile>;
+  collection(idOrName: 'WorkspaceMembers'): RecordService<WorkspaceMember>;
+  collection(idOrName: 'Workspaces'): RecordService<Workspace>;
 }
 
 // PocketBase response types

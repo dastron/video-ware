@@ -9,6 +9,7 @@ export { WorkspaceMemberMutator } from './workspace-member';
 export { UploadMutator } from './upload';
 export { FileMutator } from './file';
 export { MediaMutator } from './media';
+export { MediaLabelMutator } from './media-label';
 export { MediaClipMutator } from './media-clip';
 export { TaskMutator } from './task';
 export { WatchedFileMutator } from './watched-file';

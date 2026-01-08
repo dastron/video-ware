@@ -53,12 +53,6 @@ export interface TranscodeConfig {
 export interface ProcessUploadPayload {
   /** ID of the Upload record being processed */
   uploadId: string;
-  /**
-   * @deprecated Original files are no longer stored as a PocketBase file field.
-   * Workers resolve the source via `Uploads.storageBackend` + `Uploads.externalPath`.
-   * Kept optional for backward compatibility with older queued tasks.
-   */
-  originalFileRef?: string;
   /** Processing provider to use (FFmpeg, Google Cloud, etc.) */
   provider?: ProcessingProvider;
   /** Configuration for sprite sheet generation */
@@ -161,15 +155,15 @@ export interface ProcessUploadResult {
   /** ID of the created Media record */
   mediaId: string;
   /** ID of the thumbnail File record */
-  thumbnailFileId: string;
+  thumbnailFileId?: string;
   /** ID of the sprite sheet File record */
-  spriteFileId: string;
+  spriteFileId?: string;
   /** ID of the proxy/transcoded File record (if transcoding was enabled) */
   proxyFileId?: string;
   /** Version identifier of the processor that executed the task (e.g., "ffmpeg:7.0.1") */
-  processorVersion: string;
+  processorVersion?: string;
   /** Metadata extracted from the media file */
-  probeOutput: ProbeOutput;
+  probeOutput?: ProbeOutput;
 }
 
 /**

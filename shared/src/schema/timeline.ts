@@ -29,7 +29,7 @@ export const TimelineSchema = z
     duration: NumberField({ min: 0 }).default(0), // computed total duration in seconds
     version: NumberField({ min: 1 }).default(1),
     editList: JSONField().optional(), // EditList snapshot for rendering
-    createdBy: RelationField({ collection: 'Users' }).optional(),
+    UserRef: RelationField({ collection: 'Users' }).optional(),
   })
   .extend(baseSchema);
 
@@ -40,7 +40,7 @@ export const TimelineInputSchema = z.object({
   duration: z.number().min(0).default(0),
   version: z.number().min(1).default(1),
   editList: z.array(EditListEntrySchema).optional(),
-  createdBy: z.string().optional(),
+  UserRef: z.string().optional(),
 });
 
 // Define the collection with workspace-scoped permissions

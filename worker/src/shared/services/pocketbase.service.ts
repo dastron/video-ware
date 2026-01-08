@@ -1,0 +1,395 @@
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import {
+  type TypedPocketBase,
+  type UploadMutator,
+  type MediaMutator,
+  type MediaClipMutator,
+  type MediaLabelMutator,
+  type FileMutator,
+  type TaskMutator,
+  type WorkspaceMutator,
+  type UserMutator,
+  type TimelineMutator,
+  type TimelineClipMutator,
+  type TimelineRenderMutator,
+  type WatchedFileMutator,
+  type TaskStatus,
+  type Media,
+  type MediaInput,
+  type TimelineRenderInput,
+  type FileType,
+  type FileSource,
+  FileStatus,
+  FileInput,
+  File,
+} from '@project/shared';
+import { PocketBaseClientService } from './pocketbase-client.service';
+
+@Injectable()
+export class PocketBaseService implements OnModuleInit {
+  private readonly logger = new Logger(PocketBaseService.name);
+  private pb!: TypedPocketBase;
+
+  // Mutators for data operations
+  public fileMutator!: FileMutator;
+  public mediaClipMutator!: MediaClipMutator;
+  public mediaMutator!: MediaMutator;
+  public mediaLabelMutator!: MediaLabelMutator;
+  public taskMutator!: TaskMutator;
+  public timelineClipMutator!: TimelineClipMutator;
+  public timelineMutator!: TimelineMutator;
+  public timelineRenderMutator!: TimelineRenderMutator;
+  public uploadMutator!: UploadMutator;
+  public userMutator!: UserMutator;
+  public watchedFileMutator!: WatchedFileMutator;
+  public workspaceMutator!: WorkspaceMutator;
+
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly pocketBaseClientService: PocketBaseClientService,
+  ) {}
+
+  async onModuleInit() {
+    await this.connect();
+  }
+
+  private async connect() {
+    const url = this.configService.get<string>('pocketbase.url');
+    const email = this.configService.get<string>('pocketbase.adminEmail');
+    const password = this.configService.get<string>('pocketbase.adminPassword');
+
+    if (!url || !email || !password) {
+      throw new Error(
+        'PocketBase configuration is incomplete. Please check POCKETBASE_URL, POCKETBASE_ADMIN_EMAIL, and POCKETBASE_ADMIN_PASSWORD environment variables.'
+      );
+    }
+
+    this.pb = await this.pocketBaseClientService.createClient(url);
+    this.pb.autoCancellation(false);
+
+    try {
+      // Use type assertion to access _superusers collection for admin auth
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (this.pb as any)
+        .collection('_superusers')
+        .authWithPassword(email, password, {
+          autoRefreshThreshold: 30 * 60, // 30 minutes
+        });
+
+      this.logger.log(`Connected to PocketBase at ${url}`);
+
+      // Initialize all mutators with dynamic import
+      await this.initializeMutators();
+    } catch (error) {
+      this.logger.error(
+        `Failed to connect to PocketBase: ${error instanceof Error ? error.message : String(error)}`
+      );
+      throw error;
+    }
+  }
+
+  private async initializeMutators() {
+    // Dynamically import ESM shared package
+    const sharedModule = await (eval(`import('@project/shared')`) as Promise<
+      typeof import('@project/shared')
+    >);
+
+    this.fileMutator = new sharedModule.FileMutator(this.pb);
+    this.mediaClipMutator = new sharedModule.MediaClipMutator(this.pb);
+    this.mediaMutator = new sharedModule.MediaMutator(this.pb);
+    this.mediaLabelMutator = new sharedModule.MediaLabelMutator(this.pb);
+    this.taskMutator = new sharedModule.TaskMutator(this.pb);
+    this.timelineClipMutator = new sharedModule.TimelineClipMutator(this.pb);
+    this.timelineMutator = new sharedModule.TimelineMutator(this.pb);
+    this.timelineRenderMutator = new sharedModule.TimelineRenderMutator(this.pb);
+    this.uploadMutator = new sharedModule.UploadMutator(this.pb);
+    this.userMutator = new sharedModule.UserMutator(this.pb);
+    this.watchedFileMutator = new sharedModule.WatchedFileMutator(this.pb);
+    this.workspaceMutator = new sharedModule.WorkspaceMutator(this.pb);
+
+    this.logger.log('All mutators initialized successfully');
+  }
+
+  /**
+   * Get the raw PocketBase client instance
+   */
+  getClient(): TypedPocketBase {
+    return this.pb;
+  }
+
+  /**
+   * Get an upload record by ID
+   */
+  async getUpload(uploadId: string) {
+    try {
+      return await this.uploadMutator.getById(uploadId);
+    } catch (error) {
+      this.logger.error(
+        `Failed to get upload ${uploadId}: ${error instanceof Error ? error.message : String(error)}`
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Get media record by upload ID
+   */
+  async getMediaByUpload(uploadId: string) {
+    try {
+      const results = await this.mediaMutator.getList(
+        1,
+        1,
+        `UploadRef = "${uploadId}"`
+      );
+      return results.items[0] || null;
+    } catch (error) {
+      this.logger.error(
+        `Failed to get media for upload ${uploadId}: ${error instanceof Error ? error.message : String(error)}`
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Create or update media record
+   */
+  async createOrUpdateMedia(uploadId: string, data: Partial<MediaInput>) {
+    try {
+      const existing = await this.getMediaByUpload(uploadId);
+      if (existing) {
+        return await this.mediaMutator.update(existing.id, data as Partial<Media>);
+      }
+      return await this.mediaMutator.create({ ...data, UploadRef: uploadId } as MediaInput);
+    } catch (error) {
+      this.logger.error(
+        `Failed to create/update media for upload ${uploadId}: ${error instanceof Error ? error.message : String(error)}`
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Health check method to verify PocketBase connectivity
+   */
+  async isHealthy(): Promise<boolean> {
+    try {
+      await this.pb.health.check();
+      return true;
+    } catch (error) {
+      this.logger.warn(
+        `PocketBase health check failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Get task by ID
+   */
+  async getTask(taskId: string) {
+    try {
+      return await this.taskMutator.getById(taskId);
+    } catch (error) {
+      this.logger.error(
+        `Failed to get task ${taskId}: ${error instanceof Error ? error.message : String(error)}`
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Update task status and progress
+   */
+  async updateTask(
+    taskId: string,
+    updates: {
+      status?: TaskStatus;
+      progress?: number;
+      result?: unknown;
+      error?: string;
+    }
+  ) {
+    try {
+      return await this.taskMutator.update(taskId, updates);
+    } catch (error) {
+      this.logger.error(
+        `Failed to update task ${taskId}: ${error instanceof Error ? error.message : String(error)}`
+      );
+      throw error;
+    }
+  }
+
+  async createFile(data: FileInput) {
+    try {
+      return await this.fileMutator.create(data);
+    } catch (error) {
+      this.logger.error(
+        `Failed to create file record: ${error instanceof Error ? error.message : String(error)}`
+      );
+      throw error;
+    }
+  }
+
+
+  /**
+   * Get file record by ID
+   */
+  async getFile(fileId: string) {
+    try {
+      return await this.fileMutator.getById(fileId);
+    } catch (error) {
+      this.logger.error(
+        `Failed to get file record ${fileId}: ${error instanceof Error ? error.message : String(error)}`
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Create file record with upload
+   */
+  async createFileWithUpload(params: {
+    localFilePath: string;
+    fileName: string;
+    fileType: FileType;
+    fileSource: FileSource;
+    storageKey: string;
+    workspaceRef: string;
+    uploadRef: string;
+    mimeType: string;
+  }): Promise<File> {
+    const { localFilePath, fileName, fileType, fileSource, storageKey, workspaceRef, uploadRef, mimeType } = params;
+
+    try {
+      const fs = await import('fs');
+      const { Blob } = await import('buffer');
+      
+      // Read file from filesystem
+      const fileBuffer = await fs.promises.readFile(localFilePath);
+      const fileSize = fileBuffer.length;
+      
+      // Create a Blob from the buffer
+      const blob = new Blob([fileBuffer], { type: mimeType });
+      
+      // Create FormData and append all fields
+      const formData = new FormData();
+      formData.append('name', fileName);
+      formData.append('size', String(fileSize));
+      formData.append('fileStatus', FileStatus.AVAILABLE);
+      formData.append('fileType', fileType);
+      formData.append('fileSource', fileSource);
+      formData.append('s3Key', storageKey);
+      formData.append('WorkspaceRef', workspaceRef);
+      formData.append('UploadRef', uploadRef);
+      formData.append('meta', JSON.stringify({ mimeType }));
+      
+      // Append the actual file
+      formData.append('file', blob as unknown as Blob, fileName);
+      
+      // Use PocketBase client directly to create with FormData
+      const pb = this.getClient();
+      const record = await pb.collection('Files').create(formData);
+      
+      return record;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Failed to create file record with upload: ${errorMessage}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Get timeline record by ID
+   */
+  async getTimeline(timelineId: string) {
+    try {
+      return await this.timelineMutator.getById(timelineId);
+    } catch (error) {
+      this.logger.error(
+        `Failed to get timeline ${timelineId}: ${error instanceof Error ? error.message : String(error)}`
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Get timeline clips for a timeline
+   */
+  async getTimelineClips(timelineId: string) {
+    try {
+      const results = await this.timelineClipMutator.getList(
+        1,
+        100, // Assuming max 100 clips per timeline
+        `TimelineRef = "${timelineId}"`
+      );
+      return results.items;
+    } catch (error) {
+      this.logger.error(
+        `Failed to get timeline clips for ${timelineId}: ${error instanceof Error ? error.message : String(error)}`
+      );
+      return [];
+    }
+  }
+
+  /**
+   * Get media record by ID
+   */
+  async getMedia(mediaId: string) {
+    try {
+      return await this.mediaMutator.getById(mediaId);
+    } catch (error) {
+      this.logger.error(
+        `Failed to get media ${mediaId}: ${error instanceof Error ? error.message : String(error)}`
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Get upload by media ID
+   */
+  async getUploadByMedia(mediaId: string) {
+    try {
+      const results = await this.uploadMutator.getList(
+        1,
+        1,
+        `MediaRef = "${mediaId}"`
+      );
+      return results.items[0] || null;
+    } catch (error) {
+      this.logger.error(
+        `Failed to get upload for media ${mediaId}: ${error instanceof Error ? error.message : String(error)}`
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Create media record
+   */
+  async createMedia(data: MediaInput) {
+    try {
+      return await this.mediaMutator.create(data);
+    } catch (error) {
+      this.logger.error(
+        `Failed to create media record: ${error instanceof Error ? error.message : String(error)}`
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Create timeline render record
+   */
+  async createTimelineRender(data: TimelineRenderInput) {
+    try {
+      return await this.timelineRenderMutator.create(data);
+    } catch (error) {
+      this.logger.error(
+        `Failed to create timeline render record: ${error instanceof Error ? error.message : String(error)}`
+      );
+      throw error;
+    }
+  }
+}
