@@ -39,8 +39,8 @@ export class LabelsFlowBuilder {
     // For now, we'll use version 1 as default - the actual version should come from payload
     const version = 1;
 
-    // Processors will resolve gcsUri themselves using getTempGcsUri(workspaceId, mediaId)
-    // The upload step uses a deterministic temp path, so processors can compute it
+    // Processors will resolve gcsUri themselves using getExpectedGcsUri(mediaId, fileName)
+    // The upload step uses a deterministic path, so processors can compute it
 
     // Create parent job with children
     const flow: LabelsFlowDefinition = {

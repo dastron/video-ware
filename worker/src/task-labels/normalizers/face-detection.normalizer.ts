@@ -87,6 +87,21 @@ export class FaceDetectionNormalizer {
 
     // Process each tracked face
     for (const face of response.faces) {
+      // Skip faces with invalid trackId or no frames
+      if (!face.trackId || face.trackId.trim().length === 0) {
+        this.logger.debug(
+          `Skipping face with empty trackId for media ${mediaId}`
+        );
+        continue;
+      }
+
+      if (!face.frames || face.frames.length === 0) {
+        this.logger.debug(
+          `Skipping face with no frames (trackId: ${face.trackId}) for media ${mediaId}`
+        );
+        continue;
+      }
+
       // Extract keyframes from frames with attributes
       const keyframes: KeyframeData[] = face.frames.map((frame) => ({
         t: frame.timeOffset,

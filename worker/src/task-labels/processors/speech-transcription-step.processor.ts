@@ -227,7 +227,9 @@ export class SpeechTranscriptionStepProcessor extends BaseStepProcessor<
    * Handles duplicate labelHash by checking for existing records first
    * Filters out invalid clips before insertion
    */
-  private async batchInsertLabelClips(clips: Array<LabelClipData>): Promise<string[]> {
+  private async batchInsertLabelClips(
+    clips: Array<LabelClipData>
+  ): Promise<string[]> {
     // Filter out invalid clips before processing
     const validClips = clips.filter((clip) => this.isValidLabelClip(clip));
 
@@ -249,11 +251,12 @@ export class SpeechTranscriptionStepProcessor extends BaseStepProcessor<
       for (const clip of batch) {
         try {
           // Check if a clip with this labelHash already exists
-          const existing = await this.pocketBaseService.labelClipMutator.getList(
-            1,
-            1,
-            `labelHash = "${clip.labelHash}"`
-          );
+          const existing =
+            await this.pocketBaseService.labelClipMutator.getList(
+              1,
+              1,
+              `labelHash = "${clip.labelHash}"`
+            );
 
           if (existing.items.length > 0) {
             // Clip already exists, use existing ID
@@ -264,10 +267,11 @@ export class SpeechTranscriptionStepProcessor extends BaseStepProcessor<
             );
           } else {
             // Clip doesn't exist, create it
-            const created = await this.pocketBaseService.labelClipMutator.create({
-              ...clip,
-              provider: clip.provider as ProcessingProvider.GOOGLE_SPEECH,
-            });
+            const created =
+              await this.pocketBaseService.labelClipMutator.create({
+                ...clip,
+                provider: clip.provider as ProcessingProvider.GOOGLE_SPEECH,
+              });
             clipIds.push(created.id);
             insertedCount++;
           }
@@ -391,8 +395,7 @@ export class SpeechTranscriptionStepProcessor extends BaseStepProcessor<
 
     // Check for PocketBase error structure
     if (typeof error === 'object' && 'data' in error) {
-      const data = (error as { data?: { labelHash?: { code?: string } } })
-        .data;
+      const data = (error as { data?: { labelHash?: { code?: string } } }).data;
       if (data?.labelHash?.code === 'validation_not_unique') {
         return true;
       }
@@ -425,7 +428,10 @@ export class SpeechTranscriptionStepProcessor extends BaseStepProcessor<
 
       if (existing.items.length > 0) {
         // Update existing record
-        await this.pocketBaseService.labelMediaMutator.update(existing.items[0].id, update);
+        await this.pocketBaseService.labelMediaMutator.update(
+          existing.items[0].id,
+          update
+        );
       } else {
         // Create new record
         await this.pocketBaseService.labelMediaMutator.create({

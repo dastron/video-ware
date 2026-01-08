@@ -106,6 +106,8 @@ export class PocketBaseService implements OnModuleInit {
     this.fileMutator = new sharedModule.FileMutator(this.pb);
     this.labelClipMutator = new sharedModule.LabelClipMutator(this.pb);
     this.labelEntityMutator = new sharedModule.LabelEntityMutator(this.pb);
+    this.labelMediaMutator = new sharedModule.LabelMediaMutator(this.pb);
+    this.labelTrackMutator = new sharedModule.LabelTrackMutator(this.pb);
     this.mediaClipMutator = new sharedModule.MediaClipMutator(this.pb);
     this.mediaMutator = new sharedModule.MediaMutator(this.pb);
     this.mediaLabelMutator = new sharedModule.MediaLabelMutator(this.pb);

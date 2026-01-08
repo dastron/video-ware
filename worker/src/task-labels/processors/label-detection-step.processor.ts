@@ -254,11 +254,12 @@ export class LabelDetectionStepProcessor extends BaseStepProcessor<
       for (const clip of batch) {
         try {
           // Check if a clip with this labelHash already exists
-          const existing = await this.pocketBaseService.labelClipMutator.getList(
-            1,
-            1,
-            `labelHash = "${clip.labelHash}"`
-          );
+          const existing =
+            await this.pocketBaseService.labelClipMutator.getList(
+              1,
+              1,
+              `labelHash = "${clip.labelHash}"`
+            );
 
           if (existing.items.length > 0) {
             // Clip already exists, use existing ID
@@ -269,12 +270,13 @@ export class LabelDetectionStepProcessor extends BaseStepProcessor<
             );
           } else {
             // Clip doesn't exist, create it
-            const created = await this.pocketBaseService.labelClipMutator.create({
-              ...clip,
-              provider: clip.provider as
-                | ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE
-                | ProcessingProvider.GOOGLE_SPEECH,
-            });
+            const created =
+              await this.pocketBaseService.labelClipMutator.create({
+                ...clip,
+                provider: clip.provider as
+                  | ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE
+                  | ProcessingProvider.GOOGLE_SPEECH,
+              });
             clipIds.push(created.id);
             insertedCount++;
           }
@@ -399,8 +401,7 @@ export class LabelDetectionStepProcessor extends BaseStepProcessor<
 
     // Check for PocketBase error structure
     if (typeof error === 'object' && 'data' in error) {
-      const data = (error as { data?: { labelHash?: { code?: string } } })
-        .data;
+      const data = (error as { data?: { labelHash?: { code?: string } } }).data;
       if (data?.labelHash?.code === 'validation_not_unique') {
         return true;
       }
@@ -425,7 +426,7 @@ export class LabelDetectionStepProcessor extends BaseStepProcessor<
   ): Promise<void> {
     try {
       // Try to get existing LabelMedia record
-      const existing = await this.pocketBaseService.mediaLabelMutator.getList(
+      const existing = await this.pocketBaseService.labelMediaMutator.getList(
         1,
         1,
         `MediaRef = "${mediaId}"`
@@ -433,13 +434,13 @@ export class LabelDetectionStepProcessor extends BaseStepProcessor<
 
       if (existing.items.length > 0) {
         // Update existing record
-        await this.pocketBaseService.mediaLabelMutator.update(
+        await this.pocketBaseService.labelMediaMutator.update(
           existing.items[0].id,
           update
         );
       } else {
         // Create new record
-        await this.pocketBaseService.mediaLabelMutator.create({
+        await this.pocketBaseService.labelMediaMutator.create({
           MediaRef: mediaId,
           ...update,
         });

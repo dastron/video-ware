@@ -30,7 +30,12 @@ export class LabelCacheService {
     provider: ProcessingProvider,
     processorVersion: string
   ): Promise<RawLabelCacheFile | null> {
-    const cachePath = getLabelCachePath(mediaId, version, provider, processorVersion);
+    const cachePath = getLabelCachePath(
+      mediaId,
+      version,
+      provider,
+      processorVersion
+    );
 
     try {
       // Check if cache exists

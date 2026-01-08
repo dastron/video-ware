@@ -272,9 +272,11 @@ export class PersonDetectionStepProcessor extends BaseStepProcessor<
    * Inserts in batches of 100 for performance
    * Handles duplicate labelHash by checking for existing records first
    * Filters out invalid clips before insertion
+   * Sets LabelEntityRef on clips if entityId is provided
    */
   private async batchInsertLabelClips(
-    clips: Array<LabelClipData>
+    clips: Array<LabelClipData>,
+    entityId?: string
   ): Promise<string[]> {
     // Filter out invalid clips before processing
     const validClips = clips.filter((clip) => this.isValidLabelClip(clip));
@@ -297,11 +299,12 @@ export class PersonDetectionStepProcessor extends BaseStepProcessor<
       for (const clip of batch) {
         try {
           // Check if a clip with this labelHash already exists
-          const existing = await this.pocketBaseService.labelClipMutator.getList(
-            1,
-            1,
-            `labelHash = "${clip.labelHash}"`
-          );
+          const existing =
+            await this.pocketBaseService.labelClipMutator.getList(
+              1,
+              1,
+              `labelHash = "${clip.labelHash}"`
+            );
 
           if (existing.items.length > 0) {
             // Clip already exists, use existing ID
@@ -312,12 +315,15 @@ export class PersonDetectionStepProcessor extends BaseStepProcessor<
             );
           } else {
             // Clip doesn't exist, create it
-            const created = await this.pocketBaseService.labelClipMutator.create({
-              ...clip,
-              provider: clip.provider as
-                | ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE
-                | ProcessingProvider.GOOGLE_SPEECH,
-            });
+            // Set LabelEntityRef if entityId is provided
+            const created =
+              await this.pocketBaseService.labelClipMutator.create({
+                ...clip,
+                LabelEntityRef: entityId || clip.LabelEntityRef,
+                provider: clip.provider as
+                  | ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE
+                  | ProcessingProvider.GOOGLE_SPEECH,
+              });
             clipIds.push(created.id);
             insertedCount++;
           }
@@ -409,23 +415,36 @@ export class PersonDetectionStepProcessor extends BaseStepProcessor<
     }
 
     // Check duration (should be positive and match end - start)
-    // Must be more than 5 seconds
+    // Must be at least 0.5 seconds (matching normalizer's MIN_CLIP_DURATION)
     if (
       typeof clip.duration !== 'number' ||
-      clip.duration <= 5 ||
+      clip.duration < 0.5 ||
       !Number.isFinite(clip.duration)
     ) {
       return false;
     }
 
-    // Check confidence (must be between 0 and 1, and greater than 0.7)
+    // Check confidence (must be between 0 and 1, and at least 0.5)
+    // Matching normalizer's MIN_CLIP_CONFIDENCE
     if (
       typeof clip.confidence !== 'number' ||
-      clip.confidence < 0.7 ||
+      clip.confidence < 0.5 ||
       clip.confidence > 1 ||
       !Number.isFinite(clip.confidence)
     ) {
       return false;
+    }
+
+    // Check that trackId is not empty (if present in labelData)
+    if (clip.labelData && typeof clip.labelData === 'object') {
+      const labelData = clip.labelData as Record<string, unknown>;
+      const trackId = labelData.trackId;
+      if (
+        trackId !== undefined &&
+        (!trackId || String(trackId).trim().length === 0)
+      ) {
+        return false;
+      }
     }
 
     return true;
@@ -442,8 +461,7 @@ export class PersonDetectionStepProcessor extends BaseStepProcessor<
 
     // Check for PocketBase error structure
     if (typeof error === 'object' && 'data' in error) {
-      const data = (error as { data?: { labelHash?: { code?: string } } })
-        .data;
+      const data = (error as { data?: { labelHash?: { code?: string } } }).data;
       if (data?.labelHash?.code === 'validation_not_unique') {
         return true;
       }
