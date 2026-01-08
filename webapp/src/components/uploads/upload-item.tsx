@@ -170,8 +170,7 @@ export function UploadItem({
             <Image
               src={thumbnail}
               alt={item.fileName}
-              width={40}
-              height={40}
+              fill
               className="object-cover"
               unoptimized
             />

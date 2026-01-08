@@ -10,15 +10,17 @@ Video Ware delivers a Next.js web app where users can:
 - **Receive fast previews** (thumbnails, sprites) while processing happens in the background
 - **Process media** using FFmpeg and Google Cloud APIs (Transcoder, Video Intelligence)
 - **Create and edit clips** with timeline composition
-- **Get AI-assisted recommendations** for object/shot/person detection and clip suggestions
+- **Get AI-powered video analysis** with object tracking, face detection, person detection, speech transcription, and shot change detection
+- **Render timelines** to final video outputs
 
 ## 🏗️ Architecture
 
 - **Frontend**: Next.js 16 with React 19, TypeScript, and Tailwind CSS
 - **Backend**: PocketBase for collections, real-time updates, authentication, and API
-- **Workers**: Node.js background task processor for media processing (FFmpeg, Google Cloud APIs)
+- **Workers**: NestJS background task processor with BullMQ for media processing (FFmpeg, Google Cloud APIs)
 - **Storage**: S3-compatible bucket for originals, derivatives, and metadata
 - **Shared Package**: TypeScript types, Zod schemas, and utilities used across the monorepo
+- **Queue System**: Redis-backed BullMQ for reliable task processing with retries and progress tracking
 
 ## 📦 Monorepo Structure
 
@@ -40,7 +42,8 @@ video-ware/
 - Node.js >= 22.0.0
 - Yarn 4.12.0
 - FFmpeg (for media processing)
-- Google Cloud credentials (for AI features)
+- Redis (for task queue - optional, can use in-memory for development)
+- Google Cloud credentials (for AI features - optional)
 
 ### Installation
 
@@ -90,38 +93,113 @@ video-ware/
 - **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment instructions
 - **[PocketBase Docs](docs/)** - PocketBase-specific documentation
 
+## ⚙️ Worker Architecture
+
+The worker is a NestJS application that processes background tasks using BullMQ:
+
+### Task Types
+
+1. **Process Upload** (`process_upload`)
+   - Validates uploaded media files
+   - Generates thumbnails, sprites, and proxy videos using FFmpeg
+   - Creates Media records with metadata
+
+2. **Transcode** (`transcode`)
+   - Transcodes media to different formats/resolutions
+   - Supports FFmpeg and Google Cloud Transcoder
+   - Generates optimized proxy files for playback
+
+3. **Detect Labels** (`detect_labels`)
+   - Orchestrates multiple Google Cloud Video Intelligence processors
+   - Uploads media to Google Cloud Storage
+   - Runs five independent analysis processors in parallel:
+     - Label Detection
+     - Object Tracking
+     - Face Detection
+     - Person Detection
+     - Speech Transcription
+   - Normalizes and stores results in structured database entities
+
+4. **Render Timeline** (`render_timeline`)
+   - Renders timelines to final video outputs
+   - Composes clips according to edit lists
+   - Generates rendered video files
+
+### Processing Features
+
+- **Parent-Child Job Orchestration**: Complex workflows split into parallel step jobs
+- **Partial Success Handling**: One processor can fail while others succeed
+- **Response Caching**: API responses cached to avoid duplicate calls
+- **Progress Tracking**: Real-time progress updates to PocketBase
+- **Retry Logic**: Automatic retries with exponential backoff
+- **Error Isolation**: Failures in one step don't block others
+
 ## 🛠️ Key Features
 
 ### Media Processing Pipeline
 
 1. **Upload** → User uploads file, creates Upload + File records, stores to S3
 2. **Process** → Background worker validates media, generates proxy, thumbnails, sprites
-3. **Detect** → Google Cloud APIs detect objects, shots, persons, speech
-4. **Label** → Store detection results as MediaLabel entries with versioning
-5. **Recommend** → Generate clip suggestions based on labels and timeline context
+3. **Transcode** → Optional transcoding to different formats/resolutions using FFmpeg or Google Cloud Transcoder
+4. **Detect Labels** → Google Cloud Video Intelligence API analyzes videos with five independent processors:
+   - **Label Detection**: Detects objects, activities, locations, and shot changes
+   - **Object Tracking**: Tracks objects across frames with bounding boxes and keyframes
+   - **Face Detection**: Detects and tracks faces with attributes (headwear, glasses, looking at camera)
+   - **Person Detection**: Detects and tracks persons with pose landmarks
+   - **Speech Transcription**: Transcribes speech to text with timestamps
+5. **Normalize & Store** → Detection results are normalized into structured database entities:
+   - `LabelEntity`: Canonical entities (e.g., "Face", "Person", "Car")
+   - `LabelTrack`: Tracked detections with keyframes and metadata
+   - `LabelClip`: Significant appearances meeting quality thresholds
+   - `LabelMedia`: Aggregated statistics and processing metadata
+6. **Timeline Editing** → Create and edit timelines with clip composition
+7. **Render** → Export timelines to final video outputs
 
 ### Workspace-Scoped Tenancy
 
 All operations occur under a `workspaceRef`:
-- Users participate in workspaces via membership records
+- Users participate in workspaces via membership records with roles (owner, admin, member, viewer)
 - Permissions and queries are scoped by workspace
-- Supports multi-user collaboration
+- Supports multi-user collaboration with role-based access control
 
 ### Background Task Processing
 
-- Resilient task queue in PocketBase
+- Resilient task queue using BullMQ (Redis-backed)
 - Progress tracking and error handling
 - Retry logic with exponential backoff
+- Parent-child job orchestration for complex workflows
+- Partial success handling (one processor can fail while others succeed)
 - Observability for job states and errors
+- Task status updates in PocketBase for real-time UI updates
+
+### AI-Powered Video Analysis
+
+The platform integrates with Google Cloud Video Intelligence API to provide comprehensive video analysis:
+
+- **Modular Architecture**: Each analysis type (label detection, object tracking, face detection, person detection, speech transcription) runs as an independent processor
+- **Cost Control**: Enable or disable processors individually via environment variables
+- **Response Caching**: API responses are cached to avoid duplicate API calls
+- **Normalized Storage**: Raw API responses plus normalized database entities for fast querying
+- **Versioning**: Processing results are versioned to track model updates and reprocessing
+- **Keyframe Extraction**: Tracks include keyframes with bounding boxes and timestamps
+- **Attribute Detection**: Face detection includes attributes like headwear, glasses, and camera gaze
+
+### Timeline Editing & Composition
+
+- **Clip Management**: Create clips from media with time range selection
+- **Timeline Editor**: Drag-and-drop interface for composing clips into timelines
+- **Edit List Generation**: Automatic generation of edit lists for rendering
+- **Version Control**: Timeline versions track changes and enable rollback
+- **Render Tasks**: Queue video rendering jobs with configurable output settings
 
 ## 📋 Common Commands
 
 ```bash
 # Development
-yarn dev                              # Start all services
+yarn dev                              # Start all services (Next.js + PocketBase + Worker)
 yarn workspace @project/webapp dev    # Next.js only
 yarn workspace @project/pb dev        # PocketBase only
-yarn workspace @project/worker dev  # Worker only
+yarn workspace @project/worker dev    # Worker only
 
 # Building
 yarn build                           # Build all packages
@@ -140,48 +218,102 @@ yarn test:watch                      # Watch mode
 # Type Generation
 yarn typegen                         # Generate types from PocketBase
 
+# Database
+yarn db:migrate                      # Generate migration from schema changes
+yarn db:status                       # Check migration status
+yarn db:download                     # Download PocketBase binary
+yarn db:start                        # Start PocketBase in debug mode
+
+# Docker / Staging
+yarn staging:build                   # Build Docker image
+yarn staging:run                     # Run Docker container
+yarn staging:up                      # Build and run
+yarn staging:stop                    # Stop container
+yarn staging:logs                    # View container logs
+yarn staging:clean                   # Clean staging data and images
+
 # Maintenance
 yarn clean                           # Clean all build artifacts
 yarn setup                           # Reinstall PocketBase
+yarn precommit                       # Run lint, typecheck, format, and test
 ```
 
 ## 🔧 Tech Stack
 
-- **Frontend**: Next.js 16, React 19, TypeScript, Tailwind CSS, shadcn/ui
+- **Frontend**: Next.js 16, React 19, TypeScript, Tailwind CSS v4, shadcn/ui
 - **Backend**: PocketBase (Go-based backend-as-a-service)
-- **Validation**: Zod schemas
-- **Storage**: S3-compatible (configurable)
-- **Media Processing**: FFmpeg
-- **AI Services**: Google Cloud (Transcoder, Video Intelligence, Speech-to-Text)
-- **Package Manager**: Yarn 4.12.0
+- **Worker**: NestJS with BullMQ for task processing
+- **Queue**: Redis-backed BullMQ for reliable job processing
+- **Validation**: Zod schemas with `pocketbase-zod-schema`
+- **Storage**: S3-compatible (configurable), Google Cloud Storage
+- **Media Processing**: FFmpeg (thumbnails, sprites, proxies, transcoding)
+- **AI Services**: Google Cloud Video Intelligence API, Google Cloud Transcoder, Google Cloud Speech-to-Text
+- **Package Manager**: Yarn 4.12.0 with workspaces
 - **Testing**: Vitest
+- **Deployment**: Docker with multi-stage builds, nginx, supervisor
 
 ## 🗂️ Data Model
 
 Key collections:
 - **Workspace**: Top-level scope for all resources
-- **WorkspaceMember**: User membership and roles
-- **Upload**: Upload metadata and status
-- **File**: File records (original/proxy/thumbnail/sprite)
-- **Media**: Processed media with metadata
-- **MediaClip**: Clips derived from media
-- **MediaLabel**: AI detection results (objects, shots, persons, etc.)
-- **Task**: Background job tracking
-- **Timeline**: Composition of clips for editing
+- **WorkspaceMember**: User membership and roles (owner, admin, member, viewer)
+- **Upload**: Upload metadata and status tracking
+- **File**: File records (original/proxy/thumbnail/sprite/labels_json/render)
+- **Media**: Processed media with metadata (duration, dimensions, codec, fps)
+- **MediaClip**: Clips derived from media (user-created, AI-detected, or full-range)
+- **LabelEntity**: Canonical label entities (e.g., "Face", "Person", "Car")
+- **LabelTrack**: Tracked detections with keyframes, bounding boxes, and attributes
+- **LabelClip**: Significant label appearances meeting quality thresholds
+- **LabelMedia**: Aggregated label statistics and processing metadata
+- **Task**: Background job tracking with progress, retries, and error logs
+- **Timeline**: Composition of clips for editing with edit lists
+- **TimelineClip**: Timeline clip items with ordering and trim information
+- **TimelineRender**: Render task results and output file references
 
 See [Planning Overview](planning/overview.md) for detailed schema.
 
 ## 🚧 Development Status
 
-This project is in active development. Current focus areas:
+### ✅ Completed Features
 
 - ✅ Monorepo setup and workspace configuration
-- ✅ PocketBase integration with shared schemas
-- ✅ Basic upload and file management
-- 🚧 Media processing pipeline (FFmpeg integration)
-- 🚧 Google Cloud API integration
-- 🚧 Clip and timeline editing
-- 🚧 AI-assisted recommendations
+- ✅ PocketBase integration with shared schemas and migrations
+- ✅ Upload system with progress tracking and S3 storage
+- ✅ Media processing pipeline (FFmpeg integration)
+  - ✅ Media probing (duration, dimensions, codec detection)
+  - ✅ Thumbnail generation
+  - ✅ Sprite sheet generation for hover previews
+  - ✅ Proxy video generation
+- ✅ Google Cloud Video Intelligence API integration
+  - ✅ Label Detection (objects, activities, locations, shot changes)
+  - ✅ Object Tracking (tracked objects with keyframes)
+  - ✅ Face Detection (faces with attributes)
+  - ✅ Person Detection (persons with pose landmarks)
+  - ✅ Speech Transcription (speech-to-text with timestamps)
+- ✅ Label normalization and storage
+  - ✅ Structured database entities (LabelEntity, LabelTrack, LabelClip, LabelMedia)
+  - ✅ Keyframe extraction and bounding box storage
+  - ✅ Attribute aggregation and metadata
+- ✅ Timeline editing and composition
+  - ✅ Clip creation and management
+  - ✅ Timeline editor with drag-and-drop
+  - ✅ Edit list generation
+  - ✅ Version control
+- ✅ Video rendering pipeline
+  - ✅ Render task creation and queuing
+  - ✅ Output format configuration
+- ✅ Workspace-based multi-tenancy
+- ✅ Task queue with BullMQ (Redis-backed)
+- ✅ Real-time updates via PocketBase subscriptions
+- ✅ Docker deployment configuration
+
+### 🚧 In Progress / Planned
+
+- 🚧 Clip recommendations based on labels
+- 🚧 Advanced timeline features (transitions, effects)
+- 🚧 Multi-track editing
+- 🚧 Audio mixing and effects
+- 🚧 Export optimization and CDN integration
 
 See [Planning Overview](planning/overview.md) for milestone details.
 
