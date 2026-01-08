@@ -9,6 +9,7 @@ export * from './schema/task.js';
 export * from './schema/media.js';
 export * from './schema/media-label.js';
 export * from './schema/media-clip.js';
+export * from './schema/label-clip.js';
 export * from './schema/timeline.js';
 export * from './schema/timeline-clip.js';
 export * from './schema/timeline-render.js';

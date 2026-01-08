@@ -9,7 +9,8 @@ import { QUEUE_NAMES } from './queue.constants';
     BullModule.registerQueue(
       { name: QUEUE_NAMES.TRANSCODE },
       { name: QUEUE_NAMES.INTELLIGENCE },
-      { name: QUEUE_NAMES.RENDER }
+      { name: QUEUE_NAMES.RENDER },
+      { name: QUEUE_NAMES.LABELS }
     ),
   ],
   providers: [QueueService, FlowService],

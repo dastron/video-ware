@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { BaseStepProcessor } from '../../queue/processors/base-step.processor';
-import { FFmpegService } from '../../shared/services/ffmpeg.service';
+import { FFmpegService, ProbeResult } from '../../shared/services/ffmpeg.service';
+import { StorageService } from '../../shared/services/storage.service';
+import { PocketBaseService } from '../../shared/services/pocketbase.service';
+import { FileResolver } from '../utils/file-resolver';
 import type { ProbeStepInput } from '../types/step-inputs';
 import type { ProbeStepOutput } from '../types';
 import type { StepJobData } from '../../queue/types/job.types';
@@ -18,7 +21,11 @@ export class ProbeStepProcessor extends BaseStepProcessor<
 > {
   protected readonly logger = new Logger(ProbeStepProcessor.name);
 
-  constructor(private readonly ffmpegService: FFmpegService) {
+  constructor(
+    private readonly ffmpegService: FFmpegService,
+    private readonly storageService: StorageService,
+    private readonly pocketbaseService: PocketBaseService
+  ) {
     super();
   }
 
@@ -30,14 +37,26 @@ export class ProbeStepProcessor extends BaseStepProcessor<
     input: ProbeStepInput,
     job: Job<StepJobData>
   ): Promise<ProbeStepOutput> {
+    this.logger.log(`Probing file for upload ${input.uploadId}`);
+
+    await this.updateProgress(job, 5);
+
+    // Resolve file path if not provided
+    const filePath = await FileResolver.resolveFilePath(
+      input.uploadId,
+      input.filePath,
+      this.storageService,
+      this.pocketbaseService
+    );
+
     this.logger.log(
-      `Probing file: ${input.filePath} for upload ${input.uploadId}`
+      `Resolved file path: ${filePath} for upload ${input.uploadId}`
     );
 
     await this.updateProgress(job, 10);
 
     // Probe the file using FFmpeg
-    const probeResult = await this.ffmpegService.probe(input.filePath);
+    const probeResult = await this.ffmpegService.probe(filePath);
 
     await this.updateProgress(job, 50);
 
@@ -56,10 +75,7 @@ export class ProbeStepProcessor extends BaseStepProcessor<
   /**
    * Convert FFmpeg probe result to our ProbeOutput format
    */
-  private convertProbeResult(probeResult: {
-    format: any;
-    streams: Array<{ codec_type: string; [key: string]: any }>;
-  }): ProbeOutput {
+  private convertProbeResult(probeResult: ProbeResult): ProbeOutput {
     const videoStream = probeResult.streams.find(
       (s) => s.codec_type === 'video'
     );
@@ -72,16 +88,14 @@ export class ProbeStepProcessor extends BaseStepProcessor<
     }
 
     const probeOutput: ProbeOutput = {
-      duration: parseFloat(probeResult.format.duration) || 0,
+      duration: probeResult.format.duration || 0,
       width: videoStream.width || 0,
       height: videoStream.height || 0,
       codec: videoStream.codec_name || 'unknown',
-      fps:
-        this.parseFps(videoStream.r_frame_rate || videoStream.avg_frame_rate) ||
-        0,
-      bitrate: parseInt(probeResult.format.bit_rate) || undefined,
+      fps: this.parseFps(videoStream.r_frame_rate || videoStream.avg_frame_rate) || 0,
+      bitrate: probeResult.format.bit_rate || undefined,
       format: probeResult.format.format_name || 'unknown',
-      size: parseInt(probeResult.format.size) || undefined,
+      size: probeResult.format.size || undefined,
       video: {
         codec: videoStream.codec_name || 'unknown',
         profile: videoStream.profile || undefined,
@@ -100,7 +114,7 @@ export class ProbeStepProcessor extends BaseStepProcessor<
         codec: audioStream.codec_name || 'unknown',
         channels: audioStream.channels || 0,
         sampleRate: audioStream.sample_rate || 0,
-        bitrate: parseInt(audioStream.bit_rate) || undefined,
+        bitrate: audioStream.bit_rate || undefined,
       };
     }
 
@@ -110,7 +124,7 @@ export class ProbeStepProcessor extends BaseStepProcessor<
   /**
    * Parse frame rate from FFmpeg format (e.g., "30/1" -> 30)
    */
-  private parseFps(fpsString: string): number {
+  private parseFps(fpsString?: string): number {
     if (!fpsString) return 0;
 
     const parts = fpsString.split('/');

@@ -24,6 +24,13 @@ export interface ProbeResult {
     bit_rate?: number;
     sample_rate?: number;
     channels?: number;
+    r_frame_rate?: string;
+    avg_frame_rate?: string;
+    profile?: string;
+    display_aspect_ratio?: string;
+    pix_fmt?: string;
+    level?: number;
+    color_space?: string;
   }>;
 }
 

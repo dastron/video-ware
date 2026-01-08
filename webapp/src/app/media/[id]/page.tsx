@@ -1,13 +1,20 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useMediaDetails } from '@/hooks/use-media-details';
 import { MediaVideoPlayer } from '@/components/video/media-video-player';
 import { ClipList } from '@/components/clip/clip-list';
 import { InlineClipCreator } from '@/components/clip/inline-clip-creator';
 import { InlineClipEditor } from '@/components/clip/inline-clip-editor';
+import { LabelSearchPanel } from '@/components/labels/label-search-panel';
 import { Button } from '@/components/ui/button';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
 import {
   ArrowLeft,
   RefreshCw,
@@ -18,6 +25,7 @@ import {
   Eye,
   X,
   Check,
+  Tag,
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { MediaClip } from '@project/shared';
@@ -32,6 +40,7 @@ export default function MediaDetailsPage() {
   const { media, clips, isLoading, error, refresh } = useMediaDetails(id);
   const [isInlineCreateMode, setIsInlineCreateMode] = useState(false);
   const [editingClipId, setEditingClipId] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   // Get clip ID from URL query parameter
   const clipIdFromUrl = searchParams.get('clip');
@@ -119,6 +128,25 @@ export default function MediaDetailsPage() {
 
   const handleCancelEditClip = () => {
     setEditingClipId(null);
+  };
+
+  const handleJumpToTime = (timeInSeconds: number) => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = timeInSeconds;
+      // Optionally play the video
+      videoRef.current.play().catch((err) => {
+        console.warn('Failed to play video:', err);
+      });
+    }
+  };
+
+  const handleViewClip = (clipId: string) => {
+    // Navigate to the clip
+    const newSearchParams = new URLSearchParams(searchParams.toString());
+    newSearchParams.set('clip', clipId);
+    router.push(`/media/${id}?${newSearchParams.toString()}`, {
+      scroll: false,
+    });
   };
 
   if (isLoading) {
@@ -264,6 +292,7 @@ export default function MediaDetailsPage() {
                       clip={activeClip}
                       autoPlay={false}
                       className="w-full h-full"
+                      ref={videoRef}
                     />
                   </div>
 
@@ -344,30 +373,57 @@ export default function MediaDetailsPage() {
           </Card>
         </div>
 
-        {/* Sidebar - Clips */}
+        {/* Sidebar - Clips and Labels */}
         <div className="lg:col-span-1">
           <Card className="lg:h-[calc(100vh-12rem)] lg:min-h-[500px] flex flex-col">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center justify-between text-base sm:text-lg">
-                <span>Clips</span>
-                <span className="text-xs sm:text-sm font-normal text-muted-foreground">
-                  {clips.length} found
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 flex flex-col overflow-hidden px-0">
-              <div className="flex-1 overflow-y-auto px-3 sm:px-6 max-h-[400px] lg:max-h-none">
-                <ClipList
-                  media={media}
-                  clips={clips}
-                  activeClipId={activeClipId}
-                  onClipSelect={handleClipSelect}
-                  onClipUpdate={handleClipUpdate}
-                  onClipDelete={handleClipDelete}
-                  onInlineEdit={handleStartEditClip}
-                />
-              </div>
-            </CardContent>
+            <Tabs defaultValue="clips" className="flex flex-col h-full">
+              <CardHeader className="pb-3">
+                <TabsList className="w-full">
+                  <TabsTrigger value="clips" className="flex-1 gap-1.5">
+                    <Scissors className="h-4 w-4" />
+                    Clips
+                  </TabsTrigger>
+                  <TabsTrigger value="labels" className="flex-1 gap-1.5">
+                    <Tag className="h-4 w-4" />
+                    Labels
+                  </TabsTrigger>
+                </TabsList>
+              </CardHeader>
+
+              <CardContent className="flex-1 flex flex-col overflow-hidden px-0 pt-0">
+                <TabsContent
+                  value="clips"
+                  className="flex-1 overflow-y-auto px-3 sm:px-6 max-h-[400px] lg:max-h-none mt-0"
+                >
+                  <div className="mb-3 flex items-center justify-between px-0">
+                    <span className="text-xs sm:text-sm font-normal text-muted-foreground">
+                      {clips.length} found
+                    </span>
+                  </div>
+                  <ClipList
+                    media={media}
+                    clips={clips}
+                    activeClipId={activeClipId}
+                    onClipSelect={handleClipSelect}
+                    onClipUpdate={handleClipUpdate}
+                    onClipDelete={handleClipDelete}
+                    onInlineEdit={handleStartEditClip}
+                  />
+                </TabsContent>
+
+                <TabsContent
+                  value="labels"
+                  className="flex-1 overflow-hidden mt-0 h-full"
+                >
+                  <LabelSearchPanel
+                    media={media}
+                    onJumpToTime={handleJumpToTime}
+                    onClipCreated={refresh}
+                    onViewClip={handleViewClip}
+                  />
+                </TabsContent>
+              </CardContent>
+            </Tabs>
           </Card>
         </div>
       </div>

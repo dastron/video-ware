@@ -11,6 +11,7 @@ import { TranscodeModule } from './transcode/transcode.module';
 import { RenderModule } from './render/render.module';
 import { HealthModule } from './health/health.module';
 import { TasksModule } from './tasks/tasks.module';
+import { LabelsModule } from './labels/labels.module';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { TasksModule } from './tasks/tasks.module';
     TasksModule,
     TranscodeModule,
     IntelligenceModule,
+    LabelsModule,
     RenderModule,
     HealthModule,
   ],

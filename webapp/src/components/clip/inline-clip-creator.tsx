@@ -122,6 +122,7 @@ export function InlineClipCreator({
         start: startTime,
         end: endTime,
         duration,
+        version: 1,
       });
 
       toast.success('Clip created successfully');

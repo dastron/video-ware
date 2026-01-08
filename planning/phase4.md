@@ -4,7 +4,7 @@ This stage turns label-derived clips into an assistive editing experience. Recom
 
 ## Desired Outcomes
 - While editing a timeline, the UI shows a small, explainable set of recommended clips to add next.
-- Recommendations are derived from `MediaLabel` + existing `MediaClip` records, but stored separately in a dedicated recommendations table.
+- Recommendations are derived from `Labelclips` + existing `MediaClip` records, but stored separately in a dedicated recommendations table.
 - Recommendations have strict size limits (top-N per context + TTL pruning) so tables don’t grow unbounded.
 - The system captures basic feedback (accepted/dismissed) so ranking can evolve over time.
 
@@ -138,7 +138,7 @@ Keep it minimal:
 ## AI Prompt
 ```
 You are implementing assistive recommendations for a label-driven timeline editor in a Next.js + PocketBase app.
-Implement: a `clip_recommendations` collection that stores pointers to existing MediaClip records (do not store recommendations as MediaClip rows); a `recommend_clips` task that computes rule-based recommendations using MediaLabel + MediaClip (same entity, adjacent shot, temporal proximity) and writes a strictly size-limited, TTL-expiring top-N set per context using a deterministic queryHash; UI hooks in the timeline editor to request recommendations, display them with short reasons, and support add/replace/dismiss actions while persisting acceptedAt/dismissedAt.
+Implement: a `clip_recommendations` collection that stores pointers to existing MediaClip records (do not store recommendations as MediaClip rows); a `recommend_clips` task that computes rule-based recommendations using Labelclips + MediaClip (same entity, adjacent shot, temporal proximity) and writes a strictly size-limited, TTL-expiring top-N set per context using a deterministic queryHash; UI hooks in the timeline editor to request recommendations, display them with short reasons, and support add/replace/dismiss actions while persisting acceptedAt/dismissedAt.
 Constraints: recommendations must be prunable and bounded; MediaClip remains the editable unit; explanations must be readable and structured; results must be deterministic and testable for a fixed input dataset.
 Produce: collection field checklist, queryHash scheme, scoring strategies, pruning policy, UI interaction plan, and a testing checklist.
 ```

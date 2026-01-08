@@ -4,7 +4,9 @@ import {
   SelectField,
   NumberField,
   JSONField,
+  TextField,
   baseSchema,
+  DateField,
 } from 'pocketbase-zod-schema/schema';
 import { z } from 'zod';
 import { MediaType } from '../enums';
@@ -15,12 +17,14 @@ export const MediaSchema = z
     WorkspaceRef: RelationField({ collection: 'Workspaces' }),
     UploadRef: RelationField({ collection: 'Uploads' }),
     mediaType: SelectField([MediaType.VIDEO, MediaType.AUDIO, MediaType.IMAGE]),
-    duration: NumberField({ required: true }).min(0), // seconds as float
+    mediaDate: DateField().optional(),
+    duration: NumberField(), // seconds as float
     mediaData: JSONField(), // { codec, fps, width, height, ... }
     thumbnailFileRef: RelationField({ collection: 'Files' }).optional(),
     spriteFileRef: RelationField({ collection: 'Files' }).optional(),
     proxyFileRef: RelationField({ collection: 'Files' }).optional(),
-    version: NumberField().default(1),
+    version: NumberField().default(1).optional(),
+    processor: TextField().optional(),
   })
   .extend(baseSchema);
 
@@ -34,7 +38,8 @@ export const MediaInputSchema = z.object({
   thumbnailFileRef: z.string().optional(),
   spriteFileRef: z.string().optional(),
   proxyFileRef: z.string().optional(),
-  version: NumberField().default(1),
+  version: NumberField().default(1).optional(),
+  processor: z.string().optional(),
 });
 
 // Define the collection with workspace-scoped permissions

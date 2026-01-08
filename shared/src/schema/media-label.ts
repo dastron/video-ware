@@ -13,13 +13,14 @@ export const MediaLabelSchema = z
   .object({
     MediaRef: RelationField({ collection: 'Media' }),
     labelData: JSONField().optional(), // { codec, fps, width, height, ... }
-    version: NumberField().default(1).optional(),
     // Intelligence fields
     labels: JSONField().optional(), // Array of detected labels
     objects: JSONField().optional(), // Array of detected objects
     sceneChanges: JSONField().optional(), // Array of scene change timestamps
     transcription: JSONField().optional(), // Speech-to-text result
     intelligenceProcessedAt: TextField().optional(), // ISO timestamp
+    version: NumberField().default(1).optional(),
+    processor: TextField(),
   })
   .extend(baseSchema);
 
@@ -27,13 +28,14 @@ export const MediaLabelSchema = z
 export const MediaLabelInputSchema = z.object({
   MediaRef: z.string().min(1, 'Media reference is required'),
   labelData: JSONField().optional(),
-  version: NumberField().default(1).optional(),
   // Intelligence fields
   labels: JSONField().optional(),
   objects: JSONField().optional(),
   sceneChanges: JSONField().optional(),
   transcription: JSONField().optional(),
   intelligenceProcessedAt: z.string().optional(),
+  version: NumberField().default(1).optional(),
+  processor: z.string().optional(),
 });
 
 // Define the collection with permissions

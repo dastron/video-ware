@@ -3,6 +3,10 @@ import { Job } from 'bullmq';
 import { BaseStepProcessor } from '../../queue/processors/base-step.processor';
 import { FFmpegStrategy } from '../strategies/ffmpeg.strategy';
 import { GoogleTranscoderStrategy } from '../strategies/google-transcoder.strategy';
+import { StorageService } from '../../shared/services/storage.service';
+import { PocketBaseService } from '../../shared/services/pocketbase.service';
+import { FFmpegService } from '../../shared/services/ffmpeg.service';
+import { FileResolver } from '../utils/file-resolver';
 import type { TranscodeStepInput } from '../types/step-inputs';
 import type { TranscodeStepOutput } from '../types';
 import type { StepJobData } from '../../queue/types/job.types';
@@ -22,7 +26,9 @@ export class TranscodeStepProcessor extends BaseStepProcessor<
 
   constructor(
     private readonly ffmpegStrategy: FFmpegStrategy,
-    private readonly googleTranscoderStrategy: GoogleTranscoderStrategy
+    private readonly googleTranscoderStrategy: GoogleTranscoderStrategy,
+    private readonly storageService: StorageService,
+    private readonly pocketbaseService: PocketBaseService
   ) {
     super();
   }
@@ -39,18 +45,28 @@ export class TranscodeStepProcessor extends BaseStepProcessor<
       `Transcoding video for upload ${input.uploadId} using ${input.provider} provider`
     );
 
+    await this.updateProgress(job, 5);
+
+    // Resolve file path if not provided
+    const filePath = await FileResolver.resolveFilePath(
+      input.uploadId,
+      input.filePath,
+      this.storageService,
+      this.pocketbaseService
+    );
+
     await this.updateProgress(job, 10);
 
     // Select strategy based on provider
     const strategy = this.selectStrategy(input.provider);
 
     // Generate unique output path
-    const proxyPath = `${input.filePath}_proxy.mp4`;
+    const proxyPath = `${filePath}_proxy.mp4`;
 
     await this.updateProgress(job, 20);
 
     // Transcode using the selected strategy
-    await this.transcodeWithStrategy(strategy, input, proxyPath, (progress) => {
+    await this.transcodeWithStrategy(strategy, input, filePath, proxyPath, (progress) => {
       // Map strategy progress (0-100) to our range (20-100)
       const mappedProgress = 20 + progress * 0.8;
       this.updateProgress(job, mappedProgress);
@@ -88,13 +104,14 @@ export class TranscodeStepProcessor extends BaseStepProcessor<
   private async transcodeWithStrategy(
     strategy: FFmpegStrategy | GoogleTranscoderStrategy,
     input: TranscodeStepInput,
+    inputFilePath: string,
     outputPath: string,
     onProgress: (progress: number) => void
   ): Promise<void> {
     if (strategy instanceof FFmpegStrategy) {
-      await this.transcodeWithFFmpeg(input, outputPath, onProgress);
+      await this.transcodeWithFFmpeg(input, inputFilePath, outputPath, onProgress);
     } else {
-      await this.transcodeWithGoogleTranscoder(input, outputPath, onProgress);
+      await this.transcodeWithGoogleTranscoder(input, inputFilePath, outputPath, onProgress);
     }
   }
 
@@ -103,6 +120,7 @@ export class TranscodeStepProcessor extends BaseStepProcessor<
    */
   private async transcodeWithFFmpeg(
     input: TranscodeStepInput,
+    inputFilePath: string,
     outputPath: string,
     onProgress: (progress: number) => void
   ): Promise<void> {
@@ -134,10 +152,10 @@ export class TranscodeStepProcessor extends BaseStepProcessor<
       : '2M';
 
     // Use FFmpegService directly
-    const ffmpegService = this.ffmpegStrategy['ffmpegService'] as any;
+    const ffmpegService = this.ffmpegStrategy['ffmpegService'] as FFmpegService;
 
     await ffmpegService.transcode(
-      input.filePath,
+      inputFilePath,
       outputPath,
       {
         width: targetResolution.width,
@@ -156,6 +174,7 @@ export class TranscodeStepProcessor extends BaseStepProcessor<
    */
   private async transcodeWithGoogleTranscoder(
     input: TranscodeStepInput,
+    inputFilePath: string,
     outputPath: string,
     onProgress: (progress: number) => void
   ): Promise<void> {
@@ -163,6 +182,6 @@ export class TranscodeStepProcessor extends BaseStepProcessor<
       'Google Transcoder strategy not fully implemented, falling back to FFmpeg'
     );
     // For now, fall back to FFmpeg
-    await this.transcodeWithFFmpeg(input, outputPath, onProgress);
+    await this.transcodeWithFFmpeg(input, inputFilePath, outputPath, onProgress);
   }
 }

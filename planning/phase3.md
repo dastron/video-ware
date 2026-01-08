@@ -3,7 +3,7 @@
 This stage makes labels useful in the product. It introduces (1) reliable label ingestion + versioning, (2) a label-driven search UX, and (3) label-derived `MediaClip` generation so editing can be driven by labels.
 
 ## Desired Outcomes
-- A `detect_labels` task produces versioned `MediaLabel` records and stores raw detector JSON for traceability.
+- A `detect_labels` task produces versioned `Labelclips` records and stores raw detector JSON for traceability.
 - Users can search/browse labels (by type/entity/time/confidence) and jump playback to relevant timestamps.
 - Users can convert label ranges into `MediaClip` records (either automatically or via “Create clip from label”).
 - The output is testable without recommendations: a user can build a timeline by searching labels and adding resulting clips.
@@ -18,13 +18,15 @@ This stage assumes existing `media`, `media_clips`, `tasks`, and introduces/exte
 
 ### Workspace scoping (required)
 Append `WorkspaceRef` to:
-- `media_labels`, `media_clips`, `media`, `uploads`, `files`, `tasks`, `timelines`, `clip_recommendations`
+- `label_clips`, `media_clips`, `media`, `uploads`, `files`, `tasks`, `timelines`, `clip_recommendations`
 
 All list/search queries should filter by `workspaceRef` by default.
 
-### `media_labels`
+
+### `label_clips`
 Minimum fields (expand as needed):
 - `workspaceRef` (relation)
+- `mediaRef` (relation)
 - `mediaRef` (relation)
 - `labelType` (select; `LabelType`)
 - `start`, `end`, `duration` (numbers; choose seconds float or ms int and standardize)
@@ -55,7 +57,7 @@ This makes reprocessing and debugging possible without bloating PocketBase rows.
 ## Processing and Versioning Policy
 Define a simple, testable versioning rule:
 - `Media.processingVersion` is incremented only after a successful `detect_labels`.
-- `media_labels.version` matches the `Media.processingVersion` used to generate it.
+- `label_clips.version` matches the `Media.processingVersion` used to generate it.
 - UI defaults to the latest successful version but can display prior versions for debugging.
 - Re-runs should be idempotent:
   - if labels for `(mediaId, version, provider)` already exist, upsert/update rather than duplicate.
@@ -94,7 +96,7 @@ Worker logic-level steps:
 - Call Google Video Intelligence features you can afford initially:
   - start with shot detection + object tracking (person tracking optional)
 - Write raw JSON to S3 key path.
-- Upsert `media_labels` rows.
+- Upsert `label_clips` rows.
 - Update `tasks.status/progress/result` and bump `Media.processingVersion` on success.
 
 ### 3) Implement label-derived clip creation
@@ -113,7 +115,7 @@ Suggested routes:
 - optional: `webapp/src/app/search/labels/page.tsx` (global search)
 
 Use repo layering:
-- Mutator for `media_labels` queries
+- Mutator for `label_clips` queries
 - Service that merges filters and pagination and formats results
 - Components for search inputs and result list
 
@@ -125,7 +127,7 @@ Minimum “easy timeline build” flow:
 - reorder/trim in the timeline editor from the prior stage
 
 ## Acceptance Criteria
-- Running `detect_labels` for a media results in versioned `media_labels` and a raw JSON blob stored in S3.
+- Running `detect_labels` for a media results in versioned `label_clips` and a raw JSON blob stored in S3.
 - Labels are visible in the UI with filters and “jump to time”.
 - User can create `MediaClip` records from labels and add them to a timeline.
 - Re-running label detection does not duplicate rows; it produces a new version or updates the same version deterministically.
@@ -139,7 +141,7 @@ Minimum “easy timeline build” flow:
 ## AI Prompt
 ```
 You are implementing label ingestion and label-driven clip search for a Next.js + PocketBase app.
-Implement: a `detect_labels` task using Google Video Intelligence that stores raw JSON to S3 under labels/{mediaId}/v{version}/{provider}.json and upserts normalized MediaLabel rows with version/provider/confidence/time ranges; a label search UI (filter by type/text/confidence/time, jump-to-time); and the ability to create MediaClip records from label ranges (manual and/or batch) with deduplication.
+Implement: a `detect_labels` task using Google Video Intelligence that stores raw JSON to S3 under labels/{mediaId}/v{version}/{provider}.json and upserts normalized Labelclips rows with version/provider/confidence/time ranges; a label search UI (filter by type/text/confidence/time, jump-to-time); and the ability to create MediaClip records from label ranges (manual and/or batch) with deduplication.
 Constraints: MediaClip is the durable editable unit; keep labelData compact and store raw payloads in S3; tasks must be idempotent and versioned; everything should be testable without any recommendation system.
 Produce: collection field checklist, task payload/result shape, dedup/versioning rules, UI route/component plan, and a testing checklist.
 ```

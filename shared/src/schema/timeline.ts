@@ -27,9 +27,10 @@ export const TimelineSchema = z
     name: TextField().min(1).max(200),
     WorkspaceRef: RelationField({ collection: 'Workspaces' }),
     duration: NumberField({ min: 0 }).default(0), // computed total duration in seconds
-    version: NumberField({ min: 1 }).default(1),
     editList: JSONField().optional(), // EditList snapshot for rendering
     UserRef: RelationField({ collection: 'Users' }).optional(),
+    version: NumberField().default(1).optional(),
+    processor: TextField().optional(),
   })
   .extend(baseSchema);
 
@@ -38,9 +39,10 @@ export const TimelineInputSchema = z.object({
   name: z.string().min(1).max(200),
   WorkspaceRef: z.string().min(1, 'Workspace is required'),
   duration: z.number().min(0).default(0),
-  version: z.number().min(1).default(1),
   editList: z.array(EditListEntrySchema).optional(),
   UserRef: z.string().optional(),
+  version: z.number().default(1).optional(),
+  processor: z.string().optional(),
 });
 
 // Define the collection with workspace-scoped permissions

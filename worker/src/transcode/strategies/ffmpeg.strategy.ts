@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { FFmpegService } from '../../shared/services/ffmpeg.service';
+import { FFmpegService, ProbeResult } from '../../shared/services/ffmpeg.service';
 import { StorageService } from '../../shared/services/storage.service';
 import type { ProcessUploadPayload, ProbeOutput } from '@project/shared';
 
@@ -134,10 +134,7 @@ export class FFmpegStrategy {
   /**
    * Convert FFmpeg probe result to our ProbeOutput format
    */
-  private convertProbeResult(probeResult: {
-    format: any;
-    streams: Array<{ codec_type: string; [key: string]: any }>;
-  }): ProbeOutput {
+  private convertProbeResult(probeResult: ProbeResult): ProbeOutput {
     const videoStream = probeResult.streams.find(
       (s) => s.codec_type === 'video'
     );
@@ -150,16 +147,14 @@ export class FFmpegStrategy {
     }
 
     const probeOutput: ProbeOutput = {
-      duration: parseFloat(probeResult.format.duration) || 0,
+      duration: probeResult.format.duration || 0,
       width: videoStream.width || 0,
       height: videoStream.height || 0,
       codec: videoStream.codec_name || 'unknown',
-      fps:
-        this.parseFps(videoStream.r_frame_rate || videoStream.avg_frame_rate) ||
-        0,
-      bitrate: parseInt(probeResult.format.bit_rate) || undefined,
+      fps: this.parseFps(videoStream.r_frame_rate || videoStream.avg_frame_rate) || 0,
+      bitrate: probeResult.format.bit_rate || undefined,
       format: probeResult.format.format_name || 'unknown',
-      size: parseInt(probeResult.format.size) || undefined,
+      size: probeResult.format.size || undefined,
       video: {
         codec: videoStream.codec_name || 'unknown',
         profile: videoStream.profile || undefined,
@@ -178,7 +173,7 @@ export class FFmpegStrategy {
         codec: audioStream.codec_name || 'unknown',
         channels: audioStream.channels || 0,
         sampleRate: audioStream.sample_rate || 0,
-        bitrate: parseInt(audioStream.bit_rate) || undefined,
+        bitrate: audioStream.bit_rate || undefined,
       };
     }
 
@@ -188,7 +183,7 @@ export class FFmpegStrategy {
   /**
    * Parse frame rate from FFmpeg format (e.g., "30/1" -> 30)
    */
-  private parseFps(fpsString: string): number {
+  private parseFps(fpsString?: string): number {
     if (!fpsString) return 0;
 
     const parts = fpsString.split('/');

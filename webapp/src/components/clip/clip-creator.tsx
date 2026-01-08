@@ -146,6 +146,7 @@ export function ClipCreator({
         start: startTime,
         end: endTime,
         duration,
+        version: 1,
       });
 
       toast.success('Clip created successfully');

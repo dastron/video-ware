@@ -51,6 +51,6 @@ export class TimelineMutator extends BaseMutator<Timeline, TimelineInput> {
     if (!timeline) {
       throw new Error(`Timeline not found: ${id}`);
     }
-    return this.update(id, { version: timeline.version + 1 });
+    return this.update(id, { version: (timeline.version ?? 1) + 1 });
   }
 }

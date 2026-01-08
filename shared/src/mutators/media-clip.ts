@@ -1,9 +1,10 @@
 import { RecordService } from 'pocketbase';
 import type { ListResult } from 'pocketbase';
 import { MediaClipInputSchema } from '../schema';
-import type { MediaClip, MediaClipInput } from '../schema';
+import type { MediaClip, MediaClipInput, LabelClip } from '../schema';
 import type { TypedPocketBase } from '../types';
 import { BaseMutator, type MutatorOptions } from './base';
+import { ClipType, LabelType } from '../enums';
 
 /**
  * Options for filtering media clips by workspace
@@ -93,5 +94,72 @@ export class MediaClipMutator extends BaseMutator<MediaClip, MediaClipInput> {
       '-created', // Sort by most recent first
       ['MediaRef', 'MediaRef.UploadRef', 'MediaRef.thumbnailFileRef']
     );
+  }
+
+  /**
+   * Find a derived clip by media reference and source label ID
+   * @param mediaRef The media ID
+   * @param sourceLabelId The source label_clip ID
+   * @returns The existing derived clip or null if not found
+   */
+  async findDerivedClip(
+    mediaRef: string,
+    sourceLabelId: string
+  ): Promise<MediaClip | null> {
+    const filter = `MediaRef = "${mediaRef}" && clipData.sourceLabel = "${sourceLabelId}"`;
+    const result = await this.getList(1, 1, filter);
+    return result.items.length > 0 ? result.items[0] : null;
+  }
+
+  /**
+   * Create a MediaClip from a LabelClip
+   * @param labelClip The source label_clip
+   * @param processor The processor version to set on the clip
+   * @returns The created or existing MediaClip
+   */
+  async createFromLabel(
+    labelClip: LabelClip,
+    processor?: string
+  ): Promise<MediaClip> {
+    // Check for existing derived clip (deduplication)
+    const existingClip = await this.findDerivedClip(
+      labelClip.MediaRef,
+      labelClip.id
+    );
+
+    if (existingClip) {
+      return existingClip;
+    }
+
+    // Map labelType to ClipType
+    const typeMapping: Record<LabelType, ClipType> = {
+      [LabelType.OBJECT]: ClipType.OBJECT,
+      [LabelType.SHOT]: ClipType.SHOT,
+      [LabelType.PERSON]: ClipType.PERSON,
+      [LabelType.SPEECH]: ClipType.SPEECH,
+    };
+
+    const clipType = typeMapping[labelClip.labelType as LabelType];
+
+    // Create the MediaClip input
+    const clipInput: MediaClipInput = {
+      WorkspaceRef: labelClip.WorkspaceRef,
+      MediaRef: labelClip.MediaRef,
+      type: clipType,
+      start: labelClip.start,
+      end: labelClip.end,
+      duration: labelClip.duration,
+      version: labelClip.version || 1,
+      processor: processor || labelClip.processor,
+      clipData: {
+        sourceLabel: labelClip.id,
+        labelType: labelClip.labelType,
+        confidence: labelClip.confidence,
+        provider: labelClip.provider,
+      },
+    };
+
+    // Create and return the clip
+    return this.create(clipInput);
   }
 }

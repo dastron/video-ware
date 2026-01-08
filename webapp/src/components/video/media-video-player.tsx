@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { forwardRef } from 'react';
 import type { Media, MediaClip } from '@project/shared';
 import { useVideoSource } from '@/hooks/use-video-source';
 import { VideoPlayerUI } from './video-player-ui';
@@ -12,12 +12,10 @@ interface MediaVideoPlayerProps {
   className?: string;
 }
 
-export function MediaVideoPlayer({
-  media,
-  clip,
-  autoPlay = false,
-  className,
-}: MediaVideoPlayerProps) {
+export const MediaVideoPlayer = forwardRef<
+  HTMLVideoElement,
+  MediaVideoPlayerProps
+>(({ media, clip, autoPlay = false, className }, ref) => {
   const { src, poster, startTime, endTime, isLoading } = useVideoSource(
     media,
     clip
@@ -45,6 +43,7 @@ export function MediaVideoPlayer({
 
   return (
     <VideoPlayerUI
+      ref={ref}
       src={src}
       poster={poster}
       startTime={startTime}
@@ -53,4 +52,6 @@ export function MediaVideoPlayer({
       className={className}
     />
   );
-}
+});
+
+MediaVideoPlayer.displayName = 'MediaVideoPlayer';

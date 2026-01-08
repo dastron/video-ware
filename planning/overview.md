@@ -31,18 +31,18 @@
 - File: workspaceRef, name, size, status, fileType (original/proxy/thumbnail/sprite), fileSource (s3 path), fileData (dimensions, codec), TaskRef?, MediaRef?, UploadRef?.
 - Media: workspaceRef, UploadRef, duration, start, end, mediaType (video/audio/image), thumbnailURL, spriteURL, mediaData (codec, fps, dimensions), processingVersion.
 - MediaClip: workspaceRef, MediaRef, parentClipRef?, duration, start, end, clipType (range/ai/object/voice/etc), clipData (selection metadata).
-- MediaLabel: workspaceRef, MediaRef, duration, start, end, labelType (object/shot/person/speech/etc), labelData (payload from detectors), source (google_videointel/transcoder/etc), version, confidence.
+- Labelclips: workspaceRef, MediaRef, duration, start, end, labelType (object/shot/person/speech/etc), labelData (payload from detectors), source (google_videointel/transcoder/etc), version, confidence.
 - Task: workspaceRef, type, status, progress, priority, attempts, payload, result, errorLog; relations to Upload/Media/Clip where relevant.
 - Timeline (timeline feature): name, MediaRef (target output), ordered clip refs, editList blob (see below), render settings.
 - ClipRecommendation: workspaceRef, timelineRef?, seedClipRef?, recommendedClipRef, score/rank, reason, queryHash, expiresAt, acceptedAt/dismissedAt.
 - EditList blob (app-level type): array of segments with `key`, `inputs[]`, `startTimeOffset`, `endTimeOffset` (seconds + nanos) for export and preview assembly.
-- Base detector fragments (from Google): BaseSegmentFragment, BaseFrameFragment, BaseReferenceFragment, BaseEntityFragment; store in labelData and normalized MediaLabel rows for fast querying.
+- Base detector fragments (from Google): BaseSegmentFragment, BaseFrameFragment, BaseReferenceFragment, BaseEntityFragment; store in labelData and normalized Labelclips rows for fast querying.
 
 ## Processing Pipelines (happy path)
 1) User uploads file -> Upload + File records created, file stored to S3.
 2) Task: `process_upload` downloads/streams file, validates media, generates proxy, thumbnails, sprites, and creates a Media record.
 3) Task: `derive_clips` (optional) seeds initial clips (full-range clip, detected shots).
-4) Task: `detect_labels` calls Google APIs, stores raw JSON, upserts MediaLabel entries, increments processing version.
+4) Task: `detect_labels` calls Google APIs, stores raw JSON, upserts Labelclips entries, increments processing version.
 5) Task: `recommend_clips` generates suggested clips based on labels, similarity, and timeline context.
 6) UI surfaces statuses, previews, and allows clip/timeline editing; exports use editList to stitch ranges or trigger render tasks.
 
@@ -62,7 +62,7 @@
 - Foundations: credentials, FFmpeg/Google API integration scaffolding, storage wiring, task runner skeleton.
 - Uploads MVP: upload UI, PocketBase collections, S3 writes, processing task to produce Media + previews + initial clip.
 - Clips + timelines: CRUD for clips, timeline composition, editList representation, basic export simulation.
-- Detection + labeling: integrate Google detectors, store raw JSON, upsert MediaLabel, version jobs, surface metadata.
+- Detection + labeling: integrate Google detectors, store raw JSON, upsert Labelclips, version jobs, surface metadata.
 - Timeline recommendations: recommendation engine tied to labels, assistive UI for clip suggestions.
 
 ## Gaps to Clarify

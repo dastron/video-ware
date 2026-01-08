@@ -2,6 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { BaseStepProcessor } from '../../queue/processors/base-step.processor';
 import { FFmpegService } from '../../shared/services/ffmpeg.service';
+import { StorageService } from '../../shared/services/storage.service';
+import { PocketBaseService } from '../../shared/services/pocketbase.service';
+import { FileResolver } from '../utils/file-resolver';
 import type { ThumbnailStepInput } from '../types/step-inputs';
 import type { ThumbnailStepOutput } from '../types';
 import type { StepJobData } from '../../queue/types/job.types';
@@ -17,7 +20,11 @@ export class ThumbnailStepProcessor extends BaseStepProcessor<
 > {
   protected readonly logger = new Logger(ThumbnailStepProcessor.name);
 
-  constructor(private readonly ffmpegService: FFmpegService) {
+  constructor(
+    private readonly ffmpegService: FFmpegService,
+    private readonly storageService: StorageService,
+    private readonly pocketbaseService: PocketBaseService
+  ) {
     super();
   }
 
@@ -31,6 +38,16 @@ export class ThumbnailStepProcessor extends BaseStepProcessor<
   ): Promise<ThumbnailStepOutput> {
     this.logger.log(
       `Generating thumbnail for upload ${input.uploadId} at ${input.config.timestamp}`
+    );
+
+    await this.updateProgress(job, 5);
+
+    // Resolve file path if not provided
+    const filePath = await FileResolver.resolveFilePath(
+      input.uploadId,
+      input.filePath,
+      this.storageService,
+      this.pocketbaseService
     );
 
     await this.updateProgress(job, 10);
@@ -50,11 +67,11 @@ export class ThumbnailStepProcessor extends BaseStepProcessor<
     await this.updateProgress(job, 30);
 
     // Generate unique output path
-    const thumbnailPath = `${input.filePath}_thumbnail.jpg`;
+    const thumbnailPath = `${filePath}_thumbnail.jpg`;
 
     // Generate thumbnail using FFmpeg
     await this.ffmpegService.generateThumbnail(
-      input.filePath,
+      filePath,
       thumbnailPath,
       timestamp,
       input.config.width,

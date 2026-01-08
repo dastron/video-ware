@@ -8,6 +8,7 @@ import type {
   StoreResultsStepInput,
   StoreResultsOutput,
 } from '../types/step-inputs';
+import { MediaLabelInput } from '@project/shared';
 
 /**
  * Processor for STORE_RESULTS step
@@ -57,7 +58,7 @@ export class StoreResultsStepProcessor extends BaseStepProcessor<
       await this.updateProgress(job, 50);
 
       // Prepare intelligence data for storage
-      const intelligenceData = {
+      const intelligenceData: MediaLabelInput = {
         MediaRef: input.mediaId,
         labels: input.videoIntelligence?.labels || [],
         objects: input.videoIntelligence?.objects || [],

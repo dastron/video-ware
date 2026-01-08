@@ -2,6 +2,7 @@ import {
   defineCollection,
   NumberField,
   RelationField,
+  TextField,
   baseSchema,
 } from 'pocketbase-zod-schema/schema';
 import { z } from 'zod';
@@ -12,6 +13,7 @@ export const TimelineRenderSchema = z
     TimelineRef: RelationField({ collection: 'Timelines' }),
     FileRef: RelationField({ collection: 'Files' }),
     version: NumberField().default(1).optional(), // Version of the timeline when rendered
+    processor: TextField().optional(),
   })
   .extend(baseSchema);
 

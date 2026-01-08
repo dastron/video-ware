@@ -2,6 +2,7 @@ import {
   TranscodeStepType,
   RenderStepType,
   IntelligenceStepType,
+  DetectLabelsStepType,
 } from '../types/step.types';
 
 /**
@@ -67,6 +68,24 @@ export const STEP_JOB_OPTIONS: Record<string, StepJobOptions> = {
     backoff: 120000, // 2 minutes
   },
   [IntelligenceStepType.STORE_RESULTS]: {
+    attempts: 3,
+    backoff: 30000, // 30 seconds
+  },
+
+  // Detect Labels steps
+  [DetectLabelsStepType.VIDEO_INTELLIGENCE]: {
+    attempts: 3,
+    backoff: 120000, // 2 minutes
+  },
+  [DetectLabelsStepType.SPEECH_TO_TEXT]: {
+    attempts: 3,
+    backoff: 120000, // 2 minutes
+  },
+  [DetectLabelsStepType.NORMALIZE_LABELS]: {
+    attempts: 3,
+    backoff: 30000, // 30 seconds
+  },
+  [DetectLabelsStepType.STORE_RESULTS]: {
     attempts: 3,
     backoff: 30000, // 30 seconds
   },

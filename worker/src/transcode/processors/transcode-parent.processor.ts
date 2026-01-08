@@ -4,6 +4,7 @@ import { Job, Queue } from 'bullmq';
 import { InjectQueue } from '@nestjs/bullmq';
 import { QUEUE_NAMES } from '../../queue/queue.constants';
 import { TranscodeStepType } from '../../queue/types/step.types';
+import type { StepType } from '../../queue/types/step.types';
 import { PocketBaseService } from '../../shared/services/pocketbase.service';
 import { ProbeStepProcessor } from './probe-step.processor';
 import { ThumbnailStepProcessor } from './thumbnail-step.processor';
@@ -14,7 +15,15 @@ import type {
   ParentJobData,
   StepJobData,
   StepResult,
+  StepInput,
 } from '../../queue/types/job.types';
+import type {
+  ProbeStepInput,
+  ThumbnailStepInput,
+  SpriteStepInput,
+  TranscodeStepInput,
+  FinalizeStepInput,
+} from '../types/step-inputs';
 import { TaskStatus } from '@project/shared';
 
 /**
@@ -41,15 +50,26 @@ export class TranscodeParentProcessor extends WorkerHost {
    * Process jobs from the transcode queue
    * Dispatches to appropriate handler based on job name
    */
-  async process(job: Job<ParentJobData | StepJobData>): Promise<any> {
+  async process(job: Job<ParentJobData | StepJobData>): Promise<unknown> {
     this.logger.log(`Processing job ${job.id} with name: ${job.name}`);
+    this.logger.debug(`Job data keys: ${Object.keys(job.data).join(', ')}`);
 
     // Handle parent job
     if (job.name === 'parent') {
       return this.processParentJob(job as Job<ParentJobData>);
     }
 
-    // Handle step jobs
+    // Handle step jobs - the job name should match the step type
+    // Cast the job data to StepJobData and ensure stepType is set from job name if missing
+    const stepJobData = job.data as StepJobData;
+    if (!stepJobData.stepType) {
+      // If stepType is missing, use the job name as the step type
+      stepJobData.stepType = job.name as TranscodeStepType;
+      this.logger.warn(
+        `Step type was missing for job ${job.id}, using job name: ${job.name}`
+      );
+    }
+
     return this.processStepJob(job as Job<StepJobData>);
   }
 
@@ -119,10 +139,39 @@ export class TranscodeParentProcessor extends WorkerHost {
    * Process step job - dispatches to appropriate step processor
    */
   private async processStepJob(job: Job<StepJobData>): Promise<StepResult> {
-    const { stepType, input, parentJobId } = job.data;
+    // BullMQ flows sometimes don't preserve the full job data structure
+    // We need to handle cases where the data might be at the root level
+    let stepType: StepType;
+    let input: StepInput;
+    let parentJobId: string;
+    
+    // Check if data has the expected structure
+    if ('stepType' in job.data && 'input' in job.data) {
+      ({ stepType, input, parentJobId } = job.data);
+    } else {
+      // Fallback: try to reconstruct from job name and data
+      this.logger.warn(
+        `Job ${job.id} has unexpected data structure, attempting to reconstruct`
+      );
+      stepType = job.name as StepType;
+      // The entire job.data might be the input
+      input = job.data as unknown as StepInput;
+      parentJobId = '';
+    }
+    
     const startedAt = new Date();
 
     this.logger.log(`Processing step ${stepType} for job ${job.id}`);
+    
+    // Debug: Log job data structure if input is still undefined
+    if (!input) {
+      this.logger.error(
+        `Input is undefined for step ${stepType}, job data:`,
+        JSON.stringify(job.data, null, 2)
+      );
+      this.logger.error(`Job name: ${job.name}, Job ID: ${job.id}`);
+      throw new Error(`Input is undefined for step ${stepType}`);
+    }
 
     // Check if this step has already been completed in a previous attempt
     // This allows retries to skip successful steps and only re-run failed ones
@@ -142,28 +191,43 @@ export class TranscodeParentProcessor extends WorkerHost {
     }
 
     try {
-      let output: any;
+      let output: unknown;
 
       // Dispatch to appropriate step processor based on step type
       switch (stepType) {
         case TranscodeStepType.PROBE:
-          output = await this.probeStepProcessor.process(input as any, job);
+          output = await this.probeStepProcessor.process(
+            input as ProbeStepInput,
+            job
+          );
           break;
 
         case TranscodeStepType.THUMBNAIL:
-          output = await this.thumbnailStepProcessor.process(input as any, job);
+          output = await this.thumbnailStepProcessor.process(
+            input as ThumbnailStepInput,
+            job
+          );
           break;
 
         case TranscodeStepType.SPRITE:
-          output = await this.spriteStepProcessor.process(input as any, job);
+          output = await this.spriteStepProcessor.process(
+            input as SpriteStepInput,
+            job
+          );
           break;
 
         case TranscodeStepType.TRANSCODE:
-          output = await this.transcodeStepProcessor.process(input as any, job);
+          output = await this.transcodeStepProcessor.process(
+            input as TranscodeStepInput,
+            job
+          );
           break;
 
         case TranscodeStepType.FINALIZE:
-          output = await this.finalizeStepProcessor.process(input as any, job);
+          output = await this.finalizeStepProcessor.process(
+            input as FinalizeStepInput,
+            job
+          );
           break;
 
         default:

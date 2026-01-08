@@ -11,6 +11,7 @@ export { FileMutator } from './file';
 export { MediaMutator } from './media';
 export { MediaLabelMutator } from './media-label';
 export { MediaClipMutator } from './media-clip';
+export { LabelClipMutator } from './label-clip';
 export { TaskMutator } from './task';
 export { WatchedFileMutator } from './watched-file';
 

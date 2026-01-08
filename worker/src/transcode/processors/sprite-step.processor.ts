@@ -2,6 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { BaseStepProcessor } from '../../queue/processors/base-step.processor';
 import { FFmpegService } from '../../shared/services/ffmpeg.service';
+import { StorageService } from '../../shared/services/storage.service';
+import { PocketBaseService } from '../../shared/services/pocketbase.service';
+import { FileResolver } from '../utils/file-resolver';
 import type { SpriteStepInput } from '../types/step-inputs';
 import type { SpriteStepOutput } from '../types';
 import type { StepJobData } from '../../queue/types/job.types';
@@ -17,7 +20,11 @@ export class SpriteStepProcessor extends BaseStepProcessor<
 > {
   protected readonly logger = new Logger(SpriteStepProcessor.name);
 
-  constructor(private readonly ffmpegService: FFmpegService) {
+  constructor(
+    private readonly ffmpegService: FFmpegService,
+    private readonly storageService: StorageService,
+    private readonly pocketbaseService: PocketBaseService
+  ) {
     super();
   }
 
@@ -33,16 +40,26 @@ export class SpriteStepProcessor extends BaseStepProcessor<
       `Generating sprite sheet for upload ${input.uploadId} (${input.config.cols}x${input.config.rows} tiles)`
     );
 
+    await this.updateProgress(job, 5);
+
+    // Resolve file path if not provided
+    const filePath = await FileResolver.resolveFilePath(
+      input.uploadId,
+      input.filePath,
+      this.storageService,
+      this.pocketbaseService
+    );
+
     await this.updateProgress(job, 10);
 
     // Generate unique output path
-    const spritePath = `${input.filePath}_sprite.jpg`;
+    const spritePath = `${filePath}_sprite.jpg`;
 
     await this.updateProgress(job, 30);
 
     // Generate sprite sheet using FFmpeg
     await this.ffmpegService.generateSprite(
-      input.filePath,
+      filePath,
       spritePath,
       input.config.fps,
       input.config.cols,

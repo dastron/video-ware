@@ -114,6 +114,10 @@ export class GoogleCloudService implements OnModuleInit {
     await this.initializeClients();
   }
 
+  async transcribeAudio(gcsUri: string): Promise<any>{
+    throw new Error("N/A")
+  }
+
   private async initializeClients() {
     if (!this.projectId) {
       this.logger.warn(

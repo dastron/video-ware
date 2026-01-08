@@ -19,6 +19,8 @@ export const MediaClipSchema = z
     end: NumberField({ min: 0 }), // seconds
     duration: NumberField({ min: 0 }), // seconds
     clipData: JSONField().optional(), // additional data
+    version: NumberField().default(1),
+    processor: TextField().optional(),
   })
   .extend(baseSchema);
 
@@ -40,6 +42,8 @@ export const MediaClipInputSchema = z.object({
   end: NumberField({ min: 0 }),
   duration: NumberField({ min: 0 }),
   clipData: JSONField().optional(),
+  version: NumberField().default(1),
+  processor: z.string().optional(),
 });
 
 // Define the collection with workspace-scoped permissions

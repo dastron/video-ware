@@ -23,10 +23,18 @@ export enum IntelligenceStepType {
   STORE_RESULTS = 'intelligence:store_results',
 }
 
+export enum DetectLabelsStepType {
+  VIDEO_INTELLIGENCE = 'labels:video_intelligence',
+  SPEECH_TO_TEXT = 'labels:speech_to_text',
+  NORMALIZE_LABELS = 'labels:normalize_labels',
+  STORE_RESULTS = 'labels:store_results',
+}
+
 /**
  * Combined union type of all step types
  */
 export type StepType =
   | TranscodeStepType
   | RenderStepType
-  | IntelligenceStepType;
+  | IntelligenceStepType
+  | DetectLabelsStepType;
