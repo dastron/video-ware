@@ -5,7 +5,10 @@ import type { MediaLabel, MediaLabelInput } from '../schema';
 import type { TypedPocketBase } from '../types';
 import { BaseMutator, type MutatorOptions } from './base';
 
-export class MediaLabelMutator extends BaseMutator<MediaLabel, MediaLabelInput> {
+export class MediaLabelMutator extends BaseMutator<
+  MediaLabel,
+  MediaLabelInput
+> {
   constructor(pb: TypedPocketBase, options?: Partial<MutatorOptions>) {
     super(pb, options);
   }
@@ -52,4 +55,3 @@ export class MediaLabelMutator extends BaseMutator<MediaLabel, MediaLabelInput> 
     return this.getFirstByFilter(`MediaRef = "${mediaId}"`, '-created');
   }
 }
-

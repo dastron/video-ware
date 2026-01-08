@@ -45,9 +45,11 @@ export class SpeechToTextStrategy {
     try {
       // First, probe the video to check if it has audio
       const probeResult = await this.ffmpegService.probe(videoFilePath);
-      
+
       // Check if video has audio stream
-      const audioStream = probeResult.streams.find(stream => stream.codec_type === 'audio');
+      const audioStream = probeResult.streams.find(
+        (stream) => stream.codec_type === 'audio'
+      );
       if (!audioStream) {
         this.logger.log('No audio stream found in video file');
         return {
@@ -59,7 +61,9 @@ export class SpeechToTextStrategy {
         };
       }
 
-      this.logger.log(`Audio stream found: ${audioStream.codec_name}, ${audioStream.channels} channels`);
+      this.logger.log(
+        `Audio stream found: ${audioStream.codec_name}, ${audioStream.channels} channels`
+      );
 
       // Extract audio from video to a temporary WAV file
       tempAudioPath = await this.extractAudioToTemp(videoFilePath);
@@ -68,11 +72,12 @@ export class SpeechToTextStrategy {
       gcsAudioUri = await this.uploadAudioToGcs(tempAudioPath);
 
       // Transcribe using Google Speech-to-Text
-      const transcriptionResult = await this.googleCloudService.transcribeSpeech(
-        gcsAudioUri,
-        languageCode,
-        true // enableWordTimeOffsets
-      );
+      const transcriptionResult =
+        await this.googleCloudService.transcribeSpeech(
+          gcsAudioUri,
+          languageCode,
+          true // enableWordTimeOffsets
+        );
 
       this.logger.log(
         `Speech transcription completed: ${transcriptionResult.transcript.length} characters, ${transcriptionResult.words.length} words`
@@ -86,7 +91,8 @@ export class SpeechToTextStrategy {
         hasAudio: true,
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       this.logger.error(`Speech transcription failed: ${errorMessage}`);
       throw new Error(`Speech transcription failed: ${errorMessage}`);
     } finally {
@@ -94,9 +100,13 @@ export class SpeechToTextStrategy {
       if (tempAudioPath) {
         try {
           await fs.unlink(tempAudioPath);
-          this.logger.debug(`Cleaned up temporary audio file: ${tempAudioPath}`);
+          this.logger.debug(
+            `Cleaned up temporary audio file: ${tempAudioPath}`
+          );
         } catch (cleanupError) {
-          this.logger.warn(`Failed to clean up temporary audio file: ${cleanupError}`);
+          this.logger.warn(
+            `Failed to clean up temporary audio file: ${cleanupError}`
+          );
         }
       }
 
@@ -139,8 +149,9 @@ export class SpeechToTextStrategy {
       } catch {
         // Ignore cleanup errors
       }
-      
-      const errorMessage = error instanceof Error ? error.message : String(error);
+
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       throw new Error(`Audio extraction failed: ${errorMessage}`);
     }
   }
@@ -170,7 +181,8 @@ export class SpeechToTextStrategy {
       this.logger.debug(`Audio uploaded to GCS: ${gcsUri}`);
       return gcsUri;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       throw new Error(`Failed to upload audio to GCS: ${errorMessage}`);
     }
   }

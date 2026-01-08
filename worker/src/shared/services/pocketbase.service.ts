@@ -47,7 +47,7 @@ export class PocketBaseService implements OnModuleInit {
 
   constructor(
     private readonly configService: ConfigService,
-    private readonly pocketBaseClientService: PocketBaseClientService,
+    private readonly pocketBaseClientService: PocketBaseClientService
   ) {}
 
   async onModuleInit() {
@@ -102,7 +102,9 @@ export class PocketBaseService implements OnModuleInit {
     this.taskMutator = new sharedModule.TaskMutator(this.pb);
     this.timelineClipMutator = new sharedModule.TimelineClipMutator(this.pb);
     this.timelineMutator = new sharedModule.TimelineMutator(this.pb);
-    this.timelineRenderMutator = new sharedModule.TimelineRenderMutator(this.pb);
+    this.timelineRenderMutator = new sharedModule.TimelineRenderMutator(
+      this.pb
+    );
     this.uploadMutator = new sharedModule.UploadMutator(this.pb);
     this.userMutator = new sharedModule.UserMutator(this.pb);
     this.watchedFileMutator = new sharedModule.WatchedFileMutator(this.pb);
@@ -158,9 +160,15 @@ export class PocketBaseService implements OnModuleInit {
     try {
       const existing = await this.getMediaByUpload(uploadId);
       if (existing) {
-        return await this.mediaMutator.update(existing.id, data as Partial<Media>);
+        return await this.mediaMutator.update(
+          existing.id,
+          data as Partial<Media>
+        );
       }
-      return await this.mediaMutator.create({ ...data, UploadRef: uploadId } as MediaInput);
+      return await this.mediaMutator.create({
+        ...data,
+        UploadRef: uploadId,
+      } as MediaInput);
     } catch (error) {
       this.logger.error(
         `Failed to create/update media for upload ${uploadId}: ${error instanceof Error ? error.message : String(error)}`
@@ -231,7 +239,6 @@ export class PocketBaseService implements OnModuleInit {
     }
   }
 
-
   /**
    * Get file record by ID
    */
@@ -259,19 +266,28 @@ export class PocketBaseService implements OnModuleInit {
     uploadRef: string;
     mimeType: string;
   }): Promise<File> {
-    const { localFilePath, fileName, fileType, fileSource, storageKey, workspaceRef, uploadRef, mimeType } = params;
+    const {
+      localFilePath,
+      fileName,
+      fileType,
+      fileSource,
+      storageKey,
+      workspaceRef,
+      uploadRef,
+      mimeType,
+    } = params;
 
     try {
       const fs = await import('fs');
       const { Blob } = await import('buffer');
-      
+
       // Read file from filesystem
       const fileBuffer = await fs.promises.readFile(localFilePath);
       const fileSize = fileBuffer.length;
-      
+
       // Create a Blob from the buffer
       const blob = new Blob([fileBuffer], { type: mimeType });
-      
+
       // Create FormData and append all fields
       const formData = new FormData();
       formData.append('name', fileName);
@@ -283,18 +299,21 @@ export class PocketBaseService implements OnModuleInit {
       formData.append('WorkspaceRef', workspaceRef);
       formData.append('UploadRef', uploadRef);
       formData.append('meta', JSON.stringify({ mimeType }));
-      
+
       // Append the actual file
       formData.append('file', blob as unknown as Blob, fileName);
-      
+
       // Use PocketBase client directly to create with FormData
       const pb = this.getClient();
       const record = await pb.collection('Files').create(formData);
-      
+
       return record;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Failed to create file record with upload: ${errorMessage}`);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `Failed to create file record with upload: ${errorMessage}`
+      );
       throw error;
     }
   }

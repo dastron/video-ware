@@ -32,4 +32,3 @@ export class PocketBaseClientService {
     return client;
   }
 }
-

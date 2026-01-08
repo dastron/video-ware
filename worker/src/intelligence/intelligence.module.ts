@@ -5,6 +5,10 @@ import { VideoIntelligenceStrategy } from './strategies/video-intelligence.strat
 import { SpeechToTextStrategy } from './strategies/speech-to-text.strategy';
 import { SharedModule } from '../shared/shared.module';
 import { QueueModule } from '../queue/queue.module';
+import { IntelligenceParentProcessor } from './processors/intelligence-parent.processor';
+import { VideoIntelligenceStepProcessor } from './processors/video-intelligence-step.processor';
+import { SpeechToTextStepProcessor } from './processors/speech-to-text-step.processor';
+import { StoreResultsStepProcessor } from './processors/store-results-step.processor';
 
 @Module({
   imports: [
@@ -17,6 +21,11 @@ import { QueueModule } from '../queue/queue.module';
     IntelligenceService,
     VideoIntelligenceStrategy,
     SpeechToTextStrategy,
+    // Step-based processors
+    IntelligenceParentProcessor,
+    VideoIntelligenceStepProcessor,
+    SpeechToTextStepProcessor,
+    StoreResultsStepProcessor,
   ],
   exports: [IntelligenceService],
 })

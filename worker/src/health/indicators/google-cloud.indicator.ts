@@ -20,12 +20,16 @@ export class GoogleCloudIndicator extends HealthIndicator {
         this.googleCloudService.isTranscoderHealthy(),
       ]);
 
-      const videoIntelligenceHealthy = healthChecks[0].status === 'fulfilled' && healthChecks[0].value;
-      const speechHealthy = healthChecks[1].status === 'fulfilled' && healthChecks[1].value;
-      const transcoderHealthy = healthChecks[2].status === 'fulfilled' && healthChecks[2].value;
+      const videoIntelligenceHealthy =
+        healthChecks[0].status === 'fulfilled' && healthChecks[0].value;
+      const speechHealthy =
+        healthChecks[1].status === 'fulfilled' && healthChecks[1].value;
+      const transcoderHealthy =
+        healthChecks[2].status === 'fulfilled' && healthChecks[2].value;
 
       // Consider Google Cloud healthy if at least one service is available
-      const isHealthy = videoIntelligenceHealthy || speechHealthy || transcoderHealthy;
+      const isHealthy =
+        videoIntelligenceHealthy || speechHealthy || transcoderHealthy;
 
       const result = this.getStatus(key, isHealthy, {
         videoIntelligence: videoIntelligenceHealthy,

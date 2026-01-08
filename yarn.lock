@@ -2295,6 +2295,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@ioredis/commands@npm:1.4.0":
+  version: 1.4.0
+  resolution: "@ioredis/commands@npm:1.4.0"
+  checksum: 10/ea299f22057139261ebd7dbc7fc85615e90c254e667620a276d3cf771b9d9190ffbdf25af6586c3f52598a2c830d64bee17f32c3ce734db403e93f73548d54d4
+  languageName: node
+  linkType: hard
+
 "@ioredis/commands@npm:1.5.0":
   version: 1.5.0
   resolution: "@ioredis/commands@npm:1.5.0"
@@ -2496,6 +2503,20 @@ __metadata:
     "@nestjs/core": ^8.0.0 || ^9.0.0 || ^10.0.0 || ^11.0.0
     bull: ^3.3 || ^4.0.0
   checksum: 10/6338e53537789b0aef6a9558c3baedfef04ab96c4442a22afebfc1ac9da9951e9b49c5b1ccef3d56009b7ddf0dec59a59e17663aa01a3171eebca13e791feb58
+  languageName: node
+  linkType: hard
+
+"@nestjs/bullmq@npm:^11.0.4":
+  version: 11.0.4
+  resolution: "@nestjs/bullmq@npm:11.0.4"
+  dependencies:
+    "@nestjs/bull-shared": "npm:^11.0.4"
+    tslib: "npm:2.8.1"
+  peerDependencies:
+    "@nestjs/common": ^10.0.0 || ^11.0.0
+    "@nestjs/core": ^10.0.0 || ^11.0.0
+    bullmq: ^3.0.0 || ^4.0.0 || ^5.0.0
+  checksum: 10/90da01bb216f2a7cd1f360ddeb4652a95378453d090db7af1cd719d93baeaef8bef315727427518162f5cdbeda0220e73afc28b1a5d7ce2314bcae93040123cb
   languageName: node
   linkType: hard
 
@@ -3026,6 +3047,7 @@ __metadata:
     "@google-cloud/video-intelligence": "npm:^6.2.1"
     "@google-cloud/video-transcoder": "npm:^4.4.1"
     "@nestjs/bull": "npm:^11.0.4"
+    "@nestjs/bullmq": "npm:^11.0.4"
     "@nestjs/cli": "npm:^11.0.14"
     "@nestjs/common": "npm:^11.1.11"
     "@nestjs/config": "npm:^4.0.2"
@@ -3043,6 +3065,7 @@ __metadata:
     "@typescript-eslint/parser": "npm:^8.52.0"
     "@vitest/coverage-v8": "npm:^4.0.16"
     bull: "npm:^4.16.5"
+    bullmq: "npm:^5.66.4"
     class-transformer: "npm:^0.5.1"
     class-validator: "npm:^0.14.3"
     eslint: "npm:^9.39.2"
@@ -7289,6 +7312,21 @@ __metadata:
   languageName: node
   linkType: hard
 
+"bullmq@npm:^5.66.4":
+  version: 5.66.4
+  resolution: "bullmq@npm:5.66.4"
+  dependencies:
+    cron-parser: "npm:4.9.0"
+    ioredis: "npm:5.8.2"
+    msgpackr: "npm:1.11.5"
+    node-abort-controller: "npm:3.1.1"
+    semver: "npm:7.7.3"
+    tslib: "npm:2.8.1"
+    uuid: "npm:11.1.0"
+  checksum: 10/c8db1d14bb0f8a763c2d760bfd1cbf292b46a140b42a1da354df3e44683c1c7a97e8e5294d05482829706f66034a8a486e59d6712385d2cc40c773fc8ccf08ad
+  languageName: node
+  linkType: hard
+
 "bundle-require@npm:^5.1.0":
   version: 5.1.0
   resolution: "bundle-require@npm:5.1.0"
@@ -7888,7 +7926,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"cron-parser@npm:^4.9.0":
+"cron-parser@npm:4.9.0, cron-parser@npm:^4.9.0":
   version: 4.9.0
   resolution: "cron-parser@npm:4.9.0"
   dependencies:
@@ -10355,6 +10393,23 @@ __metadata:
   languageName: node
   linkType: hard
 
+"ioredis@npm:5.8.2":
+  version: 5.8.2
+  resolution: "ioredis@npm:5.8.2"
+  dependencies:
+    "@ioredis/commands": "npm:1.4.0"
+    cluster-key-slot: "npm:^1.1.0"
+    debug: "npm:^4.3.4"
+    denque: "npm:^2.1.0"
+    lodash.defaults: "npm:^4.2.0"
+    lodash.isarguments: "npm:^3.1.0"
+    redis-errors: "npm:^1.2.0"
+    redis-parser: "npm:^3.0.0"
+    standard-as-callback: "npm:^2.1.0"
+  checksum: 10/550cbe7bba409b5bc38fa290fd2de7f569548603892904680db0f5e74f7163e52e067428be766d9e4d1a7f1220f93abe8e1687804aab951a96a6dafc289947eb
+  languageName: node
+  linkType: hard
+
 "ioredis@npm:^5.3.2, ioredis@npm:^5.9.0":
   version: 5.9.0
   resolution: "ioredis@npm:5.9.0"
@@ -11792,6 +11847,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"msgpackr@npm:1.11.5":
+  version: 1.11.5
+  resolution: "msgpackr@npm:1.11.5"
+  dependencies:
+    msgpackr-extract: "npm:^3.0.2"
+  dependenciesMeta:
+    msgpackr-extract:
+      optional: true
+  checksum: 10/8d1db85d355bbe87428ae91a161dad4e67647761f4266d8ac06abe29e1fbae976aec4cc9435d32a1a4240d10bf01294dc2a00cec1c94409b77c4749f9bc9feb5
+  languageName: node
+  linkType: hard
+
 "msgpackr@npm:^1.11.2":
   version: 1.11.8
   resolution: "msgpackr@npm:1.11.8"
@@ -11969,7 +12036,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"node-abort-controller@npm:^3.0.1":
+"node-abort-controller@npm:3.1.1, node-abort-controller@npm:^3.0.1":
   version: 3.1.1
   resolution: "node-abort-controller@npm:3.1.1"
   checksum: 10/0a2cdb7ec0aeaf3cb31e1ca0e192f5add48f1c5c9c9ed822129f9dddbd9432f69b7425982f94ce803c56a2104884530aa67cd57696e5774b2e5b8ec2f58de042
@@ -13518,21 +13585,21 @@ __metadata:
   languageName: node
   linkType: hard
 
+"semver@npm:7.7.3, semver@npm:^7.3.5, semver@npm:^7.5.2, semver@npm:^7.5.3, semver@npm:^7.6.0, semver@npm:^7.7.1, semver@npm:^7.7.3":
+  version: 7.7.3
+  resolution: "semver@npm:7.7.3"
+  bin:
+    semver: bin/semver.js
+  checksum: 10/8dbc3168e057a38fc322af909c7f5617483c50caddba135439ff09a754b20bdd6482a5123ff543dad4affa488ecf46ec5fb56d61312ad20bb140199b88dfaea9
+  languageName: node
+  linkType: hard
+
 "semver@npm:^6.3.1":
   version: 6.3.1
   resolution: "semver@npm:6.3.1"
   bin:
     semver: bin/semver.js
   checksum: 10/1ef3a85bd02a760c6ef76a45b8c1ce18226de40831e02a00bad78485390b98b6ccaa31046245fc63bba4a47a6a592b6c7eedc65cc47126e60489f9cc1ce3ed7e
-  languageName: node
-  linkType: hard
-
-"semver@npm:^7.3.5, semver@npm:^7.5.2, semver@npm:^7.5.3, semver@npm:^7.6.0, semver@npm:^7.7.1, semver@npm:^7.7.3":
-  version: 7.7.3
-  resolution: "semver@npm:7.7.3"
-  bin:
-    semver: bin/semver.js
-  checksum: 10/8dbc3168e057a38fc322af909c7f5617483c50caddba135439ff09a754b20bdd6482a5123ff543dad4affa488ecf46ec5fb56d61312ad20bb140199b88dfaea9
   languageName: node
   linkType: hard
 
@@ -15162,7 +15229,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"uuid@npm:^11.1.0":
+"uuid@npm:11.1.0, uuid@npm:^11.1.0":
   version: 11.1.0
   resolution: "uuid@npm:11.1.0"
   bin:

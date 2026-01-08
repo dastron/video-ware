@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bull';
-import { Queue } from 'bull';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { QUEUE_NAMES } from './queue.constants';
 import type { Task } from '@project/shared';
 
@@ -44,7 +44,11 @@ export class QueueService {
    */
   async addTranscodeJob(task: Task) {
     this.logger.log(`Adding transcode job for task ${task.id}`);
-    return this.transcodeQueue.add('process', task, this.getBaseJobOptions(task));
+    return this.transcodeQueue.add(
+      'process',
+      task,
+      this.getBaseJobOptions(task)
+    );
   }
 
   /**
@@ -53,7 +57,11 @@ export class QueueService {
    */
   async addIntelligenceJob(task: Task) {
     this.logger.log(`Adding intelligence job for task ${task.id}`);
-    return this.intelligenceQueue.add('process', task, this.getBaseJobOptions(task));
+    return this.intelligenceQueue.add(
+      'process',
+      task,
+      this.getBaseJobOptions(task)
+    );
   }
 
   /**

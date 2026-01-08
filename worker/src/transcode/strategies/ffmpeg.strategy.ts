@@ -16,31 +16,31 @@ export class FFmpegStrategy {
 
   constructor(
     private readonly ffmpegService: FFmpegService,
-    private readonly storageService: StorageService,
+    private readonly storageService: StorageService
   ) {}
 
   async process(
     filePath: string,
     payload: ProcessUploadPayload,
-    progressCallback: (progress: number) => void,
+    progressCallback: (progress: number) => void
   ): Promise<TranscodeStrategyResult> {
     this.logger.log(`Processing file with FFmpeg: ${filePath}`);
-    
+
     const result: TranscodeStrategyResult = {
       probeOutput: {} as ProbeOutput, // Will be set below
     };
-    
+
     try {
       // Probe the file for metadata
       progressCallback(10);
       const probeResult = await this.ffmpegService.probe(filePath);
       result.probeOutput = this.convertProbeResult(probeResult);
-      
+
       // Generate thumbnail if config provided
       if (payload.thumbnail) {
         progressCallback(30);
         const thumbnailPath = `${filePath}_thumbnail.jpg`;
-        
+
         // Calculate timestamp - handle "midpoint" or use provided number
         let timestamp: number;
         if (payload.thumbnail.timestamp === 'midpoint') {
@@ -51,17 +51,17 @@ export class FFmpegStrategy {
         // Ensure timestamp is within video duration
         timestamp = Math.min(timestamp, result.probeOutput.duration - 1);
         timestamp = Math.max(timestamp, 0);
-        
+
         await this.ffmpegService.generateThumbnail(
           filePath,
           thumbnailPath,
           timestamp,
           payload.thumbnail.width || 320,
-          payload.thumbnail.height || 240,
+          payload.thumbnail.height || 240
         );
         result.thumbnailPath = thumbnailPath;
       }
-      
+
       // Generate sprite if config provided
       if (payload.sprite) {
         progressCallback(50);
@@ -73,39 +73,44 @@ export class FFmpegStrategy {
           payload.sprite.cols || 10,
           payload.sprite.rows || 10,
           payload.sprite.tileWidth || 160,
-          payload.sprite.tileHeight || 120,
+          payload.sprite.tileHeight || 120
         );
         result.spritePath = spritePath;
       }
-      
+
       // Generate proxy video if enabled
       if (payload.transcode?.enabled) {
         progressCallback(70);
         const proxyPath = `${filePath}_proxy.mp4`;
-        
+
         // Map resolution to width/height
-        const resolutionMap: Record<string, { width: number; height: number }> = {
-          '720p': { width: 1280, height: 720 },
-          '1080p': { width: 1920, height: 1080 },
-          'original': { width: result.probeOutput.width, height: result.probeOutput.height },
-        };
-        
-        const targetResolution = resolutionMap[payload.transcode.resolution] || resolutionMap['720p'];
-        
+        const resolutionMap: Record<string, { width: number; height: number }> =
+          {
+            '720p': { width: 1280, height: 720 },
+            '1080p': { width: 1920, height: 1080 },
+            original: {
+              width: result.probeOutput.width,
+              height: result.probeOutput.height,
+            },
+          };
+
+        const targetResolution =
+          resolutionMap[payload.transcode.resolution] || resolutionMap['720p'];
+
         // Map codec to video codec string
         const codecMap: Record<string, string> = {
-          'h264': 'libx264',
-          'h265': 'libx265',
-          'vp9': 'libvpx-vp9',
+          h264: 'libx264',
+          h265: 'libx265',
+          vp9: 'libvpx-vp9',
         };
-        
+
         const videoCodec = codecMap[payload.transcode.codec] || 'libx264';
-        
+
         // Map bitrate (it's in bits per second, convert to string format)
-        const bitrateString = payload.transcode.bitrate 
+        const bitrateString = payload.transcode.bitrate
           ? `${Math.round(payload.transcode.bitrate / 1000000)}M`
           : '2M';
-        
+
         await this.ffmpegService.transcode(filePath, proxyPath, {
           width: targetResolution.width,
           height: targetResolution.height,
@@ -115,10 +120,10 @@ export class FFmpegStrategy {
         });
         result.proxyPath = proxyPath;
       }
-      
+
       progressCallback(90);
       this.logger.log(`FFmpeg processing completed for: ${filePath}`);
-      
+
       return result;
     } catch (error) {
       this.logger.error(`FFmpeg processing failed for ${filePath}:`, error);
@@ -129,9 +134,16 @@ export class FFmpegStrategy {
   /**
    * Convert FFmpeg probe result to our ProbeOutput format
    */
-  private convertProbeResult(probeResult: { format: any; streams: Array<{ codec_type: string; [key: string]: any }> }): ProbeOutput {
-    const videoStream = probeResult.streams.find((s) => s.codec_type === 'video');
-    const audioStream = probeResult.streams.find((s) => s.codec_type === 'audio');
+  private convertProbeResult(probeResult: {
+    format: any;
+    streams: Array<{ codec_type: string; [key: string]: any }>;
+  }): ProbeOutput {
+    const videoStream = probeResult.streams.find(
+      (s) => s.codec_type === 'video'
+    );
+    const audioStream = probeResult.streams.find(
+      (s) => s.codec_type === 'audio'
+    );
 
     if (!videoStream) {
       throw new Error('No video stream found in input file');
@@ -142,7 +154,9 @@ export class FFmpegStrategy {
       width: videoStream.width || 0,
       height: videoStream.height || 0,
       codec: videoStream.codec_name || 'unknown',
-      fps: this.parseFps(videoStream.r_frame_rate || videoStream.avg_frame_rate) || 0,
+      fps:
+        this.parseFps(videoStream.r_frame_rate || videoStream.avg_frame_rate) ||
+        0,
       bitrate: parseInt(probeResult.format.bit_rate) || undefined,
       format: probeResult.format.format_name || 'unknown',
       size: parseInt(probeResult.format.size) || undefined,

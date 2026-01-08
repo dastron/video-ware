@@ -12,7 +12,7 @@ export class RenderProcessor {
 
   constructor(
     private readonly renderService: RenderService,
-    private readonly pocketbaseService: PocketBaseService,
+    private readonly pocketbaseService: PocketBaseService
   ) {}
 
   @Process('process')
@@ -24,29 +24,33 @@ export class RenderProcessor {
       // Update task status to running
       await this.updateTaskStatus(task.id, TaskStatus.RUNNING, 0);
 
-      // Process the render task
-      const result = await this.renderService.processTask(task, async (progress) => {
-        // Update job progress for Bull dashboard
-        await job.progress(progress);
-        
-        // Update task progress in PocketBase
-        await this.updateTaskProgress(task.id, progress);
-      });
+      // Create the render flow (new flow-based architecture)
+      const parentJobId = await this.renderService.processTask(task);
 
-      // Update task status to success with result
-      await this.updateTaskStatus(task.id, TaskStatus.SUCCESS, 100, result);
+      this.logger.log(
+        `Render flow created for task ${task.id}, parent job: ${parentJobId}`
+      );
 
-      this.logger.log(`Render task ${task.id} completed successfully`);
-      return result;
-
+      // Return the parent job ID
+      return { parentJobId };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       const errorStack = error instanceof Error ? error.stack : undefined;
 
-      this.logger.error(`Render task ${task.id} failed: ${errorMessage}`, errorStack);
+      this.logger.error(
+        `Render task ${task.id} failed: ${errorMessage}`,
+        errorStack
+      );
 
       // Update task status to failed with error
-      await this.updateTaskStatus(task.id, TaskStatus.FAILED, undefined, undefined, errorMessage);
+      await this.updateTaskStatus(
+        task.id,
+        TaskStatus.FAILED,
+        undefined,
+        undefined,
+        errorMessage
+      );
 
       // Re-throw error so Bull can handle retry logic
       throw error;
@@ -61,7 +65,7 @@ export class RenderProcessor {
     status: TaskStatus,
     progress?: number,
     result?: any,
-    error?: string,
+    error?: string
   ): Promise<void> {
     try {
       const updates: any = { status };
@@ -87,7 +91,9 @@ export class RenderProcessor {
 
       await this.pocketbaseService.updateTask(taskId, updates);
 
-      this.logger.debug(`Updated task ${taskId} status to ${status}${progress !== undefined ? ` (${progress}%)` : ''}`);
+      this.logger.debug(
+        `Updated task ${taskId} status to ${status}${progress !== undefined ? ` (${progress}%)` : ''}`
+      );
     } catch (updateError) {
       this.logger.error(
         `Failed to update task ${taskId} status: ${updateError instanceof Error ? updateError.message : String(updateError)}`
@@ -99,7 +105,10 @@ export class RenderProcessor {
   /**
    * Update task progress in PocketBase
    */
-  private async updateTaskProgress(taskId: string, progress: number): Promise<void> {
+  private async updateTaskProgress(
+    taskId: string,
+    progress: number
+  ): Promise<void> {
     try {
       await this.pocketbaseService.updateTask(taskId, {
         progress: Math.round(progress),
@@ -127,8 +136,10 @@ export class RenderProcessor {
   @Process('failed')
   async handleFailed(job: Job<Task>, error: Error) {
     const task = job.data;
-    this.logger.error(`Render job ${job.id} for task ${task.id} failed: ${error.message}`);
-    
+    this.logger.error(
+      `Render job ${job.id} for task ${task.id} failed: ${error.message}`
+    );
+
     // The task status should already be updated in the main handler,
     // but we can add additional failure handling here if needed
   }
@@ -140,9 +151,15 @@ export class RenderProcessor {
   async handleStalled(job: Job<Task>) {
     const task = job.data;
     this.logger.warn(`Render job ${job.id} for task ${task.id} stalled`);
-    
+
     // Optionally update task status to indicate it's stalled
-    await this.updateTaskStatus(task.id, TaskStatus.RUNNING, undefined, undefined, 'Job stalled - may be retried');
+    await this.updateTaskStatus(
+      task.id,
+      TaskStatus.RUNNING,
+      undefined,
+      undefined,
+      'Job stalled - may be retried'
+    );
   }
 
   /**
@@ -151,7 +168,9 @@ export class RenderProcessor {
   @Process('progress')
   async handleProgress(job: Job<Task>, progress: number) {
     const task = job.data;
-    this.logger.debug(`Render job ${job.id} for task ${task.id} progress: ${progress}%`);
+    this.logger.debug(
+      `Render job ${job.id} for task ${task.id} progress: ${progress}%`
+    );
   }
 
   /**
@@ -160,7 +179,9 @@ export class RenderProcessor {
   @Process('active')
   async handleActive(job: Job<Task>) {
     const task = job.data;
-    this.logger.log(`Render job ${job.id} for task ${task.id} started processing`);
+    this.logger.log(
+      `Render job ${job.id} for task ${task.id} started processing`
+    );
   }
 
   /**
@@ -169,6 +190,8 @@ export class RenderProcessor {
   @Process('waiting')
   async handleWaiting(job: Job<Task>) {
     const task = job.data;
-    this.logger.debug(`Render job ${job.id} for task ${task.id} is waiting in queue`);
+    this.logger.debug(
+      `Render job ${job.id} for task ${task.id} is waiting in queue`
+    );
   }
 }

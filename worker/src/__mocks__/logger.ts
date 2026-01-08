@@ -9,7 +9,7 @@ import { vi } from 'vitest';
  */
 export class MockLogger {
   constructor(private context?: string) {}
-  
+
   // Use vi.fn() to create mock functions that can be spied on but do nothing by default
   log = vi.fn(() => {});
   error = vi.fn(() => {});

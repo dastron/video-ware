@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
-import { BullModule } from '@nestjs/bull';
+import { BullModule } from '@nestjs/bullmq';
 import { QueueService } from './queue.service';
+import { FlowService } from './flow.service';
 import { QUEUE_NAMES } from './queue.constants';
 
 @Module({
@@ -11,7 +12,7 @@ import { QUEUE_NAMES } from './queue.constants';
       { name: QUEUE_NAMES.RENDER }
     ),
   ],
-  providers: [QueueService],
-  exports: [QueueService, BullModule],
+  providers: [QueueService, FlowService],
+  exports: [QueueService, FlowService, BullModule],
 })
 export class QueueModule {}

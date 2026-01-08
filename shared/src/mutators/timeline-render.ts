@@ -58,8 +58,7 @@ export class TimelineRenderMutator extends BaseMutator<
     return this.getList(
       1,
       50,
-      `TimelineRef = "${timelineId}" && timelineVersion = ${version}`
+      `TimelineRef = "${timelineId}" && version = ${version}`
     );
   }
 }
-

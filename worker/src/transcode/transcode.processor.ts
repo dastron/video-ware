@@ -13,7 +13,7 @@ export class TranscodeProcessor {
 
   constructor(
     private readonly transcodeService: TranscodeService,
-    private readonly pocketbaseService: PocketBaseService,
+    private readonly pocketbaseService: PocketBaseService
   ) {
     this.logger.log('TranscodeProcessor initialized and ready to process jobs');
   }
@@ -21,35 +21,49 @@ export class TranscodeProcessor {
   @Process('process')
   async handleTranscode(job: Job<Task>) {
     const task = job.data;
-    this.logger.log(`Processing transcode task ${task.id} (job ${job.id})`);
+    this.logger.log(
+      `Processing transcode task ${task.id} (job ${job.id}) - using legacy processor`
+    );
 
     try {
       // Update task status to running
       await this.updateTaskStatus(task.id, TaskStatus.RUNNING, 0);
 
-      // Process the transcode task
-      const result = await this.transcodeService.processTask(task, async (progress: number) => {
-        // Update job progress for Bull dashboard
-        await job.progress(progress);
-        
-        // Update task progress in PocketBase
-        await this.updateTaskProgress(task.id, progress);
-      });
+      // Process the transcode task using legacy method
+      const result = await this.transcodeService.processTaskLegacy(
+        task,
+        async (progress: number) => {
+          // Update job progress for Bull dashboard
+          await job.progress(progress);
+
+          // Update task progress in PocketBase
+          await this.updateTaskProgress(task.id, progress);
+        }
+      );
 
       // Update task status to success with result
       await this.updateTaskStatus(task.id, TaskStatus.SUCCESS, 100, result);
 
       this.logger.log(`Transcode task ${task.id} completed successfully`);
       return result;
-
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       const errorStack = error instanceof Error ? error.stack : undefined;
 
-      this.logger.error(`Transcode task ${task.id} failed: ${errorMessage}`, errorStack);
+      this.logger.error(
+        `Transcode task ${task.id} failed: ${errorMessage}`,
+        errorStack
+      );
 
       // Update task status to failed with error
-      await this.updateTaskStatus(task.id, TaskStatus.FAILED, undefined, undefined, errorMessage);
+      await this.updateTaskStatus(
+        task.id,
+        TaskStatus.FAILED,
+        undefined,
+        undefined,
+        errorMessage
+      );
 
       // Re-throw error so Bull can handle retry logic
       throw error;
@@ -64,7 +78,7 @@ export class TranscodeProcessor {
     status: TaskStatus,
     progress?: number,
     result?: ProcessUploadResult,
-    error?: string,
+    error?: string
   ): Promise<void> {
     try {
       const updates: TaskUpdatePayload = { status };
@@ -81,11 +95,13 @@ export class TranscodeProcessor {
         updates.errorLog = error;
       }
 
-        updates.updated = new Date().toISOString();
+      updates.updated = new Date().toISOString();
 
       await this.pocketbaseService.updateTask(taskId, updates);
 
-      this.logger.debug(`Updated task ${taskId} status to ${status}${progress !== undefined ? ` (${progress}%)` : ''}`);
+      this.logger.debug(
+        `Updated task ${taskId} status to ${status}${progress !== undefined ? ` (${progress}%)` : ''}`
+      );
     } catch (updateError) {
       this.logger.error(
         `Failed to update task ${taskId} status: ${updateError instanceof Error ? updateError.message : String(updateError)}`
@@ -97,7 +113,10 @@ export class TranscodeProcessor {
   /**
    * Update task progress in PocketBase
    */
-  private async updateTaskProgress(taskId: string, progress: number): Promise<void> {
+  private async updateTaskProgress(
+    taskId: string,
+    progress: number
+  ): Promise<void> {
     try {
       await this.pocketbaseService.updateTask(taskId, {
         progress: Math.round(progress),

@@ -14,7 +14,7 @@ export class GoogleTranscoderStrategy {
   constructor(
     private readonly googleCloudService: GoogleCloudService,
     private readonly ffmpegService: FFmpegService,
-    private readonly storageService: StorageService,
+    private readonly storageService: StorageService
   ) {}
 
   /**
@@ -24,9 +24,11 @@ export class GoogleTranscoderStrategy {
   async process(
     filePath: string,
     payload: ProcessUploadPayload,
-    progressCallback: (progress: number) => void,
+    progressCallback: (progress: number) => void
   ): Promise<TranscodeStrategyResult> {
-    this.logger.log(`Processing upload ${payload.uploadId} with Google Transcoder strategy`);
+    this.logger.log(
+      `Processing upload ${payload.uploadId} with Google Transcoder strategy`
+    );
 
     try {
       // Step 1: Probe the input file using FFmpeg (10% progress)
@@ -36,7 +38,11 @@ export class GoogleTranscoderStrategy {
 
       // Step 2: Generate thumbnail using FFmpeg (25% progress)
       progressCallback(25);
-      const thumbnailPath = await this.generateThumbnail(filePath, payload, probeOutput);
+      const thumbnailPath = await this.generateThumbnail(
+        filePath,
+        payload,
+        probeOutput
+      );
 
       // Step 3: Generate sprite sheet using FFmpeg (40% progress)
       progressCallback(40);
@@ -46,7 +52,11 @@ export class GoogleTranscoderStrategy {
       let proxyPath: string | undefined;
       if (payload.transcode?.enabled) {
         progressCallback(55);
-        proxyPath = await this.generateProxyWithGoogleTranscoder(filePath, payload, progressCallback);
+        proxyPath = await this.generateProxyWithGoogleTranscoder(
+          filePath,
+          payload,
+          progressCallback
+        );
       }
 
       progressCallback(90);
@@ -58,8 +68,11 @@ export class GoogleTranscoderStrategy {
         probeOutput: probeOutput,
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Google Transcoder processing failed for upload ${payload.uploadId}: ${errorMessage}`);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `Google Transcoder processing failed for upload ${payload.uploadId}: ${errorMessage}`
+      );
       throw new Error(`Google Transcoder processing failed: ${errorMessage}`);
     }
   }
@@ -70,7 +83,7 @@ export class GoogleTranscoderStrategy {
   private async generateThumbnail(
     filePath: string,
     payload: ProcessUploadPayload,
-    probeOutput: ProbeOutput,
+    probeOutput: ProbeOutput
   ): Promise<string> {
     const config = payload.thumbnail || {
       timestamp: 'midpoint',
@@ -98,7 +111,7 @@ export class GoogleTranscoderStrategy {
       outputPath,
       timestamp,
       config.width,
-      config.height,
+      config.height
     );
 
     this.logger.log(`Generated thumbnail: ${outputPath}`);
@@ -110,7 +123,7 @@ export class GoogleTranscoderStrategy {
    */
   private async generateSprite(
     filePath: string,
-    payload: ProcessUploadPayload,
+    payload: ProcessUploadPayload
   ): Promise<string> {
     const config = payload.sprite || {
       fps: 0.1, // One frame every 10 seconds
@@ -130,7 +143,7 @@ export class GoogleTranscoderStrategy {
       config.cols,
       config.rows,
       config.tileWidth,
-      config.tileHeight,
+      config.tileHeight
     );
 
     this.logger.log(`Generated sprite sheet: ${outputPath}`);
@@ -143,14 +156,17 @@ export class GoogleTranscoderStrategy {
   private async generateProxyWithGoogleTranscoder(
     filePath: string,
     payload: ProcessUploadPayload,
-    progressCallback: (progress: number) => void,
+    progressCallback: (progress: number) => void
   ): Promise<string> {
     const config = payload.transcode!;
 
     try {
       // Step 1: Upload input file to GCS (if not already there)
       progressCallback(60);
-      const inputGcsUri = await this.ensureFileInGcs(filePath, payload.uploadId);
+      const inputGcsUri = await this.ensureFileInGcs(
+        filePath,
+        payload.uploadId
+      );
 
       // Step 2: Determine output GCS URI
       const outputGcsUri = this.generateOutputGcsUri(payload.uploadId, config);
@@ -161,28 +177,38 @@ export class GoogleTranscoderStrategy {
       const job = await this.googleCloudService.createTranscodeJob(
         inputGcsUri,
         outputGcsUri,
-        preset,
+        preset
       );
 
       this.logger.log(`Created Google Transcoder job: ${job.jobId}`);
 
       // Step 4: Poll for job completion
       progressCallback(70);
-      const completedJob = await this.waitForJobCompletion(job.jobId, progressCallback);
+      const completedJob = await this.waitForJobCompletion(
+        job.jobId,
+        progressCallback
+      );
 
       if (completedJob.state !== 'SUCCEEDED') {
-        throw new Error(`Transcoding job failed: ${completedJob.error || 'Unknown error'}`);
+        throw new Error(
+          `Transcoding job failed: ${completedJob.error || 'Unknown error'}`
+        );
       }
 
       // Step 5: Download result from GCS to local temp file
       progressCallback(85);
-      const localOutputPath = await this.downloadFromGcs(completedJob.outputUri);
+      const localOutputPath = await this.downloadFromGcs(
+        completedJob.outputUri
+      );
 
       this.logger.log(`Google Transcoder completed: ${localOutputPath}`);
       return localOutputPath;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Google Transcoder proxy generation failed: ${errorMessage}`);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `Google Transcoder proxy generation failed: ${errorMessage}`
+      );
       throw new Error(`Google Transcoder failed: ${errorMessage}`);
     }
   }
@@ -190,7 +216,10 @@ export class GoogleTranscoderStrategy {
   /**
    * Ensure file is available in Google Cloud Storage
    */
-  private async ensureFileInGcs(filePath: string, uploadId: string): Promise<string> {
+  private async ensureFileInGcs(
+    filePath: string,
+    uploadId: string
+  ): Promise<string> {
     // For now, we assume the file needs to be uploaded to GCS
     // In a real implementation, you might check if it's already there
     const gcsPath = `uploads/${uploadId}/input/${path.basename(filePath)}`;
@@ -199,7 +228,7 @@ export class GoogleTranscoderStrategy {
     // TODO: Implement actual GCS upload using StorageService
     // This is a placeholder - in reality you'd upload the file to GCS
     this.logger.log(`File would be uploaded to GCS: ${gcsUri}`);
-    
+
     return gcsUri;
   }
 
@@ -234,20 +263,23 @@ export class GoogleTranscoderStrategy {
    */
   private async waitForJobCompletion(
     jobId: string,
-    progressCallback: (progress: number) => void,
+    progressCallback: (progress: number) => void
   ): Promise<any> {
     const maxWaitTime = 30 * 60 * 1000; // 30 minutes
     const pollInterval = 10 * 1000; // 10 seconds
     const startTime = Date.now();
 
     while (Date.now() - startTime < maxWaitTime) {
-      const jobStatus = await this.googleCloudService.getTranscodeJobStatus(jobId);
+      const jobStatus =
+        await this.googleCloudService.getTranscodeJobStatus(jobId);
 
-      this.logger.debug(`Job ${jobId} status: ${jobStatus.state}, progress: ${jobStatus.progress || 0}%`);
+      this.logger.debug(
+        `Job ${jobId} status: ${jobStatus.state}, progress: ${jobStatus.progress || 0}%`
+      );
 
       // Update progress (map job progress to our range 70-85)
       if (jobStatus.progress !== undefined) {
-        const mappedProgress = 70 + (jobStatus.progress * 0.15);
+        const mappedProgress = 70 + jobStatus.progress * 0.15;
         progressCallback(mappedProgress);
       }
 
@@ -256,11 +288,13 @@ export class GoogleTranscoderStrategy {
       }
 
       if (jobStatus.state === 'FAILED') {
-        throw new Error(`Transcoding job failed: ${jobStatus.error || 'Unknown error'}`);
+        throw new Error(
+          `Transcoding job failed: ${jobStatus.error || 'Unknown error'}`
+        );
       }
 
       // Wait before next poll
-      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
     }
 
     throw new Error('Transcoding job timed out');
@@ -275,7 +309,9 @@ export class GoogleTranscoderStrategy {
 
     // TODO: Implement actual GCS download using StorageService
     // This is a placeholder - in reality you'd download from GCS
-    this.logger.log(`File would be downloaded from GCS ${gcsUri} to ${outputPath}`);
+    this.logger.log(
+      `File would be downloaded from GCS ${gcsUri} to ${outputPath}`
+    );
 
     return outputPath;
   }
@@ -284,8 +320,12 @@ export class GoogleTranscoderStrategy {
    * Convert FFmpeg probe result to our ProbeOutput format
    */
   private convertProbeResult(probeResult: any): ProbeOutput {
-    const videoStream = probeResult.streams.find((s: any) => s.codec_type === 'video');
-    const audioStream = probeResult.streams.find((s: any) => s.codec_type === 'audio');
+    const videoStream = probeResult.streams.find(
+      (s: any) => s.codec_type === 'video'
+    );
+    const audioStream = probeResult.streams.find(
+      (s: any) => s.codec_type === 'audio'
+    );
 
     if (!videoStream) {
       throw new Error('No video stream found in input file');
@@ -296,7 +336,9 @@ export class GoogleTranscoderStrategy {
       width: videoStream.width || 0,
       height: videoStream.height || 0,
       codec: videoStream.codec_name || 'unknown',
-      fps: this.parseFps(videoStream.r_frame_rate || videoStream.avg_frame_rate) || 0,
+      fps:
+        this.parseFps(videoStream.r_frame_rate || videoStream.avg_frame_rate) ||
+        0,
       bitrate: parseInt(probeResult.format.bit_rate) || undefined,
       format: probeResult.format.format_name || 'unknown',
       size: parseInt(probeResult.format.size) || undefined,

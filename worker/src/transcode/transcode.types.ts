@@ -1,4 +1,9 @@
-import type { File as FileRecord, ProbeOutput, ProcessUploadResult, TaskStatus } from '@project/shared';
+import type {
+  File as FileRecord,
+  ProbeOutput,
+  ProcessUploadResult,
+  TaskStatus,
+} from '@project/shared';
 
 /**
  * Internal result from processing operations containing local file paths
@@ -37,4 +42,3 @@ export interface TaskUpdatePayload {
   errorLog?: string;
   updated?: string;
 }
-

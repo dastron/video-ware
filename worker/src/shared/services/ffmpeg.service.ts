@@ -400,10 +400,10 @@ export class FFmpegService {
     onProgress?: (progress: number) => void
   ): Promise<void> {
     const command = `ffmpeg ${args.join(' ')}`;
-    
+
     // Try to estimate total duration from input files for progress tracking
     let totalDuration = 0;
-    const inputIndex = args.findIndex(arg => arg === '-i');
+    const inputIndex = args.findIndex((arg) => arg === '-i');
     if (inputIndex !== -1 && inputIndex + 1 < args.length) {
       const inputFile = args[inputIndex + 1].replace(/"/g, '');
       try {

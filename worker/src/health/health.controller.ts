@@ -10,7 +10,7 @@ export class HealthController {
     private readonly health: HealthCheckService,
     private readonly pocketbaseIndicator: PocketBaseIndicator,
     private readonly queueIndicator: QueueIndicator,
-    private readonly googleCloudIndicator: GoogleCloudIndicator,
+    private readonly googleCloudIndicator: GoogleCloudIndicator
   ) {}
 
   @Get()

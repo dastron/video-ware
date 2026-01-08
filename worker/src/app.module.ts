@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { BullModule } from '@nestjs/bull';
+import { BullModule } from '@nestjs/bullmq';
 import { ScheduleModule } from '@nestjs/schedule';
 import configuration from './config/configuration';
 import { validationSchema } from './config/validation.schema';
@@ -22,16 +22,16 @@ import { TasksModule } from './tasks/tasks.module';
       envFilePath: '../.env',
     }),
 
-    // Bull Queue
+    // BullMQ Queue
     BullModule.forRootAsync({
       useFactory: (configService: ConfigService) => ({
-        redis: {
+        connection: {
           host: configService.get('redis.host'),
           port: configService.get('redis.port'),
           password: configService.get('redis.password'),
         },
         defaultJobOptions: {
-          attempts: 3,
+          attempts: 5,
           backoff: {
             type: 'exponential',
             delay: 60000, // 60 seconds

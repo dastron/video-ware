@@ -20,19 +20,19 @@ export class IntelligenceProcessor {
       // Update task status to processing
       await this.updateTaskStatus(task.id, 'processing');
 
-      // Process the intelligence extraction
-      const result = await this.intelligenceService.processTask(task, (progress) => {
-        job.progress(progress);
-        this.logger.debug(`Intelligence task ${task.id} progress: ${progress}%`);
-      });
+      // Process the intelligence extraction using the new flow-based approach
+      // This returns the parent job ID instead of the result
+      const parentJobId = await this.intelligenceService.processTask(task);
 
-      // Update task status to completed
-      await this.updateTaskStatus(task.id, 'completed', result);
+      this.logger.log(
+        `Intelligence task ${task.id} flow created with parent job: ${parentJobId}`
+      );
 
-      this.logger.log(`Intelligence task ${task.id} completed successfully`);
-      return result;
+      // Return the parent job ID for tracking
+      return { parentJobId };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       this.logger.error(`Intelligence task ${task.id} failed: ${errorMessage}`);
 
       // Update task status to failed
@@ -55,11 +55,11 @@ export class IntelligenceProcessor {
       // This would typically use the PocketBaseService to update the task
       // For now, we'll log the status update
       this.logger.debug(`Task ${taskId} status updated to: ${status}`);
-      
+
       if (result) {
         this.logger.debug(`Task ${taskId} result:`, result);
       }
-      
+
       if (error) {
         this.logger.error(`Task ${taskId} error: ${error}`);
       }

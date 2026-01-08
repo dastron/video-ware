@@ -217,7 +217,7 @@ function TimelineRendersPageContent() {
                     <div className="flex-1">
                       <CardTitle className="flex items-center gap-2">
                         <FileVideo className="h-5 w-5" />
-                        Version {render.timelineVersion}
+                        Version {render.version}
                       </CardTitle>
                       <CardDescription className="mt-2 flex items-center gap-4">
                         <span className="flex items-center gap-1.5">

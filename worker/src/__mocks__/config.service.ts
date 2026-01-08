@@ -34,4 +34,3 @@ export function createMockConfigService(
  * Type helper for mock config service
  */
 export type MockConfigService = ReturnType<typeof createMockConfigService>;
-

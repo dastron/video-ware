@@ -1,5 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { GoogleCloudService, VideoIntelligenceResult } from '../../shared/services/google-cloud.service';
+import {
+  GoogleCloudService,
+  VideoIntelligenceResult,
+} from '../../shared/services/google-cloud.service';
 import type { DetectLabelsConfig } from '@project/shared';
 
 export interface VideoIntelligenceStrategyResult {
@@ -48,30 +51,33 @@ export class VideoIntelligenceStrategy {
     try {
       // Determine which features to enable based on config
       const features: string[] = [];
-      
+
       if (config.detectLabels !== false) {
         features.push('LABEL_DETECTION');
       }
-      
+
       if (config.detectObjects !== false) {
         features.push('OBJECT_TRACKING');
       }
-      
+
       // Always include shot change detection for scene changes
       features.push('SHOT_CHANGE_DETECTION');
 
       // Call Google Cloud Video Intelligence API
-      const result = await this.googleCloudService.analyzeVideo(gcsUri, features);
+      const result = await this.googleCloudService.analyzeVideo(
+        gcsUri,
+        features
+      );
 
       // Filter results based on confidence threshold
       const confidenceThreshold = config.confidenceThreshold || 0.5;
 
       const filteredLabels = result.labels.filter(
-        label => label.confidence >= confidenceThreshold
+        (label) => label.confidence >= confidenceThreshold
       );
 
       const filteredObjects = result.objects.filter(
-        obj => obj.confidence >= confidenceThreshold
+        (obj) => obj.confidence >= confidenceThreshold
       );
 
       this.logger.log(
@@ -84,7 +90,8 @@ export class VideoIntelligenceStrategy {
         sceneChanges: result.sceneChanges,
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       this.logger.error(`Video intelligence analysis failed: ${errorMessage}`);
       throw new Error(`Video Intelligence analysis failed: ${errorMessage}`);
     }

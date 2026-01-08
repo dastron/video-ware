@@ -117,7 +117,9 @@ export class StorageService implements OnModuleInit {
   /**
    * Map FileSource enum to StorageBackendType
    */
-  private mapFileSourceToStorageBackend(fileSource: FileSource): StorageBackendType {
+  private mapFileSourceToStorageBackend(
+    fileSource: FileSource
+  ): StorageBackendType {
     switch (fileSource) {
       case FileSource.S3:
         return StorageBackendType.S3;
@@ -150,7 +152,9 @@ export class StorageService implements OnModuleInit {
       backendType = storageBackend;
     } else if ('fileSource' in params && params.fileSource) {
       // Support FileSource enum from File records
-      backendType = this.mapFileSourceToStorageBackend(params.fileSource as FileSource);
+      backendType = this.mapFileSourceToStorageBackend(
+        params.fileSource as FileSource
+      );
     } else {
       backendType = this.backend.type;
     }
@@ -248,7 +252,10 @@ export class StorageService implements OnModuleInit {
   /**
    * Upload file to storage
    */
-  async upload(storagePath: string, data: Buffer | ReadableStream): Promise<void> {
+  async upload(
+    storagePath: string,
+    data: Buffer | ReadableStream
+  ): Promise<void> {
     try {
       await this.backend.upload(data, storagePath);
       this.logger.log(`Uploaded file to storage: ${storagePath}`);
@@ -331,7 +338,9 @@ export class StorageService implements OnModuleInit {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-      this.logger.error(`Failed to get URL for ${storagePath}: ${errorMessage}`);
+      this.logger.error(
+        `Failed to get URL for ${storagePath}: ${errorMessage}`
+      );
       throw error;
     }
   }
@@ -404,7 +413,8 @@ export class StorageService implements OnModuleInit {
    * @returns Storage path for the derived file
    */
   generateDerivedPath(params: GenerateDerivedPathParams): string {
-    const { baseStoragePath, workspaceId, recordId, suffix, extension } = params;
+    const { baseStoragePath, workspaceId, recordId, suffix, extension } =
+      params;
 
     let basePath: string;
 

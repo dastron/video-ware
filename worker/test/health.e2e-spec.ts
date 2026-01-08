@@ -46,7 +46,8 @@ describe('Health Endpoints (e2e)', () => {
 
     pocketbaseService = moduleFixture.get<PocketBaseService>(PocketBaseService);
     queueService = moduleFixture.get<QueueService>(QueueService);
-    googleCloudService = moduleFixture.get<GoogleCloudService>(GoogleCloudService);
+    googleCloudService =
+      moduleFixture.get<GoogleCloudService>(GoogleCloudService);
   });
 
   afterEach(async () => {
@@ -58,11 +59,25 @@ describe('Health Endpoints (e2e)', () => {
       // Arrange - mock all services as healthy
       vi.mocked(pocketbaseService.isHealthy).mockResolvedValue(true);
       vi.mocked(queueService.getQueueMetrics).mockResolvedValue({
-        transcode: { waiting: 0, active: 0, completed: 5, failed: 0, delayed: 0 },
-        intelligence: { waiting: 0, active: 0, completed: 3, failed: 0, delayed: 0 },
+        transcode: {
+          waiting: 0,
+          active: 0,
+          completed: 5,
+          failed: 0,
+          delayed: 0,
+        },
+        intelligence: {
+          waiting: 0,
+          active: 0,
+          completed: 3,
+          failed: 0,
+          delayed: 0,
+        },
         render: { waiting: 0, active: 0, completed: 1, failed: 0, delayed: 0 },
       });
-      vi.mocked(googleCloudService.isVideoIntelligenceHealthy).mockResolvedValue(true);
+      vi.mocked(
+        googleCloudService.isVideoIntelligenceHealthy
+      ).mockResolvedValue(true);
       vi.mocked(googleCloudService.isSpeechHealthy).mockResolvedValue(true);
       vi.mocked(googleCloudService.isTranscoderHealthy).mockResolvedValue(true);
 
@@ -100,11 +115,25 @@ describe('Health Endpoints (e2e)', () => {
       // Arrange - mock PocketBase as unhealthy
       vi.mocked(pocketbaseService.isHealthy).mockResolvedValue(false);
       vi.mocked(queueService.getQueueMetrics).mockResolvedValue({
-        transcode: { waiting: 0, active: 0, completed: 5, failed: 0, delayed: 0 },
-        intelligence: { waiting: 0, active: 0, completed: 3, failed: 0, delayed: 0 },
+        transcode: {
+          waiting: 0,
+          active: 0,
+          completed: 5,
+          failed: 0,
+          delayed: 0,
+        },
+        intelligence: {
+          waiting: 0,
+          active: 0,
+          completed: 3,
+          failed: 0,
+          delayed: 0,
+        },
         render: { waiting: 0, active: 0, completed: 1, failed: 0, delayed: 0 },
       });
-      vi.mocked(googleCloudService.isVideoIntelligenceHealthy).mockResolvedValue(true);
+      vi.mocked(
+        googleCloudService.isVideoIntelligenceHealthy
+      ).mockResolvedValue(true);
       vi.mocked(googleCloudService.isSpeechHealthy).mockResolvedValue(true);
       vi.mocked(googleCloudService.isTranscoderHealthy).mockResolvedValue(true);
 
@@ -123,8 +152,12 @@ describe('Health Endpoints (e2e)', () => {
     it('should return unhealthy status when queues are down', async () => {
       // Arrange - mock queues as unhealthy
       vi.mocked(pocketbaseService.isHealthy).mockResolvedValue(true);
-      vi.mocked(queueService.getQueueMetrics).mockRejectedValue(new Error('Redis connection failed'));
-      vi.mocked(googleCloudService.isVideoIntelligenceHealthy).mockResolvedValue(true);
+      vi.mocked(queueService.getQueueMetrics).mockRejectedValue(
+        new Error('Redis connection failed')
+      );
+      vi.mocked(
+        googleCloudService.isVideoIntelligenceHealthy
+      ).mockResolvedValue(true);
       vi.mocked(googleCloudService.isSpeechHealthy).mockResolvedValue(true);
       vi.mocked(googleCloudService.isTranscoderHealthy).mockResolvedValue(true);
 
@@ -145,13 +178,29 @@ describe('Health Endpoints (e2e)', () => {
       // Arrange - mock Google Cloud services as unhealthy
       vi.mocked(pocketbaseService.isHealthy).mockResolvedValue(true);
       vi.mocked(queueService.getQueueMetrics).mockResolvedValue({
-        transcode: { waiting: 0, active: 0, completed: 5, failed: 0, delayed: 0 },
-        intelligence: { waiting: 0, active: 0, completed: 3, failed: 0, delayed: 0 },
+        transcode: {
+          waiting: 0,
+          active: 0,
+          completed: 5,
+          failed: 0,
+          delayed: 0,
+        },
+        intelligence: {
+          waiting: 0,
+          active: 0,
+          completed: 3,
+          failed: 0,
+          delayed: 0,
+        },
         render: { waiting: 0, active: 0, completed: 1, failed: 0, delayed: 0 },
       });
-      vi.mocked(googleCloudService.isVideoIntelligenceHealthy).mockResolvedValue(false);
+      vi.mocked(
+        googleCloudService.isVideoIntelligenceHealthy
+      ).mockResolvedValue(false);
       vi.mocked(googleCloudService.isSpeechHealthy).mockResolvedValue(false);
-      vi.mocked(googleCloudService.isTranscoderHealthy).mockResolvedValue(false);
+      vi.mocked(googleCloudService.isTranscoderHealthy).mockResolvedValue(
+        false
+      );
 
       // Act & Assert
       const response = await request(app.getHttpServer())
@@ -172,13 +221,29 @@ describe('Health Endpoints (e2e)', () => {
       // Arrange - mock only one Google Cloud service as healthy
       vi.mocked(pocketbaseService.isHealthy).mockResolvedValue(true);
       vi.mocked(queueService.getQueueMetrics).mockResolvedValue({
-        transcode: { waiting: 0, active: 0, completed: 5, failed: 0, delayed: 0 },
-        intelligence: { waiting: 0, active: 0, completed: 3, failed: 0, delayed: 0 },
+        transcode: {
+          waiting: 0,
+          active: 0,
+          completed: 5,
+          failed: 0,
+          delayed: 0,
+        },
+        intelligence: {
+          waiting: 0,
+          active: 0,
+          completed: 3,
+          failed: 0,
+          delayed: 0,
+        },
         render: { waiting: 0, active: 0, completed: 1, failed: 0, delayed: 0 },
       });
-      vi.mocked(googleCloudService.isVideoIntelligenceHealthy).mockResolvedValue(true);
+      vi.mocked(
+        googleCloudService.isVideoIntelligenceHealthy
+      ).mockResolvedValue(true);
       vi.mocked(googleCloudService.isSpeechHealthy).mockResolvedValue(false);
-      vi.mocked(googleCloudService.isTranscoderHealthy).mockResolvedValue(false);
+      vi.mocked(googleCloudService.isTranscoderHealthy).mockResolvedValue(
+        false
+      );
 
       // Act & Assert
       const response = await request(app.getHttpServer())

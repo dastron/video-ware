@@ -2,7 +2,7 @@ import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Interval } from '@nestjs/schedule';
 import { PocketBaseService } from '../shared/services/pocketbase.service';
-import { QueueService } from '../queue/queue.service';
+import { FlowService } from '../queue/flow.service';
 import { TaskStatus, TaskType, type Task } from '@project/shared';
 
 @Injectable()
@@ -14,7 +14,7 @@ export class TaskEnqueuerService implements OnApplicationBootstrap {
   constructor(
     private readonly configService: ConfigService,
     private readonly pocketbaseService: PocketBaseService,
-    private readonly queueService: QueueService
+    private readonly flowService: FlowService
   ) {}
 
   onApplicationBootstrap() {
@@ -52,7 +52,9 @@ export class TaskEnqueuerService implements OnApplicationBootstrap {
     try {
       // PocketBaseService connects/initializes mutators on startup. If it's not ready yet, skip.
       if (!this.pocketbaseService.taskMutator) {
-        this.logger.debug('PocketBase mutators not ready yet; skipping enqueue poll');
+        this.logger.debug(
+          'PocketBase mutators not ready yet; skipping enqueue poll'
+        );
         return;
       }
 
@@ -93,6 +95,7 @@ export class TaskEnqueuerService implements OnApplicationBootstrap {
 
   /**
    * Enqueue a task to the appropriate queue.
+   * Creates a BullMQ flow with parent-child job relationships for step-based processing.
    * BullMQ handles deduplication via jobId - if a job with the same ID already exists,
    * BullMQ will throw an error, which we treat as benign (job is already enqueued).
    */
@@ -100,44 +103,52 @@ export class TaskEnqueuerService implements OnApplicationBootstrap {
     if (task.status !== TaskStatus.QUEUED) return;
 
     try {
-      // Route to the appropriate queue based on task type
+      // Route to the appropriate flow creation method based on task type
       switch (task.type) {
         case TaskType.PROCESS_UPLOAD:
-          await this.queueService.addTranscodeJob(task);
+          await this.flowService.createTranscodeFlow(task);
           break;
 
         case TaskType.DETECT_LABELS:
         case TaskType.DERIVE_CLIPS:
         case TaskType.RECOMMEND_CLIPS:
-          await this.queueService.addIntelligenceJob(task);
+          await this.flowService.createIntelligenceFlow(task);
           break;
 
         case TaskType.RENDER_TIMELINE:
-          await this.queueService.addRenderJob(task);
+          await this.flowService.createRenderFlow(task);
           break;
 
         default:
-          this.logger.warn(`No queue mapping for task ${task.id} type=${task.type}`);
+          this.logger.warn(
+            `No flow mapping for task ${task.id} type=${task.type}`
+          );
           return;
       }
 
       // Mark task as running in PocketBase so it's not re-polled
       await this.markTaskClaimed(task.id);
-      this.logger.debug(`Successfully enqueued task ${task.id}`);
-
+      this.logger.debug(`Successfully created flow for task ${task.id}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      
+
       // BullMQ throws if a job with the same jobId already exists - this is expected
-      if (message.toLowerCase().includes('job') && message.toLowerCase().includes('already') || 
-          message.toLowerCase().includes('exists')) {
-        this.logger.debug(`Task ${task.id} already enqueued; marking as claimed`);
+      if (
+        (message.toLowerCase().includes('job') &&
+          message.toLowerCase().includes('already')) ||
+        message.toLowerCase().includes('exists')
+      ) {
+        this.logger.debug(
+          `Task ${task.id} already enqueued; marking as claimed`
+        );
         await this.markTaskClaimed(task.id);
         return;
       }
 
       // Unexpected error - log and continue to next task
-      this.logger.error(`Failed to enqueue task ${task.id}: ${message}`);
+      this.logger.error(
+        `Failed to create flow for task ${task.id}: ${message}`
+      );
     }
   }
 
@@ -155,5 +166,3 @@ export class TaskEnqueuerService implements OnApplicationBootstrap {
     }
   }
 }
-
-
