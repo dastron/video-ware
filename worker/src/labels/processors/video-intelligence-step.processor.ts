@@ -45,8 +45,6 @@ export class VideoIntelligenceStepProcessor extends BaseStepProcessor<
       `Processing video intelligence for media ${input.mediaId}, version ${input.version}`,
     );
 
-    await this.updateProgress(job, 10);
-
     try {
       // Check cache before API call
       const cached = await this.labelCacheService.getCachedLabels(
@@ -60,7 +58,6 @@ export class VideoIntelligenceStepProcessor extends BaseStepProcessor<
           `Using cached video intelligence for media ${input.mediaId}, version ${input.version}`,
         );
 
-        await this.updateProgress(job, 100);
 
         return {
           response: cached.response as VideoIntelligenceResponse,
@@ -75,12 +72,10 @@ export class VideoIntelligenceStepProcessor extends BaseStepProcessor<
         `Cache miss or invalid for media ${input.mediaId}, calling Video Intelligence API`,
       );
 
-      await this.updateProgress(job, 20);
 
       // Ensure file path is a GCS URI (required by Google Video Intelligence API)
       const gcsUri = this.ensureGcsUri(input.gcsUri);
 
-      await this.updateProgress(job, 30);
 
       // Build features array based on config
       const features: string[] = [];
@@ -111,7 +106,6 @@ export class VideoIntelligenceStepProcessor extends BaseStepProcessor<
         features,
       );
 
-      await this.updateProgress(job, 80);
 
       // Store raw JSON to cache
       await this.labelCacheService.storeLabelCache(
@@ -123,13 +117,11 @@ export class VideoIntelligenceStepProcessor extends BaseStepProcessor<
         features,
       );
 
-      await this.updateProgress(job, 90);
 
       this.logger.log(
         `Video intelligence completed for media ${input.mediaId}, stored to cache`,
       );
 
-      await this.updateProgress(job, 100);
 
       return {
         response: response as VideoIntelligenceResponse,

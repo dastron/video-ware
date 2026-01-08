@@ -36,8 +36,6 @@ export class SpeechToTextStepProcessor extends BaseStepProcessor<
       `Processing speech-to-text for media ${input.mediaId}, file: ${input.filePath}`
     );
 
-    await this.updateProgress(job, 10);
-
     try {
       // Transcribe audio using the strategy
       // The strategy handles audio extraction and GCS upload internally
@@ -45,8 +43,6 @@ export class SpeechToTextStepProcessor extends BaseStepProcessor<
         input.filePath,
         'en-US' // Default language code, could be made configurable
       );
-
-      await this.updateProgress(job, 90);
 
       if (result.hasAudio) {
         this.logger.log(
@@ -59,8 +55,6 @@ export class SpeechToTextStepProcessor extends BaseStepProcessor<
           `No audio found in media ${input.mediaId}, skipping transcription`
         );
       }
-
-      await this.updateProgress(job, 100);
 
       return result;
     } catch (error) {

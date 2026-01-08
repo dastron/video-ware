@@ -36,7 +36,6 @@ export class StoreResultsStepProcessor extends BaseStepProcessor<
   ): Promise<StoreResultsOutput> {
     this.logger.log(`Storing intelligence results for media ${input.mediaId}`);
 
-    await this.updateProgress(job, 10);
 
     try {
       // Verify media exists
@@ -47,7 +46,6 @@ export class StoreResultsStepProcessor extends BaseStepProcessor<
         throw new Error(`Media ${input.mediaId} not found`);
       }
 
-      await this.updateProgress(job, 30);
 
       // Check if a media label already exists for this media
       const existingLabel =
@@ -55,7 +53,6 @@ export class StoreResultsStepProcessor extends BaseStepProcessor<
           input.mediaId
         );
 
-      await this.updateProgress(job, 50);
 
       // Prepare intelligence data for storage
       const intelligenceData: MediaLabelInput = {
@@ -91,7 +88,6 @@ export class StoreResultsStepProcessor extends BaseStepProcessor<
         );
       }
 
-      await this.updateProgress(job, 90);
 
       // Calculate summary statistics
       const summary = {
@@ -109,7 +105,6 @@ export class StoreResultsStepProcessor extends BaseStepProcessor<
           `transcription: ${summary.hasTranscription}`
       );
 
-      await this.updateProgress(job, 100);
 
       return {
         mediaLabelId,

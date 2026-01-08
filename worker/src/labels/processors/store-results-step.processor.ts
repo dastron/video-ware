@@ -37,7 +37,6 @@ export class StoreResultsStepProcessor extends BaseStepProcessor<
       `Storing results for media ${input.mediaId}, version ${input.version}`,
     );
 
-    await this.updateProgress(job, 10);
 
     try {
       const labelClipIds: string[] = [];
@@ -150,12 +149,6 @@ export class StoreResultsStepProcessor extends BaseStepProcessor<
             // Continue with other clips even if one fails
           }
 
-          // Update progress periodically
-          if (i % 10 === 0) {
-            const progress =
-              10 + Math.floor((i / input.labelClips.length) * 70);
-            await this.updateProgress(job, progress);
-          }
         }
 
         this.logger.log(
@@ -163,7 +156,6 @@ export class StoreResultsStepProcessor extends BaseStepProcessor<
         );
       }
 
-      await this.updateProgress(job, 80);
 
       // Update Media record with version and processor
       this.logger.log(
@@ -175,13 +167,11 @@ export class StoreResultsStepProcessor extends BaseStepProcessor<
         processor: input.processor,
       });
 
-      await this.updateProgress(job, 90);
 
       this.logger.log(
         `Store results completed for media ${input.mediaId}: ${labelClipIds.length} label clips stored`,
       );
 
-      await this.updateProgress(job, 100);
 
       return {
         labelClipIds,

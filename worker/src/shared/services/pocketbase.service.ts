@@ -157,6 +157,27 @@ export class PocketBaseService implements OnModuleInit {
   }
 
   /**
+   * Alias for getMediaByUpload for consistency
+   */
+  async findMediaByUpload(uploadId: string) {
+    return this.getMediaByUpload(uploadId);
+  }
+
+  /**
+   * Update media record
+   */
+  async updateMedia(mediaId: string, data: Partial<Media>) {
+    try {
+      return await this.mediaMutator.update(mediaId, data);
+    } catch (error) {
+      this.logger.error(
+        `Failed to update media ${mediaId}: ${error instanceof Error ? error.message : String(error)}`
+      );
+      throw error;
+    }
+  }
+
+  /**
    * Create or update media record
    */
   async createOrUpdateMedia(uploadId: string, data: Partial<MediaInput>) {

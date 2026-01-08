@@ -28,8 +28,6 @@ export class UploadStepProcessor extends BaseStepProcessor<
       `Uploading rendered video for timeline ${input.timelineId}`
     );
 
-    await this.updateProgress(job, 10);
-
     // Generate storage path for the rendered video
     const storagePath = this.storageService.generateDerivedPath({
       workspaceId: input.workspaceId,
@@ -40,12 +38,8 @@ export class UploadStepProcessor extends BaseStepProcessor<
 
     this.logger.log(`Uploading to storage path: ${storagePath}`);
 
-    await this.updateProgress(job, 30);
-
     // Upload the file to storage
     await this.storageService.uploadFromPath(input.outputPath, storagePath);
-
-    await this.updateProgress(job, 100);
 
     this.logger.log(`Successfully uploaded rendered video to: ${storagePath}`);
 

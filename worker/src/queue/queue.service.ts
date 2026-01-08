@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { QUEUE_NAMES } from './queue.constants';
+import { FlowService } from './flow.service';
 import type { Task } from '@project/shared';
 
 /**
@@ -16,61 +17,50 @@ export class QueueService {
   constructor(
     @InjectQueue(QUEUE_NAMES.TRANSCODE) private transcodeQueue: Queue,
     @InjectQueue(QUEUE_NAMES.INTELLIGENCE) private intelligenceQueue: Queue,
-    @InjectQueue(QUEUE_NAMES.RENDER) private renderQueue: Queue
+    @InjectQueue(QUEUE_NAMES.RENDER) private renderQueue: Queue,
+    private readonly flowService: FlowService
   ) {}
 
   /**
-   * Creates base job options with retry logic and common settings.
-   * - Retries up to 5 times with 60 second delays
-   * - Uses task ID for deduplication
-   * - Cleans up completed jobs, keeps failed jobs for debugging
-   */
-  private getBaseJobOptions(task: Task) {
-    return {
-      jobId: task.id,
-      priority: task.priority || 0,
-      attempts: 5, // Retry up to 5 times total
-      backoff: 60000, // Wait 60 seconds between retries
-      removeOnComplete: true,
-      removeOnFail: false, // Keep failed jobs for debugging
-    };
-  }
-
-  /**
    * Add a transcode job to the queue.
-   * BullMQ will handle deduplication via jobId (task.id).
-   * If a job with the same jobId already exists and is not completed/failed,
-   * BullMQ will throw an error which the caller can handle.
+   * Creates a flow with parent-child jobs for step-based processing.
    */
   async addTranscodeJob(task: Task) {
     this.logger.log(`Adding transcode job for task ${task.id}`);
-    return this.transcodeQueue.add(
-      'process',
-      task,
-      this.getBaseJobOptions(task)
-    );
+    
+    // Create the transcode flow
+    const parentJobId = await this.flowService.createTranscodeFlow(task);
+    this.logger.log(`Created transcode flow for task ${task.id}, parent job: ${parentJobId}`);
+    
+    return parentJobId;
   }
 
   /**
    * Add an intelligence job to the queue.
-   * BullMQ will handle deduplication via jobId (task.id).
+   * Creates a flow with parent-child jobs for step-based processing.
    */
   async addIntelligenceJob(task: Task) {
     this.logger.log(`Adding intelligence job for task ${task.id}`);
-    return this.intelligenceQueue.add(
-      'process',
-      task,
-      this.getBaseJobOptions(task)
-    );
+    
+    // Create the intelligence flow
+    const parentJobId = await this.flowService.createDetectLabelsFlow(task);
+    this.logger.log(`Created intelligence flow for task ${task.id}, parent job: ${parentJobId}`);
+    
+    return parentJobId;
   }
 
   /**
    * Add a render job to the queue.
-   * BullMQ will handle deduplication via jobId (task.id).
+   * Creates a flow with parent-child jobs for step-based processing.
    */
   async addRenderJob(task: Task) {
     this.logger.log(`Adding render job for task ${task.id}`);
-    return this.renderQueue.add('process', task, this.getBaseJobOptions(task));
+    
+    // Create the render flow
+    const parentJobId = await this.flowService.createRenderFlow(task);
+    this.logger.log(`Created render flow for task ${task.id}, parent job: ${parentJobId}`);
+    
+    return parentJobId;
   }
 
   /**

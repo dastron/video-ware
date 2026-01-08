@@ -34,8 +34,6 @@ export class ResolveClipsStepProcessor extends BaseStepProcessor<
   ): Promise<ResolveClipsOutput> {
     this.logger.log(`Resolving clips for timeline ${input.timelineId}`);
 
-    await this.updateProgress(job, 10);
-
     // Get timeline clips
     const timelineClips = await this.pocketbaseService.getTimelineClips(
       input.timelineId
@@ -49,8 +47,6 @@ export class ResolveClipsStepProcessor extends BaseStepProcessor<
       `Found ${timelineClips.length} clips for timeline ${input.timelineId}`
     );
 
-    await this.updateProgress(job, 30);
-
     // Resolve media files for each clip
     const clipMediaMap: Record<string, { media: Media; filePath: string }> = {};
     const progressPerClip = 60 / timelineClips.length;
@@ -61,10 +57,8 @@ export class ResolveClipsStepProcessor extends BaseStepProcessor<
       clipMediaMap[clip.id] = clipMedia;
 
       const progress = 30 + (i + 1) * progressPerClip;
-      await this.updateProgress(job, Math.min(progress, 90));
+      this.logger.debug(progress);
     }
-
-    await this.updateProgress(job, 100);
 
     this.logger.log(
       `Resolved ${Object.keys(clipMediaMap).length} clip media files`

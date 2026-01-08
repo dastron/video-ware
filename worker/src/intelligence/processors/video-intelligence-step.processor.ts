@@ -38,13 +38,9 @@ export class VideoIntelligenceStepProcessor extends BaseStepProcessor<
       `Processing video intelligence for media ${input.mediaId}, file: ${input.filePath}`
     );
 
-    await this.updateProgress(job, 10);
-
     try {
       // Ensure file path is a GCS URI (required by Google Video Intelligence API)
       const gcsUri = this.ensureGcsUri(input.filePath);
-
-      await this.updateProgress(job, 20);
 
       // Perform video intelligence analysis using the strategy
       const result = await this.videoIntelligenceStrategy.detectLabels(
@@ -52,15 +48,11 @@ export class VideoIntelligenceStepProcessor extends BaseStepProcessor<
         input.config
       );
 
-      await this.updateProgress(job, 90);
-
       this.logger.log(
         `Video intelligence completed for media ${input.mediaId}: ` +
           `${result.labels.length} labels, ${result.objects.length} objects, ` +
           `${result.sceneChanges.length} scene changes`
       );
-
-      await this.updateProgress(job, 100);
 
       return result;
     } catch (error) {

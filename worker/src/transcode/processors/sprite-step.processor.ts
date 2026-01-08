@@ -1,48 +1,34 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
+import * as path from 'path';
 import { BaseStepProcessor } from '../../queue/processors/base-step.processor';
-import { FFmpegService } from '../../shared/services/ffmpeg.service';
+import { FFmpegSpriteExecutor } from '../executors';
 import { StorageService } from '../../shared/services/storage.service';
 import { PocketBaseService } from '../../shared/services/pocketbase.service';
 import { FileResolver } from '../utils/file-resolver';
 import type { SpriteStepInput } from '../types/step-inputs';
 import type { SpriteStepOutput } from '../types';
 import type { StepJobData } from '../../queue/types/job.types';
+import { FileType, FileSource } from '@project/shared';
 
 /**
  * Processor for the SPRITE step
- * Generates a sprite sheet from the media file
+ * Generates a sprite sheet and creates File record
  */
 @Injectable()
-export class SpriteStepProcessor extends BaseStepProcessor<
-  SpriteStepInput,
-  SpriteStepOutput
-> {
+export class SpriteStepProcessor extends BaseStepProcessor<SpriteStepInput, SpriteStepOutput> {
   protected readonly logger = new Logger(SpriteStepProcessor.name);
 
   constructor(
-    private readonly ffmpegService: FFmpegService,
+    private readonly spriteExecutor: FFmpegSpriteExecutor,
     private readonly storageService: StorageService,
     private readonly pocketbaseService: PocketBaseService
   ) {
     super();
   }
 
-  /**
-   * Process the SPRITE step
-   * Generates a sprite sheet with multiple frames from the video
-   */
-  async process(
-    input: SpriteStepInput,
-    job: Job<StepJobData>
-  ): Promise<SpriteStepOutput> {
-    this.logger.log(
-      `Generating sprite sheet for upload ${input.uploadId} (${input.config.cols}x${input.config.rows} tiles)`
-    );
-
-    await this.updateProgress(job, 5);
-
-    // Resolve file path if not provided
+  async process(input: SpriteStepInput, _job: Job<StepJobData>): Promise<SpriteStepOutput> {
+    // Resolve file path
     const filePath = await FileResolver.resolveFilePath(
       input.uploadId,
       input.filePath,
@@ -50,30 +36,40 @@ export class SpriteStepProcessor extends BaseStepProcessor<
       this.pocketbaseService
     );
 
-    await this.updateProgress(job, 10);
-
-    // Generate unique output path
+    // Generate sprite
     const spritePath = `${filePath}_sprite.jpg`;
+    await this.spriteExecutor.execute(filePath, spritePath, input.config);
 
-    await this.updateProgress(job, 30);
+    // Get upload for workspace reference
+    const upload = await this.pocketbaseService.getUpload(input.uploadId);
+    if (!upload) {
+      throw new Error(`Upload ${input.uploadId} not found`);
+    }
 
-    // Generate sprite sheet using FFmpeg
-    await this.ffmpegService.generateSprite(
-      filePath,
-      spritePath,
-      input.config.fps,
-      input.config.cols,
-      input.config.rows,
-      input.config.tileWidth,
-      input.config.tileHeight
-    );
+    // Create File record
+    const fileName = path.basename(spritePath);
+    const storageKey = `uploads/${input.uploadId}/${FileType.SPRITE}/${fileName}`;
 
-    await this.updateProgress(job, 100);
 
-    this.logger.log(
-      `Sprite sheet generated for upload ${input.uploadId}: ${spritePath} (${input.config.cols}x${input.config.rows} tiles, ${input.config.tileWidth}x${input.config.tileHeight} each)`
-    );
+    const spriteFile = await this.pocketbaseService.createFileWithUpload({
+      localFilePath: spritePath,
+      fileName,
+      fileType: FileType.SPRITE,
+      fileSource: FileSource.POCKETBASE,
+      storageKey,
+      workspaceRef: upload.WorkspaceRef,
+      uploadRef: input.uploadId,
+      mimeType: 'image/jpeg',
+    });
 
-    return { spritePath };
+    // Update Media record
+    const media = await this.pocketbaseService.findMediaByUpload(input.uploadId);
+    if (media) {
+      await this.pocketbaseService.updateMedia(media.id, {
+        spriteFileRef: spriteFile.id,
+      });
+    }
+
+    return { spritePath, spriteFileId: spriteFile.id };
   }
 }

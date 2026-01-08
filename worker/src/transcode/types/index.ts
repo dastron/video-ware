@@ -21,6 +21,8 @@ import type { ProbeOutput, ProcessUploadResult } from '@project/shared';
 export interface ProbeStepOutput {
   /** Probe metadata extracted from the media file */
   probeOutput: ProbeOutput;
+  /** ID of the created Media record */
+  mediaId: string;
 }
 
 /**
@@ -29,6 +31,8 @@ export interface ProbeStepOutput {
 export interface ThumbnailStepOutput {
   /** Path to the generated thumbnail file */
   thumbnailPath: string;
+  /** ID of the created File record */
+  thumbnailFileId: string;
 }
 
 /**
@@ -37,6 +41,8 @@ export interface ThumbnailStepOutput {
 export interface SpriteStepOutput {
   /** Path to the generated sprite sheet file */
   spritePath: string;
+  /** ID of the created File record */
+  spriteFileId: string;
 }
 
 /**
@@ -45,6 +51,8 @@ export interface SpriteStepOutput {
 export interface TranscodeStepOutput {
   /** Path to the transcoded proxy file */
   proxyPath: string;
+  /** ID of the created File record */
+  proxyFileId: string;
 }
 
 /**

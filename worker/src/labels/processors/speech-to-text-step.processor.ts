@@ -43,7 +43,6 @@ export class SpeechToTextStepProcessor extends BaseStepProcessor<
       `Processing speech-to-text for media ${input.mediaId}, version ${input.version}`,
     );
 
-    await this.updateProgress(job, 10);
 
     try {
       // Check cache before API call
@@ -58,8 +57,6 @@ export class SpeechToTextStepProcessor extends BaseStepProcessor<
           `Using cached speech-to-text for media ${input.mediaId}, version ${input.version}`,
         );
 
-        await this.updateProgress(job, 100);
-
         return {
           response: cached.response as SpeechToTextResponse,
           rawJsonPath: input.cacheKey,
@@ -73,19 +70,16 @@ export class SpeechToTextStepProcessor extends BaseStepProcessor<
         `Cache miss or invalid for media ${input.mediaId}, calling Speech-to-Text API`,
       );
 
-      await this.updateProgress(job, 20);
 
       // Ensure file path is a GCS URI (required by Google Speech-to-Text API)
       const gcsUri = this.ensureGcsUri(input.gcsUri);
 
-      await this.updateProgress(job, 30);
 
       this.logger.log(`Calling Speech-to-Text API for ${gcsUri}`);
 
       // Call Google Speech-to-Text API
       const response = await this.googleCloudService.transcribeAudio(gcsUri);
 
-      await this.updateProgress(job, 80);
 
       // Store raw JSON to cache
       await this.labelCacheService.storeLabelCache(
@@ -97,13 +91,11 @@ export class SpeechToTextStepProcessor extends BaseStepProcessor<
         ['SPEECH_RECOGNITION'],
       );
 
-      await this.updateProgress(job, 90);
 
       this.logger.log(
         `Speech-to-text completed for media ${input.mediaId}, stored to cache`,
       );
 
-      await this.updateProgress(job, 100);
 
       return {
         response: response as SpeechToTextResponse,

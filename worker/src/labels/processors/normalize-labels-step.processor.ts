@@ -38,8 +38,6 @@ export class NormalizeLabelsStepProcessor extends BaseStepProcessor<
       `Normalizing labels for media ${input.mediaId}, version ${input.version}`,
     );
 
-    await this.updateProgress(job, 10);
-
     try {
       const allLabelClips: any[] = [];
       let shotCount = 0;
@@ -72,8 +70,6 @@ export class NormalizeLabelsStepProcessor extends BaseStepProcessor<
         );
       }
 
-      await this.updateProgress(job, 50);
-
       // Normalize speech-to-text results if available
       if (input.speechToText) {
         this.logger.log(
@@ -97,8 +93,6 @@ export class NormalizeLabelsStepProcessor extends BaseStepProcessor<
         );
       }
 
-      await this.updateProgress(job, 90);
-
       // Check if we have any results
       if (allLabelClips.length === 0) {
         this.logger.warn(
@@ -109,8 +103,6 @@ export class NormalizeLabelsStepProcessor extends BaseStepProcessor<
       this.logger.log(
         `Normalization completed for media ${input.mediaId}: ${allLabelClips.length} total label clips`,
       );
-
-      await this.updateProgress(job, 100);
 
       return {
         labelClips: allLabelClips,

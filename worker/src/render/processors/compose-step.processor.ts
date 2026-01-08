@@ -34,7 +34,6 @@ export class ComposeStepProcessor extends BaseStepProcessor<
       `Composing timeline ${input.timelineId} with ${input.editList.length} segments`
     );
 
-    await this.updateProgress(job, 5);
 
     // Generate output path
     const outputPath = path.join(
@@ -52,7 +51,6 @@ export class ComposeStepProcessor extends BaseStepProcessor<
 
     this.logger.debug(`FFmpeg command: ffmpeg ${ffmpegArgs.join(' ')}`);
 
-    await this.updateProgress(job, 10);
 
     // Execute FFmpeg with progress tracking
     await this.ffmpegService.executeWithProgress(
@@ -60,17 +58,15 @@ export class ComposeStepProcessor extends BaseStepProcessor<
       async (composeProgress) => {
         // Map compose progress (0-100) to our progress range (10-90)
         const mappedProgress = 10 + composeProgress * 0.8;
-        await this.updateProgress(job, Math.min(mappedProgress, 90));
+        this.logger.debug(mappedProgress)
       }
     );
 
-    await this.updateProgress(job, 95);
 
     // Probe the rendered video to get metadata
     const probeResult = await this.ffmpegService.probe(outputPath);
     const probeOutput = this.convertProbeResult(probeResult);
 
-    await this.updateProgress(job, 100);
 
     this.logger.log(`Timeline composition completed: ${outputPath}`);
 

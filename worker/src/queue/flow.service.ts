@@ -94,8 +94,7 @@ export class FlowService {
           input: {
             type: 'thumbnail',
             uploadId,
-            filePath: '',
-            probeOutput: {}, // Will be populated from PROBE step output
+            filePath: '', // Will be resolved by processor
             config: payload.thumbnail,
           },
         },
@@ -106,12 +105,6 @@ export class FlowService {
             delay: thumbnailOptions.backoff,
           },
         },
-        children: [
-          {
-            name: TranscodeStepType.PROBE,
-            queueName: QUEUE_NAMES.TRANSCODE,
-          },
-        ],
       });
     }
 
@@ -128,8 +121,7 @@ export class FlowService {
           input: {
             type: 'sprite',
             uploadId,
-            filePath: '',
-            probeOutput: {},
+            filePath: '', // Will be resolved by processor
             config: payload.sprite,
           },
         },
@@ -140,12 +132,6 @@ export class FlowService {
             delay: spriteOptions.backoff,
           },
         },
-        children: [
-          {
-            name: TranscodeStepType.PROBE,
-            queueName: QUEUE_NAMES.TRANSCODE,
-          },
-        ],
       });
     }
 
@@ -162,8 +148,7 @@ export class FlowService {
           input: {
             type: 'transcode',
             uploadId,
-            filePath: '',
-            probeOutput: {},
+            filePath: '', // Will be resolved by processor
             provider: payload.provider || 'ffmpeg',
             config: payload.transcode,
           },
@@ -175,57 +160,8 @@ export class FlowService {
             delay: transcodeOptions.backoff,
           },
         },
-        children: [
-          {
-            name: TranscodeStepType.PROBE,
-            queueName: QUEUE_NAMES.TRANSCODE,
-          },
-        ],
       });
     }
-
-    // FINALIZE step (always required, depends on all other steps)
-    const finalizeOptions = getStepJobOptions(TranscodeStepType.FINALIZE);
-    const finalizeDependencies = [TranscodeStepType.PROBE];
-
-    if (payload.thumbnail) {
-      finalizeDependencies.push(TranscodeStepType.THUMBNAIL);
-    }
-    if (payload.sprite) {
-      finalizeDependencies.push(TranscodeStepType.SPRITE);
-    }
-    if (payload.transcode?.enabled) {
-      finalizeDependencies.push(TranscodeStepType.TRANSCODE);
-    }
-
-    flow.children.push({
-      name: TranscodeStepType.FINALIZE,
-      queueName: QUEUE_NAMES.TRANSCODE,
-      data: {
-        ...baseJobData,
-        stepType: TranscodeStepType.FINALIZE,
-        parentJobId: '',
-        input: {
-          type: 'finalize',
-          uploadId,
-          probeOutput: {},
-          thumbnailPath: undefined,
-          spritePath: undefined,
-          proxyPath: undefined,
-        },
-      },
-      opts: {
-        attempts: finalizeOptions.attempts,
-        backoff: {
-          type: 'exponential',
-          delay: finalizeOptions.backoff,
-        },
-      },
-      children: finalizeDependencies.map((stepType) => ({
-        name: stepType,
-        queueName: QUEUE_NAMES.TRANSCODE,
-      })),
-    });
 
     // Add the flow to BullMQ
     const result = await this.flowProducer.add(flow);

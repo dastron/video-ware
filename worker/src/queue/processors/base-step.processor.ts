@@ -17,14 +17,6 @@ export abstract class BaseStepProcessor<TInput, TOutput> {
   abstract process(input: TInput, job: Job<StepJobData>): Promise<TOutput>;
 
   /**
-   * Update the progress of the current job
-   * Progress should be a number between 0 and 100
-   */
-  protected async updateProgress(job: Job, progress: number): Promise<void> {
-    await job.updateProgress(progress);
-  }
-
-  /**
    * Create a successful step result
    */
   protected createResult(

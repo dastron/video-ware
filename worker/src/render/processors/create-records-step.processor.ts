@@ -37,17 +37,14 @@ export class CreateRecordsStepProcessor extends BaseStepProcessor<
   ): Promise<CreateRecordsOutput> {
     this.logger.log(`Creating records for timeline ${input.timelineId} render`);
 
-    await this.updateProgress(job, 10);
 
     // Create File record
     const fileRecord = await this.createFileRecord(input);
 
-    await this.updateProgress(job, 40);
 
     // Create Media record
     const mediaRecord = await this.createMediaRecord(input, fileRecord);
 
-    await this.updateProgress(job, 70);
 
     // Create TimelineRender record
     const timelineRenderRecord = await this.createTimelineRenderRecord(
@@ -56,12 +53,10 @@ export class CreateRecordsStepProcessor extends BaseStepProcessor<
       fileRecord.id
     );
 
-    await this.updateProgress(job, 90);
 
     // Clean up temporary files
     await this.cleanupTempFiles(input.tempDir);
 
-    await this.updateProgress(job, 100);
 
     this.logger.log(
       `Successfully created records for timeline ${input.timelineId} render`
