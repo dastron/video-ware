@@ -9,6 +9,7 @@ import { TaskMonitor } from '@/components/task';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import Link from 'next/link';
+import { TaskType } from '@project/shared';
 
 function TasksPageContent() {
   const { tasks, isLoading: tasksLoading } = useTasks();
@@ -16,7 +17,7 @@ function TasksPageContent() {
 
   // Filter tasks to only show create_labels, transcode, and render_timeline
   const filteredTasks = useMemo(() => {
-    const allowedTypes = ['create_labels', 'transcode', 'render_timeline'];
+    const allowedTypes = [TaskType.DETECT_LABELS, TaskType.RENDER_TIMELINE, TaskType.PROCESS_UPLOAD];
     return tasks.filter((task) => {
       const taskType = Array.isArray(task.type) ? task.type[0] : task.type;
       return allowedTypes.includes(taskType);
