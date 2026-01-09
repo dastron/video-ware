@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import type { Task } from '@project/shared';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -20,10 +21,12 @@ import {
   AlertCircle,
   RefreshCw,
   X,
+  ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTasks } from '@/hooks/use-tasks';
 import { Button } from '@/components/ui/button';
+import { TaskDetailsModal } from './task-details-modal';
 
 interface TaskMonitorProps {
   tasks: Task[];
@@ -37,6 +40,8 @@ export function TaskMonitor({
   className,
 }: TaskMonitorProps) {
   const { retryTask, cancelTask } = useTasks();
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'success':
@@ -67,6 +72,23 @@ export function TaskMonitor({
     }
   };
 
+  const getStatusColor = (status: string): string => {
+    switch (status) {
+      case 'success':
+        return 'bg-green-500';
+      case 'failed':
+        return 'bg-red-500';
+      case 'running':
+        return 'bg-blue-500';
+      case 'queued':
+        return 'bg-gray-400';
+      case 'canceled':
+        return 'bg-gray-500';
+      default:
+        return 'bg-gray-400';
+    }
+  };
+
   const formatTaskType = (type: string): string => {
     return type
       .split('_')
@@ -85,6 +107,45 @@ export function TaskMonitor({
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
     return date.toLocaleDateString();
+  };
+
+  const formatDateTime = (dateString: string): string => {
+    const date = new Date(dateString);
+    return date.toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year:
+        date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined,
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+  };
+
+  const formatDuration = (task: Task): string => {
+    const created = new Date(task.created);
+    const endTime =
+      task.status === 'success' ||
+      task.status === 'failed' ||
+      task.status === 'canceled'
+        ? new Date(task.updated)
+        : new Date();
+
+    const diffMs = endTime.getTime() - created.getTime();
+    const diffSeconds = Math.floor(diffMs / 1000);
+    const diffMinutes = Math.floor(diffSeconds / 60);
+    const diffHours = Math.floor(diffMinutes / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffSeconds < 60) {
+      return `${diffSeconds}s`;
+    } else if (diffMinutes < 60) {
+      return `${diffMinutes}m ${diffSeconds % 60}s`;
+    } else if (diffHours < 24) {
+      return `${diffHours}h ${diffMinutes % 60}m`;
+    } else {
+      return `${diffDays}d ${diffHours % 24}h`;
+    }
   };
 
   if (isLoading) {
@@ -136,43 +197,102 @@ export function TaskMonitor({
               <div
                 key={task.id}
                 className={cn(
-                  'p-4 border rounded-lg space-y-3',
-                  task.status === 'failed' && 'border-red-200 bg-red-50'
+                  'relative border rounded-lg cursor-pointer transition-colors hover:bg-gray-50 hover:border-gray-300 overflow-hidden',
+                  task.status === 'failed' &&
+                    'border-red-200 bg-red-50 hover:bg-red-100',
+                  'group'
                 )}
+                onClick={() => {
+                  setSelectedTask(task);
+                  setIsModalOpen(true);
+                }}
               >
-                {/* Task header */}
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-3 flex-1 min-w-0">
-                    {/* Status icon */}
-                    <div className="flex-shrink-0 mt-0.5">
-                      {getStatusIcon(task.status as string)}
-                    </div>
+                {/* Status indicator bar */}
+                <div
+                  className={cn(
+                    'absolute left-0 top-0 bottom-0 w-1',
+                    getStatusColor(task.status as string)
+                  )}
+                />
 
-                    {/* Task info */}
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium">
-                          {formatTaskType(task.type)}
-                        </p>
-                        <Badge
-                          variant={getStatusBadgeVariant(task.status as string)}
-                        >
-                          {task.status}
-                        </Badge>
+                <div className="p-4 pl-5">
+                  {/* Main content grid */}
+                  <div className="grid grid-cols-12 gap-4 items-start">
+                    {/* Left column: Status icon and task info */}
+                    <div className="col-span-8 flex items-start gap-3 min-w-0">
+                      {/* Status icon */}
+                      <div className="flex-shrink-0 mt-0.5">
+                        {getStatusIcon(task.status as string)}
                       </div>
 
-                      {/* Task metadata */}
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                      {/* Task info */}
+                      <div className="flex-1 min-w-0 space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-gray-900">
+                            {formatTaskType(task.type)}
+                          </p>
+                          <Badge
+                            variant={getStatusBadgeVariant(
+                              task.status as string
+                            )}
+                          >
+                            {task.status}
+                          </Badge>
+                        </div>
+
+                        {/* Source info */}
+                        <div className="text-sm text-gray-600">
+                          <span className="truncate">
+                            {task.sourceType}: {task.sourceId}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right column: Date/Time, Duration, and Metadata */}
+                    <div className="col-span-4 flex flex-col items-end gap-1.5 text-right">
+                      {/* Date/Time */}
+                      <div className="text-sm text-gray-600">
+                        {formatDateTime(task.created)}
+                      </div>
+
+                      {/* Duration */}
+                      <div className="text-sm text-gray-600">
+                        <span>
+                          {formatDuration(task)}
+                          {task.status === 'running' ||
+                          task.status === 'queued' ? (
+                            <span className="text-gray-500 ml-1">
+                              (running)
+                            </span>
+                          ) : null}
+                        </span>
+                      </div>
+
+                      {/* Metadata row */}
+                      <div className="flex flex-wrap items-center justify-end gap-2 text-sm text-gray-600">
                         <span>{formatDate(task.created)}</span>
+                        {task.updated !== task.created && (
+                          <>
+                            <span className="text-gray-400">•</span>
+                            <span>Updated {formatDate(task.updated)}</span>
+                          </>
+                        )}
                         {task.attempts > 0 && (
                           <>
-                            <span>•</span>
+                            <span className="text-gray-400">•</span>
                             <span>Attempt {task.attempts}</span>
+                          </>
+                        )}
+                        {task.priority !== undefined && task.priority > 0 && (
+                          <>
+                            <span className="text-gray-400">•</span>
+                            <span>Priority {task.priority}</span>
                           </>
                         )}
                         {task.provider && (
                           <>
-                            <span>•</span>
+                            <span className="text-gray-400">•</span>
                             <span className="capitalize">{task.provider}</span>
                           </>
                         )}
@@ -180,14 +300,35 @@ export function TaskMonitor({
                     </div>
                   </div>
 
-                  {/* Progress percentage or actions */}
-                  <div className="flex flex-shrink-0 items-center gap-2">
-                    {task.status === 'running' && (
-                      <div className="text-sm font-medium text-gray-600">
-                        {task.progress}%
-                      </div>
-                    )}
+                  {/* Actions row */}
+                  <div className="flex items-center justify-between gap-4 mt-3 pt-3 border-t border-gray-200">
+                    {/* Left: Progress or version */}
+                    <div className="flex-1 min-w-0">
+                      {task.status === 'running' && (
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600">Progress</span>
+                            <span className="font-medium text-gray-900">
+                              {task.progress}%
+                            </span>
+                          </div>
+                          <Progress value={task.progress} className="h-2" />
+                        </div>
+                      )}
+                      {task.status === 'success' && task.version && (
+                        <div className="text-sm text-gray-600">
+                          Processed with {task.version}
+                        </div>
+                      )}
+                      {task.status === 'failed' && task.errorLog && (
+                        <div className="flex items-start gap-2 text-sm text-red-700">
+                          <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                          <span className="line-clamp-1">{task.errorLog}</span>
+                        </div>
+                      )}
+                    </div>
 
+                    {/* Right: Action buttons */}
                     <div className="flex items-center gap-1">
                       {(task.status === 'failed' ||
                         task.status === 'canceled') && (
@@ -195,7 +336,10 @@ export function TaskMonitor({
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-gray-500 hover:text-blue-600"
-                          onClick={() => retryTask(task.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            retryTask(task.id);
+                          }}
                           title="Retry task"
                         >
                           <RefreshCw className="h-4 w-4" />
@@ -208,40 +352,30 @@ export function TaskMonitor({
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-gray-500 hover:text-red-600"
-                          onClick={() => cancelTask(task.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            cancelTask(task.id);
+                          }}
                           title="Cancel task"
                         >
                           <X className="h-4 w-4" />
                         </Button>
                       )}
+                      <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-gray-600 transition-colors" />
                     </div>
                   </div>
                 </div>
-
-                {/* Progress bar for running tasks */}
-                {task.status === 'running' && (
-                  <Progress value={task.progress} className="h-2" />
-                )}
-
-                {/* Error log for failed tasks */}
-                {task.status === 'failed' && task.errorLog && (
-                  <div className="flex items-start gap-2 p-2 bg-red-100 border border-red-200 rounded">
-                    <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
-                    <p className="text-sm text-red-700">{task.errorLog}</p>
-                  </div>
-                )}
-
-                {/* Processor version for completed tasks */}
-                {task.status === 'success' && task.version && (
-                  <div className="text-xs text-gray-500">
-                    Processed with {task.version}
-                  </div>
-                )}
               </div>
             ))}
           </div>
         )}
       </CardContent>
+
+      <TaskDetailsModal
+        task={selectedTask}
+        open={isModalOpen}
+        onOpenChange={setIsModalOpen}
+      />
     </Card>
   );
 }
