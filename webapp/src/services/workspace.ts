@@ -32,6 +32,28 @@ export class WorkspaceService {
   }
 
   /**
+   * Create a new workspace and add the user as a member
+   * @param input Workspace data
+   * @param userId User ID to add as a member
+   * @returns The created workspace and membership
+   */
+  async createWorkspaceWithMembership(
+    input: WorkspaceInput,
+    userId: string
+  ): Promise<{ workspace: Workspace; membership: WorkspaceMember }> {
+    // Create the workspace
+    const workspace = await this.workspaceMutator.create(input);
+
+    // Create membership for the user
+    const membership = await this.workspaceMemberMutator.create({
+      WorkspaceRef: workspace.id,
+      UserRef: userId,
+    });
+
+    return { workspace, membership };
+  }
+
+  /**
    * Get workspace by ID
    * @param id Workspace ID
    * @returns The workspace or null if not found
