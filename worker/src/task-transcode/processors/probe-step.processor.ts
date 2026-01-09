@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
+import * as fs from 'fs/promises';
 import { BaseStepProcessor } from '../../queue/processors/base-step.processor';
 import { FFmpegProbeExecutor } from '../executors';
 import { StorageService } from '../../shared/services/storage.service';
@@ -49,11 +50,41 @@ export class ProbeStepProcessor extends BaseStepProcessor<
       throw new Error(`Upload ${input.uploadId} not found`);
     }
 
+    // Extract media date: prefer date from probe metadata, fallback to file stats
+    let mediaDate: Date | undefined = probeOutput.mediaDate;
+    if (!mediaDate) {
+      try {
+        const stats = await fs.stat(filePath);
+        // Prefer birthtime (creation time) if available and valid, otherwise use mtime (modification time)
+        // birthtime is more accurate for camera-recorded media, but may not be available on all filesystems
+        // Check if birthtime is valid (not Unix epoch and different from mtime, or after year 2000)
+        const year2000 = new Date('2000-01-01').getTime();
+        const birthtimeValid =
+          stats.birthtime.getTime() > year2000 &&
+          stats.birthtime.getTime() !== stats.mtime.getTime();
+        mediaDate = birthtimeValid ? stats.birthtime : stats.mtime;
+        this.logger.debug(
+          `Extracted mediaDate from file stats: ${mediaDate.toISOString()} (source: ${
+            birthtimeValid ? 'birthtime' : 'mtime'
+          })`
+        );
+      } catch (error) {
+        this.logger.warn(
+          `Failed to get file stats for date extraction: ${error}`
+        );
+      }
+    } else {
+      this.logger.debug(
+        `Using mediaDate from probe metadata: ${mediaDate.toISOString()}`
+      );
+    }
+
     // Create Media record
     const mediaData: MediaInput = {
       WorkspaceRef: upload.WorkspaceRef,
       UploadRef: input.uploadId,
       mediaType: this.determineMediaType(probeOutput),
+      mediaDate: mediaDate?.toISOString(),
       duration: probeOutput.duration,
       mediaData: probeOutput,
       version: 1,

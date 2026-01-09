@@ -33,6 +33,7 @@ export const MediaInputSchema = z.object({
   WorkspaceRef: z.string().min(1, 'Workspace is required'),
   UploadRef: z.string().min(1, 'Upload is required'),
   mediaType: z.enum([MediaType.VIDEO, MediaType.AUDIO, MediaType.IMAGE]),
+  mediaDate: DateField().optional(),
   duration: NumberField({ min: 0 }),
   mediaData: JSONField(),
   thumbnailFileRef: z.string().optional(),

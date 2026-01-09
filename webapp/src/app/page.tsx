@@ -20,6 +20,7 @@ import {
   Film,
   Scissors,
   Play,
+  Server,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -155,9 +156,10 @@ function UnauthenticatedView() {
             <span className="block text-primary">Web-Based Video Editor</span>
           </h1>
           <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-3xl mx-auto">
-            Create, edit, and manage your videos with our powerful web-based
-            video editor. Upload your media, trim clips, and export professional
-            videos—all in your browser.
+            Create, edit, and manage your videos with our powerful self-hostable
+            web-based video editor. Upload your media, trim clips, and export
+            professional videos—all in your browser. Choose between local or
+            cloud processing to fit your needs.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/signup">
@@ -198,8 +200,13 @@ function UnauthenticatedView() {
           />
           <FeatureCard
             icon={<Zap className="h-8 w-8" />}
-            title="Fast Processing"
-            description="Cloud-powered video processing ensures quick transcoding and rendering of your projects."
+            title="Flexible Processing"
+            description="Choose between local processing for complete control or cloud processing for scalability. Configure the option that works best for your setup."
+          />
+          <FeatureCard
+            icon={<Server className="h-8 w-8" />}
+            title="Self-Hostable"
+            description="Deploy VideoWare on your own infrastructure for complete data sovereignty. Full control over your video processing pipeline and storage."
           />
           <FeatureCard
             icon={<Shield className="h-8 w-8" />}

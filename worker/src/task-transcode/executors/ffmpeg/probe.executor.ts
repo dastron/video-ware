@@ -20,12 +20,53 @@ export class FFmpegProbeExecutor implements IProbeExecutor {
     this.logger.debug(`Probing file: ${filePath}`);
 
     const ffmpegResult = await this.ffmpegService.probe(filePath);
-    const probeOutput = this.convertResult(ffmpegResult);
+    const probeOutput = this.convertResult(ffmpegResult, ffmpegResult);
 
     return { probeOutput };
   }
 
-  private convertResult(result: FFmpegProbeResult): ProbeOutput {
+  /**
+   * Extract date from FFmpeg metadata tags
+   * Tries common date fields: creation_time, date, DATE, etc.
+   */
+  private extractDateFromTags(result: FFmpegProbeResult): Date | null {
+    // Try format tags first (most common location)
+    if (result.format?.tags) {
+      const dateStr =
+        result.format.tags.creation_time ||
+        result.format.tags.date ||
+        result.format.tags.DATE ||
+        result.format.tags['com.apple.quicktime.creationdate'];
+      if (dateStr) {
+        const date = new Date(dateStr);
+        if (!isNaN(date.getTime())) {
+          return date;
+        }
+      }
+    }
+
+    // Try video stream tags
+    const videoStream = result.streams.find((s) => s.codec_type === 'video');
+    if (videoStream?.tags) {
+      const dateStr =
+        videoStream.tags.creation_time ||
+        videoStream.tags.date ||
+        videoStream.tags.DATE;
+      if (dateStr) {
+        const date = new Date(dateStr);
+        if (!isNaN(date.getTime())) {
+          return date;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  private convertResult(
+    result: FFmpegProbeResult,
+    originalResult: FFmpegProbeResult
+  ): ProbeOutput {
     const videoStream = result.streams.find((s) => s.codec_type === 'video');
     const audioStream = result.streams.find((s) => s.codec_type === 'audio');
 
@@ -69,6 +110,12 @@ export class FFmpegProbeExecutor implements IProbeExecutor {
           ? parseInt(String(audioStream.bit_rate))
           : undefined,
       };
+    }
+
+    // Extract date from metadata tags
+    const extractedDate = this.extractDateFromTags(originalResult);
+    if (extractedDate) {
+      probeOutput.mediaDate = extractedDate;
     }
 
     return probeOutput;

@@ -91,6 +91,8 @@ export interface ProbeOutput {
   format?: string;
   /** File size in bytes */
   size?: number;
+  /** Media date from metadata or file system (optional) */
+  mediaDate?: Date;
   /** Video stream details */
   video?: {
     codec: string;

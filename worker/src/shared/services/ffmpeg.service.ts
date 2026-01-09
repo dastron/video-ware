@@ -13,6 +13,7 @@ export interface ProbeResult {
     bit_rate: number;
     format_name: string;
     format_long_name: string;
+    tags?: Record<string, string>;
   };
   streams: Array<{
     index: number;
@@ -31,6 +32,7 @@ export interface ProbeResult {
     pix_fmt?: string;
     level?: number;
     color_space?: string;
+    tags?: Record<string, string>;
   }>;
 }
 
