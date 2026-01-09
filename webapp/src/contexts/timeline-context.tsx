@@ -22,6 +22,10 @@ interface TimelineContextType {
   error: string | null;
   hasUnsavedChanges: boolean;
 
+  // Selected clip state
+  selectedClipId: string | null;
+  setSelectedClipId: (clipId: string | null) => void;
+
   // Timeline operations
   loadTimeline: (id: string) => Promise<void>;
   saveTimeline: () => Promise<void>;
@@ -71,6 +75,7 @@ export function TimelineProvider({
     useState<TimelineWithClips | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
 
   // Create timeline service - memoized to prevent recreation
   const timelineService = useMemo(() => new TimelineService(pb), []);
@@ -377,6 +382,10 @@ export function TimelineProvider({
     isLoading,
     error,
     hasUnsavedChanges,
+
+    // Selected clip state
+    selectedClipId,
+    setSelectedClipId,
 
     // Timeline operations
     loadTimeline,

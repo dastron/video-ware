@@ -2,8 +2,8 @@ import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Interval } from '@nestjs/schedule';
 import { PocketBaseService } from '../shared/services/pocketbase.service';
-import { FlowService } from '../queue/flow.service';
-import { TaskStatus, TaskType, type Task } from '@project/shared';
+import { QueueService } from '../queue/queue.service';
+import { TaskStatus, type Task } from '@project/shared';
 
 @Injectable()
 export class TaskEnqueuerService implements OnApplicationBootstrap {
@@ -14,7 +14,7 @@ export class TaskEnqueuerService implements OnApplicationBootstrap {
   constructor(
     private readonly configService: ConfigService,
     private readonly pocketbaseService: PocketBaseService,
-    private readonly flowService: FlowService
+    private readonly queueService: QueueService
   ) {}
 
   onApplicationBootstrap() {
@@ -95,7 +95,8 @@ export class TaskEnqueuerService implements OnApplicationBootstrap {
 
   /**
    * Enqueue a task to the appropriate queue.
-   * Creates a BullMQ flow with parent-child job relationships for step-based processing.
+   * Uses QueueService.enqueueTask() which routes to the correct queue (flow or regular job)
+   * based on task type via exhaustive switch case.
    * BullMQ handles deduplication via jobId - if a job with the same ID already exists,
    * BullMQ will throw an error, which we treat as benign (job is already enqueued).
    */
@@ -103,12 +104,12 @@ export class TaskEnqueuerService implements OnApplicationBootstrap {
     if (task.status !== TaskStatus.QUEUED) return;
 
     try {
-      // Create flow using FlowService - it will route to the correct builder based on task type
-      await this.flowService.createFlow(task);
+      // Enqueue task using QueueService - it will route to the correct queue based on task type
+      await this.queueService.enqueueTask(task);
 
       // Mark task as running in PocketBase so it's not re-polled
       await this.markTaskClaimed(task.id);
-      this.logger.debug(`Successfully created flow for task ${task.id}`);
+      this.logger.debug(`Successfully enqueued task ${task.id}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
 
@@ -126,9 +127,7 @@ export class TaskEnqueuerService implements OnApplicationBootstrap {
       }
 
       // Unexpected error - log and continue to next task
-      this.logger.error(
-        `Failed to create flow for task ${task.id}: ${message}`
-      );
+      this.logger.error(`Failed to enqueue task ${task.id}: ${message}`);
     }
   }
 

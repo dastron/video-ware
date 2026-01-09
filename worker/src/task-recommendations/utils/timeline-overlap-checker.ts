@@ -204,8 +204,7 @@ export class TimelineOverlapChecker {
     filterRate: number;
   } {
     const filtered = totalCandidates - filteredCandidates;
-    const filterRate =
-      totalCandidates > 0 ? filtered / totalCandidates : 0;
+    const filterRate = totalCandidates > 0 ? filtered / totalCandidates : 0;
 
     return {
       total: totalCandidates,

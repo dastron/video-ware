@@ -5,7 +5,6 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { QUEUE_NAMES } from '../../queue/queue.constants';
 import { TranscodeStepType } from '../../queue/types/step.types';
 import { PocketBaseService } from '../../shared/services/pocketbase.service';
-import { BaseParentProcessor } from '../../queue/processors/base-parent.processor';
 import { ProbeStepProcessor } from './probe-step.processor';
 import { ThumbnailStepProcessor } from './thumbnail-step.processor';
 import { SpriteStepProcessor } from './sprite-step.processor';
@@ -22,13 +21,14 @@ import type {
   TranscodeStepInput,
 } from './step-types';
 import type { ProcessUploadPayload } from '@project/shared';
+import { BaseFlowProcessor } from '@/queue/processors';
 
 /**
  * Parent processor for transcode tasks
  * Orchestrates independent step processors that write directly to the database
  */
 @Processor(QUEUE_NAMES.TRANSCODE)
-export class TranscodeParentProcessor extends BaseParentProcessor {
+export class TranscodeParentProcessor extends BaseFlowProcessor {
   protected readonly logger = new Logger(TranscodeParentProcessor.name);
   protected readonly pocketbaseService: PocketBaseService;
 

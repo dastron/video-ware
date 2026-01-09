@@ -5,7 +5,6 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { QUEUE_NAMES } from '../../queue/queue.constants';
 import { RenderStepType } from '../../queue/types/step.types';
 import { PocketBaseService } from '../../shared/services/pocketbase.service';
-import { BaseParentProcessor } from '../../queue/processors/base-parent.processor';
 import { ResolveClipsStepProcessor } from './resolve-clips-step.processor';
 import { ComposeStepProcessor } from './compose-step.processor';
 import { UploadStepProcessor } from './upload-step.processor';
@@ -15,13 +14,14 @@ import type {
   StepJobData,
   StepResult,
 } from '../../queue/types/job.types';
+import { BaseFlowProcessor } from '@/queue/processors';
 
 /**
  * Parent processor for render tasks
  * Orchestrates child step processors and aggregates results
  */
 @Processor(QUEUE_NAMES.RENDER)
-export class RenderParentProcessor extends BaseParentProcessor {
+export class RenderParentProcessor extends BaseFlowProcessor {
   protected readonly logger = new Logger(RenderParentProcessor.name);
   protected readonly pocketbaseService: PocketBaseService;
 

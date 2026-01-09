@@ -24,11 +24,12 @@ export class RecommendationsService {
 
   /**
    * Enqueue a media recommendation generation task
+   * @returns Parent job ID
    */
   async generateMediaRecommendations(
     task: Task,
     payload: GenerateMediaRecommendationsPayload
-  ): Promise<void> {
+  ): Promise<string> {
     this.logger.log(
       `Enqueueing media recommendations generation for task ${task.id}`
     );
@@ -86,7 +87,9 @@ export class RecommendationsService {
     );
 
     this.logger.log(
-      `Enqueued media recommendations generation for task ${task.id}`
+      `Enqueued media recommendations generation for task ${task.id}, parent job: ${parentJob.id}`
     );
+
+    return parentJob.id!;
   }
 }

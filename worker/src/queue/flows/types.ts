@@ -8,6 +8,7 @@ import type {
   TranscodeStepType,
   RenderStepType,
   DetectLabelsStepType,
+  RecommendationStepType,
 } from '../types/step.types';
 
 /**
@@ -125,10 +126,37 @@ export interface LabelsChildJobDefinition {
 }
 
 // ============================================================================
+// Recommendations Flow Types
+// ============================================================================
+
+export interface RecommendationsFlowDefinition {
+  name: string;
+  queueName: string;
+  data: ParentJobData;
+  children: RecommendationsChildJobDefinition[];
+}
+
+export interface RecommendationsChildJobDefinition {
+  name: RecommendationStepType;
+  queueName: string;
+  data: {
+    taskId: string;
+    workspaceId: string;
+    attemptNumber: number;
+    stepType: RecommendationStepType;
+    parentJobId: string;
+    input: any;
+  };
+  opts: ChildJobOpts;
+  children?: ChildJobDependency[];
+}
+
+// ============================================================================
 // Union Types
 // ============================================================================
 
 export type FlowDefinition =
   | TranscodeFlowDefinition
   | RenderFlowDefinition
-  | LabelsFlowDefinition;
+  | LabelsFlowDefinition
+  | RecommendationsFlowDefinition;

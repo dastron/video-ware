@@ -6,7 +6,6 @@ import { QUEUE_NAMES } from '../../queue/queue.constants';
 import { DetectLabelsStepType } from '../../queue/types/step.types';
 import { PocketBaseService } from '../../shared/services/pocketbase.service';
 import { ProcessorsConfigService } from '../../config/processors.config';
-import { BaseParentProcessor } from '../../queue/processors/base-parent.processor';
 import {
   UploadToGcsStepProcessor,
   type UploadToGcsStepInput,
@@ -37,6 +36,7 @@ import type {
   StepJobData,
   StepResult,
 } from '../../queue/types/job.types';
+import { BaseFlowProcessor } from '@/queue/processors';
 
 /**
  * Parent processor for detect_labels tasks
@@ -55,7 +55,7 @@ import type {
  * - Task succeeds if at least one enabled processor succeeds
  */
 @Processor(QUEUE_NAMES.LABELS)
-export class DetectLabelsParentProcessor extends BaseParentProcessor {
+export class DetectLabelsParentProcessor extends BaseFlowProcessor {
   protected readonly logger = new Logger(DetectLabelsParentProcessor.name);
   protected readonly pocketbaseService: PocketBaseService;
 

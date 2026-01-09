@@ -45,10 +45,7 @@ export function combineScores(
   return totalWeight > 0 ? totalWeightedScore / totalWeight : 0;
 }
 
-import {
-  ScoredMediaCandidate,
-  ScoredTimelineCandidate,
-} from './base-strategy';
+import { ScoredMediaCandidate, ScoredTimelineCandidate } from './base-strategy';
 
 /**
  * Strategy weights configuration
@@ -90,10 +87,7 @@ export class ScoreCombiner {
    * @returns Combined and deduplicated candidates
    */
   combineMediaCandidates(
-    candidatesByStrategy: Map<
-      RecommendationStrategy,
-      ScoredMediaCandidate[]
-    >,
+    candidatesByStrategy: Map<RecommendationStrategy, ScoredMediaCandidate[]>
   ): ScoredMediaCandidate[] {
     // Group candidates by segment key (startTime-endTime)
     const candidateGroups = new Map<
@@ -102,8 +96,9 @@ export class ScoreCombiner {
     >();
 
     for (const [strategy, candidates] of candidatesByStrategy.entries()) {
-      // Skip strategies with zero weight
-      const weight = this.weights[strategy] ?? 0;
+      // Skip strategies with zero weight (explicitly disabled)
+      // Missing weights default to 1.0, so only skip if explicitly set to 0
+      const weight = this.weights[strategy];
       if (weight === 0) continue;
 
       for (const candidate of candidates) {
@@ -137,7 +132,8 @@ export class ScoreCombiner {
         totalWeight += weight;
       }
 
-      const combinedScore = totalWeight > 0 ? totalWeightedScore / totalWeight : 0;
+      const combinedScore =
+        totalWeight > 0 ? totalWeightedScore / totalWeight : 0;
 
       // Use the first candidate as base and update score
       const baseCand = group[0].candidate;
@@ -148,13 +144,13 @@ export class ScoreCombiner {
         score: combinedScore,
         reason: this.combineReasons(
           group.map((g) => g.candidate.reason),
-          strategies,
+          strategies
         ),
         reasonData: {
           ...baseCand.reasonData,
           combinedStrategies: strategies,
           individualScores: Object.fromEntries(
-            group.map((g) => [g.strategy, g.candidate.score]),
+            group.map((g) => [g.strategy, g.candidate.score])
           ),
         },
       });
@@ -172,10 +168,7 @@ export class ScoreCombiner {
    * @returns Combined and deduplicated candidates
    */
   combineTimelineCandidates(
-    candidatesByStrategy: Map<
-      RecommendationStrategy,
-      ScoredTimelineCandidate[]
-    >,
+    candidatesByStrategy: Map<RecommendationStrategy, ScoredTimelineCandidate[]>
   ): ScoredTimelineCandidate[] {
     // Group candidates by clipId
     const candidateGroups = new Map<
@@ -184,8 +177,9 @@ export class ScoreCombiner {
     >();
 
     for (const [strategy, candidates] of candidatesByStrategy.entries()) {
-      // Skip strategies with zero weight
-      const weight = this.weights[strategy] ?? 0;
+      // Skip strategies with zero weight (explicitly disabled)
+      // Missing weights default to 1.0, so only skip if explicitly set to 0
+      const weight = this.weights[strategy];
       if (weight === 0) continue;
 
       for (const candidate of candidates) {
@@ -219,7 +213,8 @@ export class ScoreCombiner {
         totalWeight += weight;
       }
 
-      const combinedScore = totalWeight > 0 ? totalWeightedScore / totalWeight : 0;
+      const combinedScore =
+        totalWeight > 0 ? totalWeightedScore / totalWeight : 0;
 
       // Use the first candidate as base and update score
       const baseCand = group[0].candidate;
@@ -230,13 +225,13 @@ export class ScoreCombiner {
         score: combinedScore,
         reason: this.combineReasons(
           group.map((g) => g.candidate.reason),
-          strategies,
+          strategies
         ),
         reasonData: {
           ...baseCand.reasonData,
           combinedStrategies: strategies,
           individualScores: Object.fromEntries(
-            group.map((g) => [g.strategy, g.candidate.score]),
+            group.map((g) => [g.strategy, g.candidate.score])
           ),
         },
       });
@@ -260,7 +255,7 @@ export class ScoreCombiner {
    */
   private combineReasons(
     reasons: string[],
-    strategies: RecommendationStrategy[],
+    strategies: RecommendationStrategy[]
   ): string {
     if (reasons.length === 1) {
       return reasons[0];
@@ -293,7 +288,7 @@ export class ScoreCombiner {
    */
   getEnabledStrategies(): RecommendationStrategy[] {
     return Object.values(RecommendationStrategy).filter((strategy) =>
-      this.isStrategyEnabled(strategy),
+      this.isStrategyEnabled(strategy)
     );
   }
 }

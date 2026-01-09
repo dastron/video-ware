@@ -4,9 +4,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import * as fc from 'fast-check';
-import {
-  MediaRecommendationWriter,
-} from '../media-recommendation-writer';
+import { MediaRecommendationWriter } from '../media-recommendation-writer';
 import {
   LabelType,
   RecommendationStrategy,
@@ -57,19 +55,23 @@ function filterItems(
   filter?: string
 ): MediaRecommendation[] {
   if (!filter) return items;
-  
+
   let filtered = items;
-  
+
   // Parse simple filters for queryHash
   const queryHashMatch = filter.match(/queryHash = "([^"]+)"/);
   if (queryHashMatch) {
     const queryHash = queryHashMatch[1];
     filtered = items.filter((item) => item.queryHash === queryHash);
   }
-  
+
   // Parse filters for start and end (handle scientific notation)
-  const startMatch = filter.match(/start = (-?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)/);
-  const endMatch = filter.match(/end = (-?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)/);
+  const startMatch = filter.match(
+    /start = (-?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)/
+  );
+  const endMatch = filter.match(
+    /end = (-?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)/
+  );
   if (startMatch && endMatch) {
     const start = parseFloat(startMatch[1]);
     const end = parseFloat(endMatch[1]);
@@ -79,7 +81,7 @@ function filterItems(
       );
     }
   }
-  
+
   return filtered;
 }
 
@@ -97,42 +99,59 @@ beforeEach(() => {
       }
       return filtered[0];
     }),
-    
-    getByQueryHash: vi.fn().mockImplementation(async (queryHash: string, _options: unknown, page: number, perPage: number) => {
-      const items = Array.from(mockStorage.values());
-      const filtered = items.filter((item) => item.queryHash === queryHash);
-      
-      // Sort by rank, then start
-      filtered.sort((a, b) => {
-        if (a.rank !== b.rank) return a.rank - b.rank;
-        return a.start - b.start;
-      });
-      
-      return {
-        page,
-        perPage,
-        totalItems: filtered.length,
-        totalPages: Math.ceil(filtered.length / perPage),
-        items: filtered,
-      };
-    }),
-    
+
+    getByQueryHash: vi
+      .fn()
+      .mockImplementation(
+        async (
+          queryHash: string,
+          _options: unknown,
+          page: number,
+          perPage: number
+        ) => {
+          const items = Array.from(mockStorage.values());
+          const filtered = items.filter((item) => item.queryHash === queryHash);
+
+          // Sort by rank, then start
+          filtered.sort((a, b) => {
+            if (a.rank !== b.rank) return a.rank - b.rank;
+            return a.start - b.start;
+          });
+
+          return {
+            page,
+            perPage,
+            totalItems: filtered.length,
+            totalPages: Math.ceil(filtered.length / perPage),
+            items: filtered,
+          };
+        }
+      ),
+
     create: vi.fn().mockImplementation(async (data) => {
       const rec = createMockRecommendation(data);
       mockStorage.set(rec.id, rec);
       return rec;
     }),
-    
-    update: vi.fn().mockImplementation(async (id: string, data: Partial<MediaRecommendation>) => {
-      const existing = mockStorage.get(id);
-      if (!existing) {
-        throw new Error('Not found');
-      }
-      const updated = { ...existing, ...data, updated: new Date().toISOString() };
-      mockStorage.set(id, updated);
-      return updated;
-    }),
-    
+
+    update: vi
+      .fn()
+      .mockImplementation(
+        async (id: string, data: Partial<MediaRecommendation>) => {
+          const existing = mockStorage.get(id);
+          if (!existing) {
+            throw new Error('Not found');
+          }
+          const updated = {
+            ...existing,
+            ...data,
+            updated: new Date().toISOString(),
+          };
+          mockStorage.set(id, updated);
+          return updated;
+        }
+      ),
+
     delete: vi.fn().mockImplementation(async (id: string) => {
       mockStorage.delete(id);
       return true;
@@ -159,24 +178,32 @@ const strategyArbitrary = fc.constantFrom(
   RecommendationStrategy.CONFIDENCE_DURATION
 );
 
-const scoredCandidateArbitrary = fc.record({
-  start: fc.float({ min: 0, max: 1000 }),
-  end: fc.float({ min: 0, max: 1000 }),
-  clipId: fc.option(fc.uuid()).map((v) => v ?? undefined), // Convert null to undefined
-  score: fc.integer({ min: 0, max: 1000 }).map((x) => x / 1000), // Ensures valid number in [0, 1]
-  reason: fc.string({ minLength: 1, maxLength: 100 }),
-  reasonData: fc.dictionary(fc.string(), fc.anything()),
-  labelType: labelTypeArbitrary,
-  strategy: strategyArbitrary,
-}).filter((candidate) => candidate.end > candidate.start);
+const scoredCandidateArbitrary = fc
+  .record({
+    start: fc.float({ min: 0, max: 1000 }),
+    end: fc.float({ min: 0, max: 1000 }),
+    clipId: fc.option(fc.uuid()).map((v) => v ?? undefined), // Convert null to undefined
+    score: fc.integer({ min: 0, max: 1000 }).map((x) => x / 1000), // Ensures valid number in [0, 1]
+    reason: fc.string({ minLength: 1, maxLength: 100 }),
+    reasonData: fc.dictionary(fc.string(), fc.anything()),
+    labelType: labelTypeArbitrary,
+    strategy: strategyArbitrary,
+  })
+  .filter((candidate) => candidate.end > candidate.start);
 
 const contextArbitrary = fc.record({
   workspaceId: fc.uuid(),
   mediaId: fc.uuid(),
-  queryHash: fc.string({ minLength: 32, maxLength: 32 }).map((s) => 
-    s.split('').map((c) => c.charCodeAt(0).toString(16).padStart(2, '0')).join('').slice(0, 32)
+  queryHash: fc.string({ minLength: 32, maxLength: 32 }).map((s) =>
+    s
+      .split('')
+      .map((c) => c.charCodeAt(0).toString(16).padStart(2, '0'))
+      .join('')
+      .slice(0, 32)
   ),
-  version: fc.option(fc.integer({ min: 1, max: 100 })).map((v) => v ?? undefined),
+  version: fc
+    .option(fc.integer({ min: 1, max: 100 }))
+    .map((v) => v ?? undefined),
   processor: fc.option(fc.string()).map((v) => v ?? undefined),
 });
 
@@ -195,24 +222,34 @@ describe('MediaRecommendationWriter Properties', () => {
           async (maxPerContext, numCandidates, context, candidates) => {
             fc.pre(numCandidates > maxPerContext);
             fc.pre(candidates.length >= numCandidates);
-            
-            const writer = new MediaRecommendationWriter(mockService, maxPerContext);
-            
-            await writer.write(context.queryHash, candidates.slice(0, numCandidates), context);
-            
-            // Get all recommendations for this queryHash
-            const result = await mockService.mediaRecommendationMutator.getByQueryHash(
-              context.queryHash,
-              {},
-              1,
-              1000
+
+            const writer = new MediaRecommendationWriter(
+              mockService,
+              maxPerContext
             );
-            
+
+            await writer.write(
+              context.queryHash,
+              candidates.slice(0, numCandidates),
+              context
+            );
+
+            // Get all recommendations for this queryHash
+            const result =
+              await mockService.mediaRecommendationMutator.getByQueryHash(
+                context.queryHash,
+                {},
+                1,
+                1000
+              );
+
             // Should not exceed maxPerContext
             expect(result.items.length).toBeLessThanOrEqual(maxPerContext);
-            
+
             // Ranks should be contiguous from 0 to count-1
-            const ranks = result.items.map((item: MediaRecommendation) => item.rank).sort((a: number, b: number) => a - b);
+            const ranks = result.items
+              .map((item: MediaRecommendation) => item.rank)
+              .sort((a: number, b: number) => a - b);
             for (let i = 0; i < ranks.length; i++) {
               expect(ranks[i]).toBe(i);
             }
@@ -233,22 +270,30 @@ describe('MediaRecommendationWriter Properties', () => {
           }),
           async (maxPerContext, context, candidates) => {
             fc.pre(candidates.length >= maxPerContext + 5);
-            
-            const writer = new MediaRecommendationWriter(mockService, maxPerContext);
-            
-            await writer.write(context.queryHash, candidates, context);
-            
-            // Get all recommendations for this queryHash
-            const result = await mockService.mediaRecommendationMutator.getByQueryHash(
-              context.queryHash,
-              {},
-              1,
-              1000
+
+            const writer = new MediaRecommendationWriter(
+              mockService,
+              maxPerContext
             );
-            
+
+            await writer.write(context.queryHash, candidates, context);
+
+            // Get all recommendations for this queryHash
+            const result =
+              await mockService.mediaRecommendationMutator.getByQueryHash(
+                context.queryHash,
+                {},
+                1,
+                1000
+              );
+
             // Ranks should be contiguous integers from 0 to count-1
-            const ranks = result.items.map((item: MediaRecommendation) => item.rank).sort((a: number, b: number) => a - b);
-            expect(ranks).toEqual(Array.from({ length: ranks.length }, (_, i) => i));
+            const ranks = result.items
+              .map((item: MediaRecommendation) => item.rank)
+              .sort((a: number, b: number) => a - b);
+            expect(ranks).toEqual(
+              Array.from({ length: ranks.length }, (_, i) => i)
+            );
           }
         ),
         { numRuns: 100 }
@@ -266,26 +311,32 @@ describe('MediaRecommendationWriter Properties', () => {
           }),
           async (maxPerContext, context, candidates) => {
             fc.pre(candidates.length >= maxPerContext + 5);
-            
-            const writer = new MediaRecommendationWriter(mockService, maxPerContext);
-            
+
+            const writer = new MediaRecommendationWriter(
+              mockService,
+              maxPerContext
+            );
+
             // Sort candidates by score to know what should be kept
-            const sortedByScore = [...candidates].sort((a, b) => b.score - a.score);
+            const sortedByScore = [...candidates].sort(
+              (a, b) => b.score - a.score
+            );
             const topScores = sortedByScore
               .slice(0, maxPerContext)
               .map((c) => c.score)
               .sort((a, b) => b - a);
-            
+
             await writer.write(context.queryHash, candidates, context);
-            
+
             // Get all recommendations for this queryHash
-            const result = await mockService.mediaRecommendationMutator.getByQueryHash(
-              context.queryHash,
-              {},
-              1,
-              1000
-            );
-            
+            const result =
+              await mockService.mediaRecommendationMutator.getByQueryHash(
+                context.queryHash,
+                {},
+                1,
+                1000
+              );
+
             // All kept recommendations should have scores >= the lowest top score
             const minTopScore = Math.min(...topScores);
             for (const item of result.items) {
@@ -306,28 +357,29 @@ describe('MediaRecommendationWriter Properties', () => {
           fc.array(scoredCandidateArbitrary, { minLength: 5, maxLength: 15 }),
           async (context, candidates) => {
             const writer = new MediaRecommendationWriter(mockService, 20);
-            
+
             // Run write twice with same inputs
             await writer.write(context.queryHash, candidates, context);
             const countAfterFirst = mockStorage.size;
-            
+
             await writer.write(context.queryHash, candidates, context);
             const countAfterSecond = mockStorage.size;
-            
+
             // Count should remain the same (no duplicates created)
             expect(countAfterSecond).toBe(countAfterFirst);
-            
+
             // Get all recommendations for this queryHash
-            const result = await mockService.mediaRecommendationMutator.getByQueryHash(
-              context.queryHash,
-              {},
-              1,
-              1000
-            );
-            
+            const result =
+              await mockService.mediaRecommendationMutator.getByQueryHash(
+                context.queryHash,
+                {},
+                1,
+                1000
+              );
+
             // Should have at most as many recommendations as candidates
             expect(result.items.length).toBeLessThanOrEqual(candidates.length);
-            
+
             // No duplicate segments (queryHash + start + end)
             const segments = new Set<string>();
             for (const item of result.items) {
@@ -348,27 +400,31 @@ describe('MediaRecommendationWriter Properties', () => {
           fc.array(scoredCandidateArbitrary, { minLength: 3, maxLength: 10 }),
           async (context, candidates) => {
             const writer = new MediaRecommendationWriter(mockService, 20);
-            
+
             // First write
-            const result1 = await writer.write(context.queryHash, candidates, context);
-            
+            const result1 = await writer.write(
+              context.queryHash,
+              candidates,
+              context
+            );
+
             // Modify scores slightly
             const modifiedCandidates = candidates.map((c) => ({
               ...c,
               score: Math.min(1, c.score + 0.1),
               reason: c.reason + ' (updated)',
             }));
-            
+
             // Second write with modified data
             const result2 = await writer.write(
               context.queryHash,
               modifiedCandidates,
               context
             );
-            
+
             // Should have updates, not all creates
             expect(result2.updated).toBeGreaterThan(0);
-            
+
             // Total count should remain the same
             expect(result2.total).toBe(result1.total);
           }
@@ -393,22 +449,23 @@ describe('MediaRecommendationWriter Properties', () => {
               segmentKeys.add(key);
             }
             fc.pre(segmentKeys.size === candidates.length); // All segments must be unique
-            
+
             const writer = new MediaRecommendationWriter(mockService, 20);
-            
+
             // Run write multiple times
             await writer.write(context.queryHash, candidates, context);
             await writer.write(context.queryHash, candidates, context);
             await writer.write(context.queryHash, candidates, context);
-            
+
             // Get all recommendations for this queryHash
-            const result = await mockService.mediaRecommendationMutator.getByQueryHash(
-              context.queryHash,
-              {},
-              1,
-              1000
-            );
-            
+            const result =
+              await mockService.mediaRecommendationMutator.getByQueryHash(
+                context.queryHash,
+                {},
+                1,
+                1000
+              );
+
             // Check uniqueness: no two recommendations should have same (queryHash, start, end)
             // Use rounded values to avoid floating-point precision issues
             const uniqueKeys = new Set<string>();
@@ -420,7 +477,7 @@ describe('MediaRecommendationWriter Properties', () => {
               expect(uniqueKeys.has(key)).toBe(false);
               uniqueKeys.add(key);
             }
-            
+
             // All items should have the same queryHash
             for (const item of result.items) {
               expect(item.queryHash).toBe(context.queryHash);

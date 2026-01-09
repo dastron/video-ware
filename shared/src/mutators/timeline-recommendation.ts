@@ -9,10 +9,7 @@ import type {
 } from '../schema';
 import type { TypedPocketBase } from '../types';
 import { BaseMutator, type MutatorOptions } from './base';
-import {
-  RecommendationStrategy,
-  RecommendationTargetMode,
-} from '../enums';
+import { RecommendationStrategy, RecommendationTargetMode } from '../enums';
 
 /**
  * Options for searching timeline recommendations
@@ -62,6 +59,9 @@ export class TimelineRecommendationMutator extends BaseMutator<
         'TimelineClipRef',
         'SeedClipRef',
         'MediaClipRef',
+        'MediaClipRef.MediaRef', // Get Media directly - much simpler!
+        'MediaClipRef.MediaRef.spriteFileRef',
+        'MediaClipRef.MediaRef.thumbnailFileRef',
       ],
       filter: [],
       sort: ['rank', 'score'], // Sort by rank first, then score
@@ -71,13 +71,13 @@ export class TimelineRecommendationMutator extends BaseMutator<
   protected async validateInput(
     input: TimelineRecommendationInput
   ): Promise<TimelineRecommendationInput> {
-    // Map RecommendedClipRef to MediaClipRef for the database schema
+    // Map MediaClipRef to MediaClipRef for the database schema
     const validated = TimelineRecommendationInputSchema.parse(input);
-    // The input schema uses RecommendedClipRef, but we need to map it
+    // The input schema uses MediaClipRef, but we need to map it
     // to MediaClipRef for the actual database record
     return {
       ...validated,
-      // Note: The input schema has RecommendedClipRef, but the database
+      // Note: The input schema has MediaClipRef, but the database
       // schema expects MediaClipRef. This mapping will be handled by the
       // entityCreate method or we need to transform it here.
       // For now, we'll pass it through and let the schema handle it
@@ -86,15 +86,15 @@ export class TimelineRecommendationMutator extends BaseMutator<
 
   /**
    * Transform input to match database schema
-   * Maps RecommendedClipRef from input to MediaClipRef for database
+   * Maps MediaClipRef from input to MediaClipRef for database
    */
   private transformInputForCreate(
     input: TimelineRecommendationInput
   ): Record<string, unknown> {
-    const { RecommendedClipRef, ...rest } = input;
+    const { MediaClipRef, ...rest } = input;
     return {
       ...rest,
-      MediaClipRef: RecommendedClipRef, // Map to database field name
+      MediaClipRef: MediaClipRef, // Map to database field name
     };
   }
 
@@ -207,6 +207,9 @@ export class TimelineRecommendationMutator extends BaseMutator<
         'TimelineClipRef',
         'SeedClipRef',
         'MediaClipRef',
+        'MediaClipRef.MediaRef',
+        'MediaClipRef.MediaRef.spriteFileRef',
+        'MediaClipRef.MediaRef.thumbnailFileRef',
       ]
     );
   }
@@ -268,6 +271,9 @@ export class TimelineRecommendationMutator extends BaseMutator<
         'TimelineClipRef',
         'SeedClipRef',
         'MediaClipRef',
+        'MediaClipRef.MediaRef',
+        'MediaClipRef.MediaRef.spriteFileRef',
+        'MediaClipRef.MediaRef.thumbnailFileRef',
       ]
     );
   }
@@ -358,13 +364,16 @@ export class TimelineRecommendationMutator extends BaseMutator<
         'TimelineClipRef',
         'SeedClipRef',
         'MediaClipRef',
+        'MediaClipRef.MediaRef',
+        'MediaClipRef.MediaRef.spriteFileRef',
+        'MediaClipRef.MediaRef.thumbnailFileRef',
       ]
     );
   }
 
   /**
    * Upsert a timeline recommendation based on queryHash and MediaClipRef
-   * Uses the unique index (queryHash, RecommendedClipRef) for upsert behavior
+   * Uses the unique index (queryHash, MediaClipRef) for upsert behavior
    * @param input The recommendation input data
    * @returns The created or updated recommendation
    */
@@ -372,18 +381,22 @@ export class TimelineRecommendationMutator extends BaseMutator<
     input: TimelineRecommendationInput
   ): Promise<TimelineRecommendation> {
     // First, try to find existing recommendation with same queryHash and MediaClipRef
-    // Note: The index uses RecommendedClipRef, but we need to check MediaClipRef
+    // Note: The index uses MediaClipRef, but we need to check MediaClipRef
     const existing = await this.getFirstByFilter(
-      `queryHash = "${input.queryHash}" && MediaClipRef = "${input.RecommendedClipRef}"`
+      `queryHash = "${input.queryHash}" && MediaClipRef = "${input.MediaClipRef}"`
     );
 
     if (existing) {
       // Update existing recommendation
-      // Transform input and remove RecommendedClipRef since it's already set
+      // Transform input and remove MediaClipRef since it's already set
       const transformed = this.transformInputForCreate(input);
       // Remove fields that shouldn't be updated (id, created, updated)
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { id, created, updated, ...updateData } = transformed;
-      return this.update(existing.id, updateData as Partial<TimelineRecommendation>);
+      return this.update(
+        existing.id,
+        updateData as Partial<TimelineRecommendation>
+      );
     } else {
       // Create new recommendation
       return this.create(input);
@@ -464,6 +477,9 @@ export class TimelineRecommendationMutator extends BaseMutator<
     // First, get the recommendation with expanded relations
     const recommendation = await this.getById(id, [
       'MediaClipRef',
+      'MediaClipRef.MediaRef',
+      'MediaClipRef.MediaRef.spriteFileRef',
+      'MediaClipRef.MediaRef.thumbnailFileRef',
       'TimelineRef',
     ]);
     if (!recommendation) {
@@ -510,14 +526,11 @@ export class TimelineRecommendationMutator extends BaseMutator<
 
     // Mark the recommendation as accepted and link to the created TimelineClip
     const now = new Date().toISOString();
-    const updatedRecommendation = await this.update(
-      id,
-      ({
-        acceptedAt: now,
-        dismissedAt: null, // Clear dismissed status when accepting
-        TimelineClipRef: timelineClip.id, // Link to the created clip
-      } as unknown) as Partial<TimelineRecommendation>
-    );
+    const updatedRecommendation = await this.update(id, {
+      acceptedAt: now,
+      dismissedAt: null, // Clear dismissed status when accepting
+      TimelineClipRef: timelineClip.id, // Link to the created clip
+    } as unknown as Partial<TimelineRecommendation>);
 
     return {
       recommendation: updatedRecommendation,
@@ -534,13 +547,10 @@ export class TimelineRecommendationMutator extends BaseMutator<
   async dismissRecommendation(id: string): Promise<TimelineRecommendation> {
     const now = new Date().toISOString();
     // Clear acceptedAt by setting to null (PocketBase handles null for optional fields)
-    return this.update(
-      id,
-      ({
-        dismissedAt: now,
-        acceptedAt: null, // Clear accepted status when dismissing
-      } as unknown) as Partial<TimelineRecommendation>
-    );
+    return this.update(id, {
+      dismissedAt: now,
+      acceptedAt: null, // Clear accepted status when dismissing
+    } as unknown as Partial<TimelineRecommendation>);
   }
 
   /**
@@ -643,23 +653,29 @@ export class TimelineRecommendationMutator extends BaseMutator<
     // Group recommendations by strategy
     const strategyGroups = allRecommendations.reduce<
       Record<RecommendationStrategy, TimelineRecommendation[]>
-    >((acc, rec) => {
-      const strategy = rec.strategy as RecommendationStrategy;
-      if (!acc[strategy]) {
-        acc[strategy] = [];
-      }
-      acc[strategy].push(rec);
-      return acc;
-    }, {} as Record<RecommendationStrategy, TimelineRecommendation[]>);
+    >(
+      (acc, rec) => {
+        const strategy = rec.strategy as RecommendationStrategy;
+        if (!acc[strategy]) {
+          acc[strategy] = [];
+        }
+        acc[strategy].push(rec);
+        return acc;
+      },
+      {} as Record<RecommendationStrategy, TimelineRecommendation[]>
+    );
 
     // Calculate statistics for each strategy
     for (const [strategy, recommendations] of Object.entries(strategyGroups)) {
       const strategyTotal = recommendations.length;
-      const strategyAccepted = recommendations.filter((r) => r.acceptedAt)
-        .length;
-      const strategyDismissed = recommendations.filter((r) => r.dismissedAt)
-        .length;
-      const strategyPending = strategyTotal - strategyAccepted - strategyDismissed;
+      const strategyAccepted = recommendations.filter(
+        (r) => r.acceptedAt
+      ).length;
+      const strategyDismissed = recommendations.filter(
+        (r) => r.dismissedAt
+      ).length;
+      const strategyPending =
+        strategyTotal - strategyAccepted - strategyDismissed;
 
       byStrategy[strategy as RecommendationStrategy] = {
         total: strategyTotal,
@@ -688,13 +704,10 @@ export class TimelineRecommendationMutator extends BaseMutator<
   async accept(id: string): Promise<TimelineRecommendation> {
     const now = new Date().toISOString();
     // Clear dismissedAt by setting to null (PocketBase handles null for optional fields)
-    return this.update(
-      id,
-      ({
-        acceptedAt: now,
-        dismissedAt: null, // Clear dismissed status when accepting
-      } as unknown) as Partial<TimelineRecommendation>
-    );
+    return this.update(id, {
+      acceptedAt: now,
+      dismissedAt: null, // Clear dismissed status when accepting
+    } as unknown as Partial<TimelineRecommendation>);
   }
 
   /**
@@ -706,13 +719,10 @@ export class TimelineRecommendationMutator extends BaseMutator<
   async dismiss(id: string): Promise<TimelineRecommendation> {
     const now = new Date().toISOString();
     // Clear acceptedAt by setting to null (PocketBase handles null for optional fields)
-    return this.update(
-      id,
-      ({
-        dismissedAt: now,
-        acceptedAt: null, // Clear accepted status when dismissing
-      } as unknown) as Partial<TimelineRecommendation>
-    );
+    return this.update(id, {
+      dismissedAt: now,
+      acceptedAt: null, // Clear accepted status when dismissing
+    } as unknown as Partial<TimelineRecommendation>);
   }
 
   /**

@@ -39,11 +39,15 @@ export interface TypedPocketBase extends PocketBase {
   collection(idOrName: 'Media'): RecordService<Media>;
   collection(idOrName: 'MediaClips'): RecordService<MediaClip>;
   collection(idOrName: 'MediaLabels'): RecordService<MediaLabel>;
-  collection(idOrName: 'MediaRecommendations'): RecordService<MediaRecommendation>;
+  collection(
+    idOrName: 'MediaRecommendations'
+  ): RecordService<MediaRecommendation>;
   collection(idOrName: 'Tasks'): RecordService<Task>;
   collection(idOrName: 'TimelineClips'): RecordService<TimelineClip>;
   collection(idOrName: 'TimelineRenders'): RecordService<TimelineRender>;
-  collection(idOrName: 'TimelineRecommendations'): RecordService<TimelineRecommendation>;
+  collection(
+    idOrName: 'TimelineRecommendations'
+  ): RecordService<TimelineRecommendation>;
   collection(idOrName: 'Timelines'): RecordService<Timeline>;
   collection(idOrName: 'Todos'): RecordService<Todo>;
   collection(idOrName: 'Uploads'): RecordService<Upload>;

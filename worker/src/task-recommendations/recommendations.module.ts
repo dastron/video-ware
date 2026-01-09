@@ -9,7 +9,7 @@ import {
 
 /**
  * Module for recommendation generation tasks
- * 
+ *
  * Provides:
  * - Media recommendation generation
  * - Timeline recommendation generation (future)

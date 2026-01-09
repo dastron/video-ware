@@ -18,7 +18,14 @@ interface DragData {
 }
 
 export function TimelineTrack() {
-  const { timeline, reorderClips, addClip, isLoading } = useTimeline();
+  const {
+    timeline,
+    reorderClips,
+    addClip,
+    isLoading,
+    selectedClipId,
+    setSelectedClipId,
+  } = useTimeline();
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
   const [isDropZoneActive, setIsDropZoneActive] = useState(false);
@@ -251,6 +258,8 @@ export function TimelineTrack() {
                 onDragStart={() => handleDragStart(index)}
                 onDragEnd={handleDragEnd}
                 isDragging={draggedIndex === index}
+                isSelected={selectedClipId === clip.id}
+                onSelect={() => setSelectedClipId(clip.id)}
               />
             </div>
           </React.Fragment>

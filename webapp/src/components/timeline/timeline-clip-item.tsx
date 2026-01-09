@@ -43,6 +43,8 @@ interface TimelineClipItemProps {
   onDragStart: () => void;
   onDragEnd: () => void;
   isDragging: boolean;
+  isSelected?: boolean;
+  onSelect?: () => void;
   className?: string;
 }
 
@@ -51,6 +53,8 @@ export function TimelineClipItem({
   onDragStart,
   onDragEnd,
   isDragging,
+  isSelected = false,
+  onSelect,
   className,
 }: TimelineClipItemProps) {
   const { removeClip, updateClipTimes } = useTimeline();
@@ -177,12 +181,14 @@ export function TimelineClipItem({
         draggable
         onDragStart={onDragStart}
         onDragEnd={onDragEnd}
+        onClick={onSelect}
         onMouseEnter={() => setIsHovering(true)}
         onMouseLeave={() => setIsHovering(false)}
         className={cn(
           'relative w-48 cursor-move transition-all overflow-hidden group',
           'p-0 gap-0', // Remove default Card padding and gap
           isDragging && 'opacity-50 scale-95',
+          isSelected && 'ring-2 ring-primary ring-offset-2',
           className
         )}
       >

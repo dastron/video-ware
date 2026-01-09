@@ -2,6 +2,7 @@ import {
   TranscodeStepType,
   RenderStepType,
   DetectLabelsStepType,
+  RecommendationStepType,
 } from '../types/step.types';
 
 /**
@@ -61,6 +62,16 @@ export const STEP_JOB_OPTIONS: Record<string, StepJobOptions> = {
   [DetectLabelsStepType.UPLOAD_TO_GCS]: {
     attempts: 3,
     backoff: 60000, // 1 minute
+  },
+
+  // Recommendation steps
+  [RecommendationStepType.GENERATE_MEDIA_RECOMMENDATIONS]: {
+    attempts: 3,
+    backoff: 30000, // 30 seconds
+  },
+  [RecommendationStepType.GENERATE_TIMELINE_RECOMMENDATIONS]: {
+    attempts: 3,
+    backoff: 30000, // 30 seconds
   },
 };
 

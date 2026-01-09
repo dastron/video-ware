@@ -15,6 +15,24 @@ import {
   RecommendationTargetMode,
 } from '@project/shared';
 
+// Helper function to convert null to undefined recursively
+function nullToUndefined<T>(value: T | null): T | undefined {
+  if (value === null) {
+    return undefined;
+  }
+  if (Array.isArray(value)) {
+    return value.map(nullToUndefined) as T;
+  }
+  if (typeof value === 'object' && value !== null) {
+    const result: Record<string, unknown> = {};
+    for (const [key, val] of Object.entries(value)) {
+      result[key] = nullToUndefined(val);
+    }
+    return result as T;
+  }
+  return value as T;
+}
+
 // Arbitraries for generating test data
 const strategyArbitrary = fc.constantFrom(
   RecommendationStrategy.SAME_ENTITY,
@@ -35,46 +53,71 @@ const targetModeArbitrary = fc.constantFrom(
   RecommendationTargetMode.REPLACE
 );
 
-const filterParamsArbitrary = fc.record({
-  labelTypes: fc.option(fc.array(labelTypeArbitrary, { minLength: 1, maxLength: 4 })),
-  minConfidence: fc.option(fc.float({ min: 0, max: 1 })),
-  durationRange: fc.option(
-    fc.record({
-      min: fc.float({ min: 0, max: 100 }),
-      max: fc.float({ min: 100, max: 1000 }),
-    })
-  ),
-});
+const filterParamsArbitrary = fc
+  .record({
+    labelTypes: fc.option(
+      fc.array(labelTypeArbitrary, { minLength: 1, maxLength: 4 })
+    ),
+    minConfidence: fc.option(fc.float({ min: 0, max: 1 })),
+    durationRange: fc.option(
+      fc.record({
+        min: fc.float({ min: 0, max: 100 }),
+        max: fc.float({ min: 100, max: 1000 }),
+      })
+    ),
+  })
+  .map(nullToUndefined);
 
-const searchParamsArbitrary = fc.record({
-  labelTypes: fc.option(fc.array(labelTypeArbitrary, { minLength: 1, maxLength: 4 })),
-  minConfidence: fc.option(fc.float({ min: 0, max: 1 })),
-  durationRange: fc.option(
-    fc.record({
-      min: fc.float({ min: 0, max: 100 }),
-      max: fc.float({ min: 100, max: 1000 }),
-    })
-  ),
-  timeWindow: fc.option(fc.integer({ min: 1, max: 3600 })),
-});
+const searchParamsArbitrary = fc
+  .record({
+    labelTypes: fc.option(
+      fc.array(labelTypeArbitrary, { minLength: 1, maxLength: 4 })
+    ),
+    minConfidence: fc.option(fc.float({ min: 0, max: 1 })),
+    durationRange: fc.option(
+      fc.record({
+        min: fc.float({ min: 0, max: 100 }),
+        max: fc.float({ min: 100, max: 1000 }),
+      })
+    ),
+    timeWindow: fc.option(fc.integer({ min: 1, max: 3600 })),
+  })
+  .map(nullToUndefined);
 
-const mediaQueryHashInputArbitrary = fc.record({
-  workspaceId: fc.uuid(),
-  mediaId: fc.uuid(),
-  mediaVersion: fc.integer({ min: 1, max: 1000 }),
-  strategies: fc.array(strategyArbitrary, { minLength: 1, maxLength: 4 }),
-  filterParams: fc.option(filterParamsArbitrary),
-});
+const mediaQueryHashInputArbitrary = fc
+  .record({
+    workspaceId: fc.uuid(),
+    mediaId: fc.uuid(),
+    mediaVersion: fc.integer({ min: 1, max: 1000 }),
+    strategies: fc.array(strategyArbitrary, { minLength: 1, maxLength: 4 }),
+    filterParams: fc.option(filterParamsArbitrary),
+  })
+  .map(
+    (input) =>
+      ({
+        ...input,
+        filterParams: nullToUndefined(input.filterParams),
+      }) as MediaQueryHashInput
+  );
 
-const timelineQueryHashInputArbitrary = fc.record({
-  workspaceId: fc.uuid(),
-  timelineId: fc.uuid(),
-  mediaVersion: fc.integer({ min: 1, max: 1000 }),
-  seedClipId: fc.option(fc.uuid()),
-  targetMode: targetModeArbitrary,
-  strategies: fc.array(strategyArbitrary, { minLength: 1, maxLength: 4 }),
-  searchParams: fc.option(searchParamsArbitrary),
-});
+const timelineQueryHashInputArbitrary = fc
+  .record({
+    workspaceId: fc.uuid(),
+    timelineId: fc.uuid(),
+    mediaVersion: fc.integer({ min: 1, max: 1000 }),
+    seedClipId: fc.option(fc.uuid()),
+    targetMode: targetModeArbitrary,
+    strategies: fc.array(strategyArbitrary, { minLength: 1, maxLength: 4 }),
+    searchParams: fc.option(searchParamsArbitrary),
+  })
+  .map(
+    (input) =>
+      ({
+        ...input,
+        seedClipId: nullToUndefined(input.seedClipId),
+        searchParams: nullToUndefined(input.searchParams),
+      }) as TimelineQueryHashInput
+  );
 
 describe('Query Hash Properties', () => {
   describe('Property 12: Query Hash Determinism', () => {
@@ -83,7 +126,7 @@ describe('Query Hash Properties', () => {
         fc.property(mediaQueryHashInputArbitrary, (input) => {
           const hash1 = buildMediaQueryHash(input);
           const hash2 = buildMediaQueryHash(input);
-          
+
           expect(hash1).toBe(hash2);
           expect(hash1).toHaveLength(32);
           expect(hash1).toMatch(/^[0-9a-f]{32}$/);
@@ -97,7 +140,7 @@ describe('Query Hash Properties', () => {
         fc.property(timelineQueryHashInputArbitrary, (input) => {
           const hash1 = buildTimelineQueryHash(input);
           const hash2 = buildTimelineQueryHash(input);
-          
+
           expect(hash1).toBe(hash2);
           expect(hash1).toHaveLength(32);
           expect(hash1).toMatch(/^[0-9a-f]{32}$/);
@@ -113,10 +156,13 @@ describe('Query Hash Properties', () => {
           fc.integer({ min: 1, max: 1000 }),
           (input, newVersion) => {
             fc.pre(input.mediaVersion !== newVersion);
-            
+
             const hash1 = buildMediaQueryHash(input);
-            const hash2 = buildMediaQueryHash({ ...input, mediaVersion: newVersion });
-            
+            const hash2 = buildMediaQueryHash({
+              ...input,
+              mediaVersion: newVersion,
+            });
+
             expect(hash1).not.toBe(hash2);
           }
         ),
@@ -131,10 +177,13 @@ describe('Query Hash Properties', () => {
           fc.uuid(),
           (input, newWorkspaceId) => {
             fc.pre(input.workspaceId !== newWorkspaceId);
-            
+
             const hash1 = buildMediaQueryHash(input);
-            const hash2 = buildMediaQueryHash({ ...input, workspaceId: newWorkspaceId });
-            
+            const hash2 = buildMediaQueryHash({
+              ...input,
+              workspaceId: newWorkspaceId,
+            });
+
             expect(hash1).not.toBe(hash2);
           }
         ),
@@ -149,10 +198,13 @@ describe('Query Hash Properties', () => {
           fc.uuid(),
           (input, newMediaId) => {
             fc.pre(input.mediaId !== newMediaId);
-            
+
             const hash1 = buildMediaQueryHash(input);
-            const hash2 = buildMediaQueryHash({ ...input, mediaId: newMediaId });
-            
+            const hash2 = buildMediaQueryHash({
+              ...input,
+              mediaId: newMediaId,
+            });
+
             expect(hash1).not.toBe(hash2);
           }
         ),
@@ -166,11 +218,16 @@ describe('Query Hash Properties', () => {
           mediaQueryHashInputArbitrary,
           fc.array(strategyArbitrary, { minLength: 1, maxLength: 4 }),
           (input, newStrategies) => {
-            fc.pre(JSON.stringify(input.strategies) !== JSON.stringify(newStrategies));
-            
+            fc.pre(
+              JSON.stringify(input.strategies) !== JSON.stringify(newStrategies)
+            );
+
             const hash1 = buildMediaQueryHash(input);
-            const hash2 = buildMediaQueryHash({ ...input, strategies: newStrategies });
-            
+            const hash2 = buildMediaQueryHash({
+              ...input,
+              strategies: newStrategies,
+            });
+
             expect(hash1).not.toBe(hash2);
           }
         ),
@@ -185,10 +242,16 @@ describe('Query Hash Properties', () => {
           fc.uuid(),
           (input, newSeedClipId) => {
             fc.pre(input.seedClipId !== newSeedClipId);
-            
+
             const hash1 = buildTimelineQueryHash(input);
-            const hash2 = buildTimelineQueryHash({ ...input, seedClipId: newSeedClipId });
-            
+            const hash2 = buildTimelineQueryHash({
+              ...input,
+              seedClipId: newSeedClipId,
+              searchParams: input.searchParams
+                ? nullToUndefined(input.searchParams)
+                : undefined,
+            } as TimelineQueryHashInput);
+
             expect(hash1).not.toBe(hash2);
           }
         ),
@@ -203,10 +266,16 @@ describe('Query Hash Properties', () => {
             input.targetMode === RecommendationTargetMode.APPEND
               ? RecommendationTargetMode.REPLACE
               : RecommendationTargetMode.APPEND;
-          
+
           const hash1 = buildTimelineQueryHash(input);
-          const hash2 = buildTimelineQueryHash({ ...input, targetMode: oppositeMode });
-          
+          const hash2 = buildTimelineQueryHash({
+            ...input,
+            targetMode: oppositeMode,
+            searchParams: input.searchParams
+              ? nullToUndefined(input.searchParams)
+              : undefined,
+          } as TimelineQueryHashInput);
+
           expect(hash1).not.toBe(hash2);
         }),
         { numRuns: 100 }
@@ -219,11 +288,18 @@ describe('Query Hash Properties', () => {
           mediaQueryHashInputArbitrary,
           filterParamsArbitrary,
           (input, newFilterParams) => {
-            fc.pre(JSON.stringify(input.filterParams) !== JSON.stringify(newFilterParams));
-            
+            fc.pre(
+              JSON.stringify(input.filterParams) !==
+                JSON.stringify(newFilterParams)
+            );
+
             const hash1 = buildMediaQueryHash(input);
-            const hash2 = buildMediaQueryHash({ ...input, filterParams: newFilterParams });
-            
+            const hash2 = buildMediaQueryHash({
+              ...input,
+              filterParams:
+                newFilterParams as MediaQueryHashInput['filterParams'],
+            });
+
             expect(hash1).not.toBe(hash2);
           }
         ),
@@ -237,11 +313,19 @@ describe('Query Hash Properties', () => {
           timelineQueryHashInputArbitrary,
           searchParamsArbitrary,
           (input, newSearchParams) => {
-            fc.pre(JSON.stringify(input.searchParams) !== JSON.stringify(newSearchParams));
-            
+            fc.pre(
+              JSON.stringify(input.searchParams) !==
+                JSON.stringify(newSearchParams)
+            );
+
             const hash1 = buildTimelineQueryHash(input);
-            const hash2 = buildTimelineQueryHash({ ...input, searchParams: newSearchParams });
-            
+            const hash2 = buildTimelineQueryHash({
+              ...input,
+              searchParams: newSearchParams
+                ? nullToUndefined(newSearchParams)
+                : undefined,
+            } as TimelineQueryHashInput);
+
             expect(hash1).not.toBe(hash2);
           }
         ),
@@ -254,10 +338,10 @@ describe('Query Hash Properties', () => {
         fc.property(mediaQueryHashInputArbitrary, (input) => {
           // Deep clone the input to ensure no reference sharing
           const clonedInput = JSON.parse(JSON.stringify(input));
-          
+
           const hash1 = buildMediaQueryHash(input);
           const hash2 = buildMediaQueryHash(clonedInput);
-          
+
           expect(hash1).toBe(hash2);
         }),
         { numRuns: 100 }
@@ -279,17 +363,17 @@ describe('Query Hash Properties', () => {
               strategies,
               filterParams: undefined,
             };
-            
+
             const inputWithoutField: MediaQueryHashInput = {
               workspaceId,
               mediaId,
               mediaVersion,
               strategies,
             };
-            
+
             const hash1 = buildMediaQueryHash(inputWithUndefined);
             const hash2 = buildMediaQueryHash(inputWithoutField);
-            
+
             // Both should produce the same hash since undefined is omitted in JSON.stringify
             expect(hash1).toBe(hash2);
           }

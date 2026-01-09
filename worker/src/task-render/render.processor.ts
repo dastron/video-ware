@@ -3,6 +3,7 @@ import { Logger } from '@nestjs/common';
 import { Job } from 'bull';
 import { QUEUE_NAMES } from '../queue/queue.constants';
 import { FlowService } from '../queue/flow.service';
+import { RenderFlowBuilder } from '../queue/flows';
 import { PocketBaseService } from '../shared/services/pocketbase.service';
 import { Task, TaskStatus } from '@project/shared';
 
@@ -25,7 +26,8 @@ export class RenderProcessor {
       await this.updateTaskStatus(task.id, TaskStatus.RUNNING, 0);
 
       // Create the render flow (new flow-based architecture)
-      const parentJobId = await this.flowService.createFlow(task);
+      const flowDefinition = RenderFlowBuilder.buildFlow(task);
+      const parentJobId = await this.flowService.addFlow(flowDefinition);
 
       this.logger.log(
         `Render flow created for task ${task.id}, parent job: ${parentJobId}`

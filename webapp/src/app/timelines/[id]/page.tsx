@@ -1,12 +1,15 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { useWorkspace } from '@/hooks/use-workspace';
 import { TimelineProvider } from '@/contexts/timeline-context';
+import { TimelineRecommendationProvider } from '@/contexts/timeline-recommendation-context';
 import { TimelineEditor } from '@/components/timeline/timeline-editor';
 import { ClipBrowser } from '@/components/timeline/clip-browser';
+import { TimelineRecommendationsPanel } from '@/components/recommendations/timeline-recommendations-panel';
+import { useTimelineRecommendations } from '@/hooks/use-timeline-recommendations';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,6 +22,8 @@ import {
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { useTimeline } from '@/hooks/use-timeline';
+import type { TimelineRecommendation } from '@project/shared';
+import { RecommendationTargetMode } from '@project/shared';
 
 function TimelineHeaderInfo() {
   const { timeline } = useTimeline();
@@ -62,6 +67,115 @@ function TimelineHeaderInfo() {
         </span>
       </div>
     </div>
+  );
+}
+
+function TimelineRecommendationsPanelWrapper() {
+  const { selectedClipId, removeClip, timeline } = useTimeline();
+  const {
+    recommendations,
+    isLoading,
+    acceptRecommendation,
+    dismissRecommendation,
+    generateRecommendations,
+  } = useTimelineRecommendations();
+
+  // Get effective clip ID: use selected clip if available, otherwise use last clip in timeline
+  const effectiveClipId = useMemo(() => {
+    if (selectedClipId) {
+      return selectedClipId;
+    }
+
+    // If no clip is selected, use the last clip in the timeline (by order)
+    if (timeline && timeline.clips.length > 0) {
+      const sortedClips = [...timeline.clips].sort((a, b) => a.order - b.order);
+      return sortedClips[sortedClips.length - 1].id;
+    }
+
+    return null;
+  }, [selectedClipId, timeline]);
+
+  // Handle Add action - append clip to timeline
+  const handleAdd = async (recommendation: TimelineRecommendation) => {
+    try {
+      // acceptRecommendation already creates the TimelineClip
+      await acceptRecommendation(recommendation.id);
+    } catch (error) {
+      console.error('Failed to add recommendation:', error);
+      alert(error instanceof Error ? error.message : 'Failed to add clip');
+    }
+  };
+
+  // Handle Replace action - substitute selected clip
+  const handleReplace = async (recommendation: TimelineRecommendation) => {
+    if (!effectiveClipId) {
+      alert('No clip available to replace');
+      return;
+    }
+
+    try {
+      // First remove the effective clip
+      await removeClip(effectiveClipId);
+      // Then accept the recommendation (which creates the new TimelineClip)
+      await acceptRecommendation(recommendation.id);
+    } catch (error) {
+      console.error('Failed to replace clip:', error);
+      alert(error instanceof Error ? error.message : 'Failed to replace clip');
+    }
+  };
+
+  // Handle Dismiss action - hide and record feedback
+  const handleDismiss = async (recommendation: TimelineRecommendation) => {
+    try {
+      await dismissRecommendation(recommendation.id);
+    } catch (error) {
+      console.error('Failed to dismiss recommendation:', error);
+      alert(
+        error instanceof Error
+          ? error.message
+          : 'Failed to dismiss recommendation'
+      );
+    }
+  };
+
+  // Handle "More like this" - trigger regeneration by creating a task
+  const handleMoreLikeThis = async () => {
+    if (!timeline) {
+      alert('No timeline loaded');
+      return;
+    }
+
+    try {
+      // Generate recommendations by creating a background task
+      // Use effective clip ID (selected or last clip) as seed
+      await generateRecommendations({
+        timelineId: timeline.id,
+        seedClipId: effectiveClipId || undefined,
+        targetMode: RecommendationTargetMode.APPEND, // Default to append mode for "more like this"
+        maxResults: 20, // Generate up to 20 recommendations
+      });
+      // Task has been created - recommendations will appear via real-time subscription
+      // The loading state will be handled by the context
+    } catch (error) {
+      console.error('Failed to generate recommendations:', error);
+      alert(
+        error instanceof Error
+          ? error.message
+          : 'Failed to generate recommendations'
+      );
+    }
+  };
+
+  return (
+    <TimelineRecommendationsPanel
+      recommendations={recommendations}
+      isLoading={isLoading}
+      onAdd={handleAdd}
+      onReplace={handleReplace}
+      onDismiss={handleDismiss}
+      onMoreLikeThis={handleMoreLikeThis}
+      className="mt-6"
+    />
   );
 }
 
@@ -112,78 +226,83 @@ function TimelineEditorPageContent() {
 
   return (
     <TimelineProvider timelineId={timelineId}>
-      <div className="flex flex-col h-[calc(100vh-4rem)]">
-        {/* Main Content - Timeline Editor */}
-        <div
-          className="flex-1 overflow-auto"
-          style={{ height: `calc(100vh - 4rem - ${clipBrowserHeight}px)` }}
-        >
-          <div className="container mx-auto px-4 pt-4 pb-4 max-w-7xl">
-            {/* Timeline Editor - Track First */}
-            <TimelineEditor />
+      <TimelineRecommendationProvider timelineId={timelineId}>
+        <div className="flex flex-col h-[calc(100vh-4rem)]">
+          {/* Main Content - Timeline Editor */}
+          <div
+            className="flex-1 overflow-auto"
+            style={{ height: `calc(100vh - 4rem - ${clipBrowserHeight}px)` }}
+          >
+            <div className="container mx-auto px-4 pt-4 pb-4 max-w-7xl">
+              {/* Timeline Editor - Track First */}
+              <TimelineEditor />
 
-            {/* Header Info and Controls Below Timeline */}
-            <div className="mt-6 space-y-4">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => router.push('/timelines')}
-                  className="gap-2"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  <span className="hidden sm:inline">Back to Timelines</span>
-                  <span className="sm:hidden">Back</span>
-                </Button>
+              {/* Header Info and Controls Below Timeline */}
+              <div className="mt-6 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => router.push('/timelines')}
+                    className="gap-2"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    <span className="hidden sm:inline">Back to Timelines</span>
+                    <span className="sm:hidden">Back</span>
+                  </Button>
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <TimelineHeaderInfo />
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      router.push(`/timelines/${timelineId}/renders`)
+                    }
+                    className="gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    <span className="hidden sm:inline">View Renders</span>
+                    <span className="sm:hidden">Renders</span>
+                  </Button>
+                </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <TimelineHeaderInfo />
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    router.push(`/timelines/${timelineId}/renders`)
-                  }
-                  className="gap-2"
-                >
-                  <Download className="h-4 w-4" />
-                  <span className="hidden sm:inline">View Renders</span>
-                  <span className="sm:hidden">Renders</span>
-                </Button>
+              {/* Timeline Recommendations Panel - Shows when clip is selected */}
+              <TimelineRecommendationsPanelWrapper />
+            </div>
+          </div>
+
+          {/* Resize Handle */}
+          <div
+            onMouseDown={handleMouseDown}
+            className={cn(
+              'h-1 bg-border hover:bg-primary/50 cursor-ns-resize transition-colors',
+              'relative group',
+              isResizing && 'bg-primary'
+            )}
+          >
+            <div className="absolute inset-x-0 -top-1 -bottom-1" />
+            {/* Visual indicator */}
+            <div className="absolute left-1/2 -translate-x-1/2 -top-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex flex-col gap-0.5">
+                <div className="h-0.5 w-8 bg-muted-foreground/50 rounded" />
+                <div className="h-0.5 w-8 bg-muted-foreground/50 rounded" />
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Resize Handle */}
-        <div
-          onMouseDown={handleMouseDown}
-          className={cn(
-            'h-1 bg-border hover:bg-primary/50 cursor-ns-resize transition-colors',
-            'relative group',
-            isResizing && 'bg-primary'
-          )}
-        >
-          <div className="absolute inset-x-0 -top-1 -bottom-1" />
-          {/* Visual indicator */}
-          <div className="absolute left-1/2 -translate-x-1/2 -top-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            <div className="flex flex-col gap-0.5">
-              <div className="h-0.5 w-8 bg-muted-foreground/50 rounded" />
-              <div className="h-0.5 w-8 bg-muted-foreground/50 rounded" />
+          {/* Bottom: Clip Browser Cards */}
+          <div
+            className="border-t bg-background overflow-hidden"
+            style={{ height: `${clipBrowserHeight}px` }}
+          >
+            <div className="h-full">
+              <ClipBrowser height={clipBrowserHeight} />
             </div>
           </div>
         </div>
-
-        {/* Bottom: Clip Browser Cards */}
-        <div
-          className="border-t bg-background overflow-hidden"
-          style={{ height: `${clipBrowserHeight}px` }}
-        >
-          <div className="h-full">
-            <ClipBrowser height={clipBrowserHeight} />
-          </div>
-        </div>
-      </div>
+      </TimelineRecommendationProvider>
     </TimelineProvider>
   );
 }

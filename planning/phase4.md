@@ -30,7 +30,7 @@ Suggested fields:
 - `timelineRef` (relation, nullable) — when recommending inside a specific timeline
 - `mediaRef` (relation) — media the recommended clip belongs to
 - `seedClipRef` (relation, nullable) — the clip the user is currently editing/has just placed (context)
-- `recommendedClipRef` (relation to `media_clips`) — the actual clip being suggested
+- `MediaClipRef` (relation to `media_clips`) — the actual clip being suggested
 - `score` (number)
 - `rank` (number) — precomputed ordering for fast UI
 - `reason` (text) — human-readable, short (“same person”, “same scene”, “adjacent shot”)
@@ -46,7 +46,7 @@ Suggested fields:
 Enforce limits at write-time and with scheduled pruning:
 - **Top-N per context**: keep only N recommendations per `(timelineRef, seedClipRef)` and/or `(timelineRef, mediaRef)`.
 - **TTL**: delete expired recommendations regularly.
-- **Dedup**: unique `(queryHash, recommendedClipRef)` behavior via “upsert then reorder ranks”.
+- **Dedup**: unique `(queryHash, MediaClipRef)` behavior via “upsert then reorder ranks”.
 
 Recommended starting values:
 - `N = 20` per context
@@ -73,7 +73,7 @@ Keep spatial similarity (“similar location in frame”) as an optional enhance
 The end state is “label-driven clip search + easy timeline build”, with recommendations as a shortcut:
 
 Minimum UI behaviors:
-- When a timeline item is selected (or a clip is dropped), show “Suggested next clips”.
+- When a timeline item is selected (or a clip is dropped), show “Recommendations”.
 - Each suggestion shows:
   - thumbnail/preview (sprite hover)
   - clip label (entity name, shot index, etc.)
@@ -107,7 +107,7 @@ This keeps heavy querying out of the UI thread and makes recommendations reprodu
 Write path rules:
 - Compute candidates and scores in memory.
 - Sort and take top N.
-- Upsert by `(queryHash, recommendedClipRef)` (update score/rank/reason).
+- Upsert by `(queryHash, MediaClipRef)` (update score/rank/reason).
 - Set `expiresAt = now + TTL`.
 - Prune any recommendations beyond top N for the same `queryHash` (or context grouping).
 
@@ -115,7 +115,7 @@ Write path rules:
 - Subscribe to `label_recommendations` for the current context (`queryHash`) or poll after enqueueing.
 - Add “Generate suggestions” (explicit) first; later it can auto-run on selection change with debounce.
 - Implement accept/dismiss:
-  - Accept: add `recommendedClipRef` into timeline items; set `acceptedAt`.
+  - Accept: add `MediaClipRef` into timeline items; set `acceptedAt`.
   - Dismiss: set `dismissedAt` (and optionally hide it immediately).
 
 ### 5) Feedback capture

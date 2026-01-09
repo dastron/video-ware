@@ -25,13 +25,13 @@ export class AdjacentShotStrategy extends BaseRecommendationStrategy {
    * Scores based on temporal proximity and shot confidence.
    */
   async executeForMedia(
-    context: MediaStrategyContext,
+    context: MediaStrategyContext
   ): Promise<ScoredMediaCandidate[]> {
     const candidates: ScoredMediaCandidate[] = [];
 
     // Filter for shot-type label clips only
     const shotClips = context.labelClips.filter(
-      (lc) => lc.labelType === LabelType.SHOT,
+      (lc) => lc.labelType === LabelType.SHOT
     );
 
     if (shotClips.length === 0) {
@@ -59,7 +59,7 @@ export class AdjacentShotStrategy extends BaseRecommendationStrategy {
             confidence: currentShot.confidence,
             labelType,
           },
-          context.filterParams,
+          context.filterParams
         )
       ) {
         continue;
@@ -68,13 +68,13 @@ export class AdjacentShotStrategy extends BaseRecommendationStrategy {
       // Previous shot
       if (i > 0) {
         const prevShot = sortedShots[i - 1];
-        
+
         // Check if previous shot matches an existing MediaClip
         const matchingClip = context.existingClips.find(
           (mc) =>
             mc.MediaRef === context.media.id &&
             Math.abs(mc.start - prevShot.start) < 0.1 &&
-            Math.abs(mc.end - prevShot.end) < 0.1,
+            Math.abs(mc.end - prevShot.end) < 0.1
         );
 
         // Score based on confidence and temporal proximity
@@ -102,13 +102,13 @@ export class AdjacentShotStrategy extends BaseRecommendationStrategy {
       // Next shot
       if (i < sortedShots.length - 1) {
         const nextShot = sortedShots[i + 1];
-        
+
         // Check if next shot matches an existing MediaClip
         const matchingClip = context.existingClips.find(
           (mc) =>
             mc.MediaRef === context.media.id &&
             Math.abs(mc.start - nextShot.start) < 0.1 &&
-            Math.abs(mc.end - nextShot.end) < 0.1,
+            Math.abs(mc.end - nextShot.end) < 0.1
         );
 
         // Score based on confidence and temporal proximity
@@ -144,7 +144,7 @@ export class AdjacentShotStrategy extends BaseRecommendationStrategy {
    * Prioritizes shots immediately before or after in the sequence.
    */
   async executeForTimeline(
-    context: TimelineStrategyContext,
+    context: TimelineStrategyContext
   ): Promise<ScoredTimelineCandidate[]> {
     const candidates: ScoredTimelineCandidate[] = [];
 
@@ -159,7 +159,7 @@ export class AdjacentShotStrategy extends BaseRecommendationStrategy {
         lc.labelType === LabelType.SHOT &&
         lc.MediaRef === context.seedClip!.MediaRef &&
         lc.start >= context.seedClip!.start &&
-        lc.end <= context.seedClip!.end,
+        lc.end <= context.seedClip!.end
     );
 
     if (seedShotClips.length === 0) {
@@ -171,7 +171,7 @@ export class AdjacentShotStrategy extends BaseRecommendationStrategy {
       .filter(
         (lc) =>
           lc.labelType === LabelType.SHOT &&
-          lc.MediaRef === context.seedClip!.MediaRef,
+          lc.MediaRef === context.seedClip!.MediaRef
       )
       .sort((a, b) => a.start - b.start);
 
@@ -188,7 +188,7 @@ export class AdjacentShotStrategy extends BaseRecommendationStrategy {
           shotIndex - 1,
           'previous',
           context,
-          candidates,
+          candidates
         );
       }
 
@@ -200,7 +200,7 @@ export class AdjacentShotStrategy extends BaseRecommendationStrategy {
           shotIndex + 1,
           'next',
           context,
-          candidates,
+          candidates
         );
       }
     }
@@ -216,7 +216,7 @@ export class AdjacentShotStrategy extends BaseRecommendationStrategy {
     shotIndex: number,
     direction: 'previous' | 'next',
     context: TimelineStrategyContext,
-    candidates: ScoredTimelineCandidate[],
+    candidates: ScoredTimelineCandidate[]
   ): Promise<void> {
     // Find clips that contain this shot
     for (const clip of context.availableClips) {
@@ -227,7 +227,7 @@ export class AdjacentShotStrategy extends BaseRecommendationStrategy {
       ) {
         // Skip if clip is already in timeline
         const alreadyInTimeline = context.timelineClips.some(
-          (tc) => tc.MediaClipRef === clip.id,
+          (tc) => tc.MediaClipRef === clip.id
         );
         if (alreadyInTimeline) continue;
 

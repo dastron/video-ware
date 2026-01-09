@@ -1,10 +1,7 @@
 import { RecordService } from 'pocketbase';
 import type { ListResult } from 'pocketbase';
 import { MediaRecommendationInputSchema } from '../schema';
-import type {
-  MediaRecommendation,
-  MediaRecommendationInput,
-} from '../schema';
+import type { MediaRecommendation, MediaRecommendationInput } from '../schema';
 import type { TypedPocketBase } from '../types';
 import { BaseMutator, type MutatorOptions } from './base';
 import { LabelType, RecommendationStrategy } from '../enums';
@@ -47,7 +44,13 @@ export class MediaRecommendationMutator extends BaseMutator<
 
   protected setDefaults(): MutatorOptions {
     return {
-      expand: ['WorkspaceRef', 'MediaRef', 'MediaClipRef'],
+      expand: [
+        'WorkspaceRef',
+        'MediaRef',
+        'MediaRef.spriteFileRef',
+        'MediaRef.thumbnailFileRef',
+        'MediaClipRef',
+      ],
       filter: [],
       sort: ['rank', 'start'], // Sort by rank first, then start time
     };
@@ -131,7 +134,13 @@ export class MediaRecommendationMutator extends BaseMutator<
       perPage,
       filters,
       'rank,start', // Sort by rank first, then start time
-      ['MediaRef', 'WorkspaceRef', 'MediaClipRef']
+      [
+        'MediaRef',
+        'MediaRef.spriteFileRef',
+        'MediaRef.thumbnailFileRef',
+        'WorkspaceRef',
+        'MediaClipRef',
+      ]
     );
   }
 
@@ -191,7 +200,13 @@ export class MediaRecommendationMutator extends BaseMutator<
       perPage,
       filters,
       'rank,start', // Sort by rank first, then start time
-      ['MediaRef', 'WorkspaceRef', 'MediaClipRef']
+      [
+        'MediaRef',
+        'MediaRef.spriteFileRef',
+        'MediaRef.thumbnailFileRef',
+        'WorkspaceRef',
+        'MediaClipRef',
+      ]
     );
   }
 
@@ -212,7 +227,13 @@ export class MediaRecommendationMutator extends BaseMutator<
       perPage,
       `WorkspaceRef = "${workspaceId}"`,
       'rank,start', // Sort by rank first, then start time
-      ['MediaRef', 'WorkspaceRef', 'MediaClipRef']
+      [
+        'MediaRef',
+        'MediaRef.spriteFileRef',
+        'MediaRef.thumbnailFileRef',
+        'WorkspaceRef',
+        'MediaClipRef',
+      ]
     );
   }
 
@@ -279,7 +300,13 @@ export class MediaRecommendationMutator extends BaseMutator<
       perPage,
       filters,
       'rank,start', // Sort by rank first, then start time
-      ['MediaRef', 'WorkspaceRef', 'MediaClipRef']
+      [
+        'MediaRef',
+        'WorkspaceRef',
+        'MediaClipRef',
+        'MediaRef.spriteFileRef',
+        'MediaRef.thumbnailFileRef',
+      ]
     );
   }
 
@@ -289,9 +316,7 @@ export class MediaRecommendationMutator extends BaseMutator<
    * @param input The recommendation input data
    * @returns The created or updated recommendation
    */
-  async upsert(
-    input: MediaRecommendationInput
-  ): Promise<MediaRecommendation> {
+  async upsert(input: MediaRecommendationInput): Promise<MediaRecommendation> {
     // First, try to find existing recommendation with same queryHash, start, and end
     const existing = await this.getFirstByFilter(
       `queryHash = "${input.queryHash}" && start = ${input.start} && end = ${input.end}`
@@ -321,7 +346,13 @@ export class MediaRecommendationMutator extends BaseMutator<
       limit,
       `queryHash = "${queryHash}"`,
       'rank,start', // Sort by rank first, then start time
-      ['MediaRef', 'WorkspaceRef', 'MediaClipRef']
+      [
+        'MediaRef',
+        'MediaRef.spriteFileRef',
+        'MediaRef.thumbnailFileRef',
+        'WorkspaceRef',
+        'MediaClipRef',
+      ]
     );
     return result.items;
   }
@@ -345,7 +376,13 @@ export class MediaRecommendationMutator extends BaseMutator<
       perPage,
       `MediaRef = "${mediaId}" && labelType = "${labelType}"`,
       'rank,start', // Sort by rank first, then start time
-      ['MediaRef', 'WorkspaceRef', 'MediaClipRef']
+      [
+        'MediaRef',
+        'MediaRef.spriteFileRef',
+        'MediaRef.thumbnailFileRef',
+        'WorkspaceRef',
+        'MediaClipRef',
+      ]
     );
   }
 
@@ -415,7 +452,13 @@ export class MediaRecommendationMutator extends BaseMutator<
       perPage,
       filters,
       'rank,start', // Sort by rank first, then start time
-      ['MediaRef', 'WorkspaceRef', 'MediaClipRef']
+      [
+        'MediaRef',
+        'MediaRef.spriteFileRef',
+        'MediaRef.thumbnailFileRef',
+        'WorkspaceRef',
+        'MediaClipRef',
+      ]
     );
   }
 }

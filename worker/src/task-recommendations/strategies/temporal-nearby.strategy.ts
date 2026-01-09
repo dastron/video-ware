@@ -29,7 +29,7 @@ export class TemporalNearbyStrategy extends BaseRecommendationStrategy {
    * creating clusters of related content.
    */
   async executeForMedia(
-    context: MediaStrategyContext,
+    context: MediaStrategyContext
   ): Promise<ScoredMediaCandidate[]> {
     const candidates: ScoredMediaCandidate[] = [];
 
@@ -38,7 +38,9 @@ export class TemporalNearbyStrategy extends BaseRecommendationStrategy {
       (context.filterParams as any).timeWindow || this.DEFAULT_TIME_WINDOW;
 
     // Group label clips by temporal proximity
-    const sortedClips = [...context.labelClips].sort((a, b) => a.start - b.start);
+    const sortedClips = [...context.labelClips].sort(
+      (a, b) => a.start - b.start
+    );
 
     for (let i = 0; i < sortedClips.length; i++) {
       const clip = sortedClips[i];
@@ -57,7 +59,7 @@ export class TemporalNearbyStrategy extends BaseRecommendationStrategy {
             confidence: clip.confidence,
             labelType,
           },
-          context.filterParams,
+          context.filterParams
         )
       ) {
         continue;
@@ -77,14 +79,14 @@ export class TemporalNearbyStrategy extends BaseRecommendationStrategy {
           (mc) =>
             mc.MediaRef === context.media.id &&
             Math.abs(mc.start - clip.start) < 0.1 &&
-            Math.abs(mc.end - clip.end) < 0.1,
+            Math.abs(mc.end - clip.end) < 0.1
         );
 
         // Calculate average time delta to nearby clips
         const avgTimeDelta =
           nearbyClips.reduce(
             (sum, other) => sum + Math.abs(other.start - clip.start),
-            0,
+            0
           ) / nearbyClips.length;
 
         // Score based on confidence and proximity to cluster
@@ -92,7 +94,7 @@ export class TemporalNearbyStrategy extends BaseRecommendationStrategy {
         const clusterBonus = Math.min(0.2, nearbyClips.length * 0.05); // Up to 0.2 bonus
         const score = Math.min(
           1,
-          (clip.confidence + proximityScore + clusterBonus) / 2,
+          (clip.confidence + proximityScore + clusterBonus) / 2
         );
 
         candidates.push({
@@ -121,7 +123,7 @@ export class TemporalNearbyStrategy extends BaseRecommendationStrategy {
    * Closer clips receive higher scores.
    */
   async executeForTimeline(
-    context: TimelineStrategyContext,
+    context: TimelineStrategyContext
   ): Promise<ScoredTimelineCandidate[]> {
     const candidates: ScoredTimelineCandidate[] = [];
 
@@ -138,7 +140,7 @@ export class TemporalNearbyStrategy extends BaseRecommendationStrategy {
     for (const clip of context.availableClips) {
       // Skip if clip is already in timeline
       const alreadyInTimeline = context.timelineClips.some(
-        (tc) => tc.MediaClipRef === clip.id,
+        (tc) => tc.MediaClipRef === clip.id
       );
       if (alreadyInTimeline) continue;
 
@@ -158,7 +160,7 @@ export class TemporalNearbyStrategy extends BaseRecommendationStrategy {
         (lc) =>
           lc.MediaRef === clip.MediaRef &&
           lc.start >= clip.start &&
-          lc.end <= clip.end,
+          lc.end <= clip.end
       );
 
       // Calculate average confidence

@@ -72,7 +72,7 @@ export const TimelineRecommendationInputSchema = z.object({
   WorkspaceRef: z.string().min(1, 'Workspace is required'),
   TimelineRef: z.string().min(1, 'Timeline is required'),
   SeedClipRef: z.string().optional(),
-  RecommendedClipRef: z.string().min(1, 'Recommended clip is required'),
+  MediaClipRef: z.string().min(1, 'Media clip is required'),
   score: z.number().min(0).max(1, 'Score must be between 0 and 1'),
   rank: z.number().int().min(0, 'Rank must be a non-negative integer'),
   reason: z.string().min(1).max(500, 'Reason must be 1-500 characters'),
@@ -98,7 +98,7 @@ export const TimelineRecommendationInputSchema = z.object({
  * TimelineRecommendations Collection Definition
  *
  * Indexes:
- * - Unique index on (queryHash, RecommendedClipRef) for upsert behavior
+ * - Unique index on (queryHash, MediaClipRef) for upsert behavior
  * - Index on (WorkspaceRef, TimelineRef, queryHash) for context lookups
  * - Index on (queryHash, rank) for ordered retrieval
  * - Index on (strategy, acceptedAt, dismissedAt) for analytics
@@ -120,7 +120,7 @@ export const TimelineRecommendationCollection = defineCollection({
   },
   indexes: [
     // Unique index for upsert behavior (queryHash + recommended clip)
-    'CREATE UNIQUE INDEX idx_timeline_rec_hash_clip ON TimelineRecommendations (queryHash, RecommendedClipRef)',
+    'CREATE UNIQUE INDEX idx_timeline_rec_hash_clip ON TimelineRecommendations (queryHash, MediaClipRef)',
     // Index for context lookups
     'CREATE INDEX idx_timeline_rec_context ON TimelineRecommendations (WorkspaceRef, TimelineRef, queryHash)',
     // Index for ordered retrieval

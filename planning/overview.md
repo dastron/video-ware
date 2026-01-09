@@ -34,7 +34,7 @@
 - Labelclips: workspaceRef, MediaRef, duration, start, end, labelType (object/shot/person/speech/etc), labelData (payload from detectors), source (google_videointel/transcoder/etc), version, confidence.
 - Task: workspaceRef, type, status, progress, priority, attempts, payload, result, errorLog; relations to Upload/Media/Clip where relevant.
 - Timeline (timeline feature): name, MediaRef (target output), ordered clip refs, editList blob (see below), render settings.
-- ClipRecommendation: workspaceRef, timelineRef?, seedClipRef?, recommendedClipRef, score/rank, reason, queryHash, expiresAt, acceptedAt/dismissedAt.
+- ClipRecommendation: workspaceRef, timelineRef?, seedClipRef?, MediaClipRef, score/rank, reason, queryHash, expiresAt, acceptedAt/dismissedAt.
 - EditList blob (app-level type): array of segments with `key`, `inputs[]`, `startTimeOffset`, `endTimeOffset` (seconds + nanos) for export and preview assembly.
 - Base detector fragments (from Google): BaseSegmentFragment, BaseFrameFragment, BaseReferenceFragment, BaseEntityFragment; store in labelData and normalized Labelclips rows for fast querying.
 

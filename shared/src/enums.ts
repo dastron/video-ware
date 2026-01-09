@@ -119,7 +119,8 @@ export enum TaskType {
   PROCESS_UPLOAD = 'process_upload',
   DERIVE_CLIPS = 'derive_clips',
   DETECT_LABELS = 'detect_labels',
-  RECOMMEND_CLIPS = 'recommend_clips',
+  GENERATE_TIMELINE_RECOMMENDATIONS = 'generate_timeline_recommendations',
+  GENERATE_MEDIA_RECOMMENDATIONS = 'generate_media_recommendations',
   RENDER_TIMELINE = 'render_timeline',
 }
 

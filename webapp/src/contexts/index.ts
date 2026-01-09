@@ -9,6 +9,10 @@ export {
 } from './upload-queue-context';
 export { MediaContext, MediaProvider } from './media-context';
 export { TaskContext, TaskProvider } from './task-context';
+export {
+  MediaRecommendationContext,
+  MediaRecommendationProvider,
+} from './media-recommendation-context';
 
 // Export types
 export type { TodoFilter, TodoSortOption } from './todo-context';

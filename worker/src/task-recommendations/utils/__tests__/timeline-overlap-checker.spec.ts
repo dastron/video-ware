@@ -7,6 +7,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { TimelineOverlapChecker } from '../timeline-overlap-checker';
 import type { TimelineClip, MediaClip } from '@project/shared';
+import { RecommendationTargetMode } from '@project/shared';
 
 describe('TimelineOverlapChecker', () => {
   let checker: TimelineOverlapChecker;
@@ -204,7 +205,7 @@ describe('TimelineOverlapChecker', () => {
       const filtered = checker.filterNonOverlapping(
         candidateClips,
         occupiedRanges,
-        'append'
+        RecommendationTargetMode.APPEND
       );
 
       expect(filtered).toHaveLength(1);
@@ -226,7 +227,7 @@ describe('TimelineOverlapChecker', () => {
       const filtered = checker.filterNonOverlapping(
         candidateClips,
         occupiedRanges,
-        'replace'
+        RecommendationTargetMode.REPLACE
       );
 
       expect(filtered).toHaveLength(3);
@@ -242,7 +243,7 @@ describe('TimelineOverlapChecker', () => {
       const filtered = checker.filterNonOverlapping(
         candidateClips,
         [],
-        'append'
+        RecommendationTargetMode.APPEND
       );
 
       expect(filtered).toHaveLength(2);
@@ -267,7 +268,7 @@ describe('TimelineOverlapChecker', () => {
         ['clip1', 'clip2', 'clip3'],
         clipLookup,
         occupiedRanges,
-        'append'
+        RecommendationTargetMode.APPEND
       );
 
       expect(filtered).toHaveLength(1);
@@ -285,7 +286,7 @@ describe('TimelineOverlapChecker', () => {
         ['clip1', 'clip2'], // clip2 not in lookup
         clipLookup,
         occupiedRanges,
-        'append'
+        RecommendationTargetMode.APPEND
       );
 
       expect(filtered).toHaveLength(0); // clip1 overlaps, clip2 not found

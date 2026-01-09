@@ -106,7 +106,7 @@ export interface IRecommendationStrategy {
    * @returns Array of scored media candidates
    */
   executeForMedia(
-    context: MediaStrategyContext,
+    context: MediaStrategyContext
   ): Promise<ScoredMediaCandidate[]>;
 
   /**
@@ -116,7 +116,7 @@ export interface IRecommendationStrategy {
    * @returns Array of scored timeline candidates
    */
   executeForTimeline(
-    context: TimelineStrategyContext,
+    context: TimelineStrategyContext
   ): Promise<ScoredTimelineCandidate[]>;
 }
 
@@ -125,25 +125,28 @@ export interface IRecommendationStrategy {
  *
  * Provides common utilities and enforces the strategy interface.
  */
-export abstract class BaseRecommendationStrategy
-  implements IRecommendationStrategy
-{
+export abstract class BaseRecommendationStrategy implements IRecommendationStrategy {
   abstract readonly name: RecommendationStrategy;
 
   abstract executeForMedia(
-    context: MediaStrategyContext,
+    context: MediaStrategyContext
   ): Promise<ScoredMediaCandidate[]>;
 
   abstract executeForTimeline(
-    context: TimelineStrategyContext,
+    context: TimelineStrategyContext
   ): Promise<ScoredTimelineCandidate[]>;
 
   /**
    * Helper: Check if a segment passes filter criteria
    */
   protected passesFilters(
-    segment: { start: number; end: number; confidence: number; labelType: LabelType },
-    filters: FilterParams,
+    segment: {
+      start: number;
+      end: number;
+      confidence: number;
+      labelType: LabelType;
+    },
+    filters: FilterParams
   ): boolean {
     // Label type filter
     if (filters.labelTypes && filters.labelTypes.length > 0) {

@@ -28,6 +28,14 @@ export interface StepJobData extends BaseJobData {
 }
 
 /**
+ * Simple job data for non-flow jobs (direct processing without parent-child structure)
+ */
+export interface SimpleJobData extends BaseJobData {
+  task: Task;
+  input: StepInput;
+}
+
+/**
  * Result of a step execution
  */
 export interface StepResult {

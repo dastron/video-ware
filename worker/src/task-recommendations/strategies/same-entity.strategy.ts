@@ -25,7 +25,7 @@ export class SameEntityStrategy extends BaseRecommendationStrategy {
    * Scores based on entity match confidence and number of shared entities.
    */
   async executeForMedia(
-    context: MediaStrategyContext,
+    context: MediaStrategyContext
   ): Promise<ScoredMediaCandidate[]> {
     const candidates: ScoredMediaCandidate[] = [];
 
@@ -65,7 +65,7 @@ export class SameEntityStrategy extends BaseRecommendationStrategy {
               confidence: clip.confidence,
               labelType,
             },
-            context.filterParams,
+            context.filterParams
           )
         ) {
           continue;
@@ -76,7 +76,7 @@ export class SameEntityStrategy extends BaseRecommendationStrategy {
           (mc) =>
             mc.MediaRef === context.media.id &&
             Math.abs(mc.start - clip.start) < 0.1 &&
-            Math.abs(mc.end - clip.end) < 0.1,
+            Math.abs(mc.end - clip.end) < 0.1
         );
 
         // Score based on confidence and entity occurrence count
@@ -112,7 +112,7 @@ export class SameEntityStrategy extends BaseRecommendationStrategy {
    * Prioritizes clips with multiple shared entities and high confidence.
    */
   async executeForTimeline(
-    context: TimelineStrategyContext,
+    context: TimelineStrategyContext
   ): Promise<ScoredTimelineCandidate[]> {
     const candidates: ScoredTimelineCandidate[] = [];
 
@@ -124,16 +124,16 @@ export class SameEntityStrategy extends BaseRecommendationStrategy {
     // Find all label clips for the seed clip
     const seedLabelClips = context.labelClips.filter(
       (lc) =>
-        lc.MediaRef === context.seedClip!.MediaRef &&
-        lc.start >= context.seedClip!.start &&
-        lc.end <= context.seedClip!.end,
+        lc.MediaRef === context.seedClip?.MediaRef &&
+        lc.start >= context.seedClip?.start &&
+        lc.end <= context.seedClip?.end
     );
 
     // Extract entity IDs from seed clip
     const seedEntityIds = new Set(
       seedLabelClips
         .map((lc) => lc.LabelEntityRef)
-        .filter((id): id is string => !!id),
+        .filter((id): id is string => !!id)
     );
 
     if (seedEntityIds.size === 0) {
@@ -144,7 +144,7 @@ export class SameEntityStrategy extends BaseRecommendationStrategy {
     for (const clip of context.availableClips) {
       // Skip if clip is already in timeline
       const alreadyInTimeline = context.timelineClips.some(
-        (tc) => tc.MediaClipRef === clip.id,
+        (tc) => tc.MediaClipRef === clip.id
       );
       if (alreadyInTimeline) continue;
 
@@ -153,7 +153,7 @@ export class SameEntityStrategy extends BaseRecommendationStrategy {
         (lc) =>
           lc.MediaRef === clip.MediaRef &&
           lc.start >= clip.start &&
-          lc.end <= clip.end,
+          lc.end <= clip.end
       );
 
       // Find shared entities
@@ -171,7 +171,7 @@ export class SameEntityStrategy extends BaseRecommendationStrategy {
 
             // Find entity name
             const entity = context.labelEntities.find(
-              (e) => e.id === labelClip.LabelEntityRef,
+              (e) => e.id === labelClip.LabelEntityRef
             );
             if (entity) {
               sharedEntities.push(entity.canonicalName);

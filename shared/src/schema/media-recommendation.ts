@@ -45,12 +45,10 @@ export const MediaRecommendationSchema = z
       RecommendationStrategy.TEMPORAL_NEARBY,
       RecommendationStrategy.CONFIDENCE_DURATION,
     ]),
-    labelType: SelectField([
-      LabelType.OBJECT,
-      LabelType.SHOT,
-      LabelType.PERSON,
-      LabelType.SPEECH,
-    ], { maxSelect: 1 }),
+    labelType: SelectField(
+      [LabelType.OBJECT, LabelType.SHOT, LabelType.PERSON, LabelType.SPEECH],
+      { maxSelect: 1 }
+    ),
 
     // Deduplication
     queryHash: TextField({ min: 1 }), // Deterministic hash for upsert behavior

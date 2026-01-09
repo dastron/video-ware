@@ -165,7 +165,7 @@ export type ClipRecommendationRecord = {
   mediaRef: string;
   timelineRef?: string;
   seedClipRef?: string;
-  recommendedClipRef: string;
+  MediaClipRef: string;
   score: number;
   rank: number;
   reason: string;

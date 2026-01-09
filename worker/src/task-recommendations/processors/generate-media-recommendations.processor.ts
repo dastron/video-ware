@@ -13,14 +13,12 @@ import { Logger } from '@nestjs/common';
 import { Job, Queue } from 'bullmq';
 import { InjectQueue } from '@nestjs/bullmq';
 import { QUEUE_NAMES } from '../../queue/queue.constants';
-import { RecommendationStepType } from '../../queue/types/step.types';
 import { PocketBaseService } from '../../shared/services/pocketbase.service';
-import { BaseParentProcessor } from '../../queue/processors/base-parent.processor';
-import type {
-  ParentJobData,
-  StepJobData,
-  StepResult,
-} from '../../queue/types/job.types';
+import {
+  BaseSimpleProcessor,
+  type SimpleJobData,
+} from '../../queue/processors/base-simple.processor';
+import type { StepResult } from '../../queue/types/job.types';
 import type {
   GenerateMediaRecommendationsStepInput,
   GenerateMediaRecommendationsResult,
@@ -39,7 +37,9 @@ import { buildMediaQueryHash } from '../utils/query-hash';
 import { RecommendationStrategy, LabelType } from '@project/shared';
 
 /**
- * Parent processor for generate_media_recommendations tasks
+ * Processor for generate_media_recommendations tasks
+ *
+ * This is a simple (non-flow) job processor that generates media-level recommendations.
  *
  * Key features:
  * - Loads media and label data from PocketBase
@@ -48,9 +48,18 @@ import { RecommendationStrategy, LabelType } from '@project/shared';
  * - Applies filter parameters
  * - Writes recommendations with upsert and pruning
  * - Returns result with generated and pruned counts
+ *
+ * Idempotency:
+ * - Job data contains only configuration (workspace, media, strategies, etc.)
+ * - Checks for existing recommendations via queryHash before generating
+ * - Recommendations are stored in database, not in job data
+ * - Can be safely retried without side effects
  */
 @Processor(QUEUE_NAMES.MEDIA_RECOMMENDATIONS)
-export class GenerateMediaRecommendationsProcessor extends BaseParentProcessor {
+export class GenerateMediaRecommendationsProcessor extends BaseSimpleProcessor<
+  SimpleJobData,
+  GenerateMediaRecommendationsResult
+> {
   protected readonly logger = new Logger(
     GenerateMediaRecommendationsProcessor.name
   );
@@ -78,121 +87,22 @@ export class GenerateMediaRecommendationsProcessor extends BaseParentProcessor {
   }
 
   /**
-   * Get the queue instance for accessing child jobs
+   * Process method - generates media recommendations
+   * Called by BaseSimpleProcessor with automatic status updates
    */
-  protected getQueue(): Queue {
-    return this.recommendationsQueue;
-  }
-
-  /**
-   * Get the total number of steps expected for this task
-   * Media recommendations has only 1 step: generate recommendations
-   */
-  protected getTotalSteps(_parentData: ParentJobData): number {
-    return 1;
-  }
-
-  /**
-   * Process parent job - orchestrates recommendation generation
-   */
-  protected async processParentJob(job: Job<ParentJobData>): Promise<void> {
-    const { task, stepResults } = job.data;
-
-    this.logger.log(`Processing parent job for task ${task.id}`);
-
-    // Wait for child to complete
-    const childrenValues = await job.getChildrenValues();
-
-    this.logger.log(`Child completed for task ${task.id}`, {
-      childrenCount: Object.keys(childrenValues).length,
-    });
-
-    // Aggregate step results from children
-    const aggregatedResults: Record<string, StepResult> = { ...stepResults };
-
-    for (const [, childResult] of Object.entries(childrenValues)) {
-      if (
-        childResult &&
-        typeof childResult === 'object' &&
-        'stepType' in childResult
-      ) {
-        const result = childResult as StepResult;
-        aggregatedResults[result.stepType] = result;
-      }
-    }
-
-    // Cache step results in parent job data
-    await job.updateData({
-      ...job.data,
-      stepResults: aggregatedResults,
-    });
+  async process(
+    job: Job<SimpleJobData>
+  ): Promise<GenerateMediaRecommendationsResult> {
+    const { input } = job.data;
+    const stepInput = input as GenerateMediaRecommendationsStepInput;
 
     this.logger.log(
-      `Cached ${Object.keys(aggregatedResults).length} step results for task ${task.id}`
+      `Generating media recommendations for media ${stepInput.mediaId}`
     );
 
-    // Check if generation succeeded
-    const generateResult =
-      aggregatedResults[RecommendationStepType.GENERATE_MEDIA_RECOMMENDATIONS];
-
-    if (generateResult?.status === 'completed') {
-      this.logger.log(
-        `Task ${task.id} completed successfully: media recommendations generated`
-      );
-    } else {
-      this.logger.error(
-        `Task ${task.id} failed: media recommendations generation failed`
-      );
-      throw new Error('Media recommendations generation failed');
-    }
-  }
-
-  /**
-   * Process step job - generates media recommendations
-   */
-  protected async processStepJob(job: Job<StepJobData>): Promise<StepResult> {
-    const { stepType, input } = job.data;
-    const startedAt = new Date();
-
-    this.logger.log(`Processing step ${stepType} for job ${job.id}`);
-
-    try {
-      const stepInput = input as GenerateMediaRecommendationsStepInput;
-
-      // Execute recommendation generation
-      const output = await this.generateRecommendations(stepInput, job);
-
-      // Create successful result
-      const result: StepResult = {
-        stepType,
-        status: 'completed',
-        output,
-        startedAt: startedAt.toISOString(),
-        completedAt: new Date().toISOString(),
-      };
-
-      this.logger.log(`Step ${stepType} completed successfully`);
-      return result;
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      this.logger.error(
-        `Step ${stepType} failed: ${errorMessage}`,
-        error instanceof Error ? error.stack : undefined
-      );
-
-      // Create failed result
-      const result: StepResult = {
-        stepType,
-        status: 'failed',
-        error: errorMessage,
-        startedAt: startedAt.toISOString(),
-        completedAt: new Date().toISOString(),
-      };
-
-      // Re-throw to let BullMQ handle retry logic
-      throw error;
-    }
+    // Execute recommendation generation
+    // BaseSimpleProcessor handles status updates and error handling
+    return this.generateRecommendations(stepInput, job);
   }
 
   /**
@@ -314,12 +224,13 @@ export class GenerateMediaRecommendationsProcessor extends BaseParentProcessor {
   private async loadContext(
     workspaceId: string,
     mediaId: string,
-    filterParams: NonNullable<GenerateMediaRecommendationsStepInput['filterParams']>
+    filterParams: NonNullable<
+      GenerateMediaRecommendationsStepInput['filterParams']
+    >
   ): Promise<MediaStrategyContext> {
     // Load workspace
-    const workspace = await this.pocketbaseService.workspaceMutator.getById(
-      workspaceId
-    );
+    const workspace =
+      await this.pocketbaseService.workspaceMutator.getById(workspaceId);
     if (!workspace) {
       throw new Error(`Workspace ${workspaceId} not found`);
     }
@@ -331,9 +242,8 @@ export class GenerateMediaRecommendationsProcessor extends BaseParentProcessor {
     }
 
     // Load label clips for this media
-    const labelClipsResult = await this.pocketbaseService.labelClipMutator.getByMedia(
-      mediaId
-    );
+    const labelClipsResult =
+      await this.pocketbaseService.labelClipMutator.getByMedia(mediaId);
     const labelClips = labelClipsResult.items;
 
     // Load label entities referenced by label clips
@@ -352,9 +262,8 @@ export class GenerateMediaRecommendationsProcessor extends BaseParentProcessor {
     );
 
     // Load existing media clips for this media
-    const existingClipsResult = await this.pocketbaseService.mediaClipMutator.getByMedia(
-      mediaId
-    );
+    const existingClipsResult =
+      await this.pocketbaseService.mediaClipMutator.getByMedia(mediaId);
     const existingClips = existingClipsResult.items;
 
     return {
@@ -414,7 +323,8 @@ export class GenerateMediaRecommendationsProcessor extends BaseParentProcessor {
   }> {
     // Use ScoreCombiner to combine candidates from multiple strategies
     const scoreCombiner = new ScoreCombiner(strategyWeights);
-    const combinedCandidates = scoreCombiner.combineMediaCandidates(candidatesByStrategy);
+    const combinedCandidates =
+      scoreCombiner.combineMediaCandidates(candidatesByStrategy);
 
     // Convert to writer format
     return combinedCandidates.map((candidate) => ({

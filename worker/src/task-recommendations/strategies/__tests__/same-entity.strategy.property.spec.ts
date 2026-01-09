@@ -19,6 +19,7 @@ import {
   type Timeline,
   type TimelineClip,
   ProcessingProvider,
+  MediaType,
 } from '@project/shared';
 
 // Arbitraries for generating test data
@@ -26,11 +27,14 @@ const labelTypeArbitrary = fc.constantFrom(
   LabelType.OBJECT,
   LabelType.SHOT,
   LabelType.PERSON,
-  LabelType.SPEECH,
+  LabelType.SPEECH
 );
 
 // Helper to safely convert dates to ISO strings (filtering out invalid dates)
-const validDateToString = fc.date().filter((d) => !isNaN(d.getTime())).map((d) => d.toISOString());
+const validDateToString = fc
+  .date()
+  .filter((d) => !isNaN(d.getTime()))
+  .map((d) => d.toISOString());
 
 const workspaceArbitrary: fc.Arbitrary<Workspace> = fc.record({
   id: fc.uuid(),
@@ -41,13 +45,14 @@ const workspaceArbitrary: fc.Arbitrary<Workspace> = fc.record({
   updated: validDateToString,
   collectionId: fc.constant('workspaces'),
   collectionName: fc.constant('workspaces'),
+  expand: fc.constant({}),
 });
 
 const mediaArbitrary: fc.Arbitrary<Media> = fc.record({
   id: fc.uuid(),
   WorkspaceRef: fc.uuid(),
   UploadRef: fc.uuid(),
-  mediaType: fc.constant('video' as const),
+  mediaType: fc.constant(MediaType.VIDEO),
   mediaDate: fc.option(validDateToString),
   duration: fc.float({ min: 10, max: 3600 }),
   mediaData: fc.constant({}),
@@ -60,6 +65,7 @@ const mediaArbitrary: fc.Arbitrary<Media> = fc.record({
   updated: validDateToString,
   collectionId: fc.constant('media'),
   collectionName: fc.constant('media'),
+  expand: fc.constant({}),
 });
 
 const labelEntityArbitrary: fc.Arbitrary<LabelEntity> = fc.record({
@@ -75,12 +81,13 @@ const labelEntityArbitrary: fc.Arbitrary<LabelEntity> = fc.record({
   updated: validDateToString,
   collectionId: fc.constant('label_entity'),
   collectionName: fc.constant('label_entity'),
+  expand: fc.constant({}),
 });
 
 const labelClipArbitrary = (
   mediaId: string,
   entityId: string,
-  labelType: LabelType,
+  labelType: LabelType
 ): fc.Arbitrary<LabelClip> =>
   fc.record({
     id: fc.uuid(),
@@ -104,6 +111,7 @@ const labelClipArbitrary = (
     updated: validDateToString,
     collectionId: fc.constant('label_clips'),
     collectionName: fc.constant('label_clips'),
+    expand: fc.constant({}),
   });
 
 const mediaClipArbitrary = (mediaId: string): fc.Arbitrary<MediaClip> =>
@@ -122,6 +130,7 @@ const mediaClipArbitrary = (mediaId: string): fc.Arbitrary<MediaClip> =>
     updated: validDateToString,
     collectionId: fc.constant('media_clips'),
     collectionName: fc.constant('media_clips'),
+    expand: fc.constant({}),
   });
 
 describe('Same Entity Strategy Properties', () => {
@@ -151,6 +160,7 @@ describe('Same Entity Strategy Properties', () => {
               updated: new Date().toISOString(),
               collectionId: 'media_clips',
               collectionName: 'media_clips',
+              expand: {},
             };
 
             // Create label clips for seed clip with the entity
@@ -162,7 +172,10 @@ describe('Same Entity Strategy Properties', () => {
                 TaskRef: undefined,
                 LabelEntityRef: entity.id,
                 LabelTrackRef: undefined,
-                labelHash: fc.sample(fc.string({ minLength: 32, maxLength: 32 }), 1)[0],
+                labelHash: fc.sample(
+                  fc.string({ minLength: 32, maxLength: 32 }),
+                  1
+                )[0],
                 labelType: entity.labelType,
                 type: entity.canonicalName,
                 start: 0,
@@ -177,6 +190,7 @@ describe('Same Entity Strategy Properties', () => {
                 updated: new Date().toISOString(),
                 collectionId: 'label_clips',
                 collectionName: 'label_clips',
+                expand: {},
               },
             ];
 
@@ -202,6 +216,7 @@ describe('Same Entity Strategy Properties', () => {
                 updated: new Date().toISOString(),
                 collectionId: 'media_clips',
                 collectionName: 'media_clips',
+                expand: {},
               };
               availableClips.push(clip);
 
@@ -213,7 +228,10 @@ describe('Same Entity Strategy Properties', () => {
                 TaskRef: undefined,
                 LabelEntityRef: entity.id,
                 LabelTrackRef: undefined,
-                labelHash: fc.sample(fc.string({ minLength: 32, maxLength: 32 }), 1)[0],
+                labelHash: fc.sample(
+                  fc.string({ minLength: 32, maxLength: 32 }),
+                  1
+                )[0],
                 labelType: entity.labelType,
                 type: entity.canonicalName,
                 start: clip.start,
@@ -228,6 +246,7 @@ describe('Same Entity Strategy Properties', () => {
                 updated: new Date().toISOString(),
                 collectionId: 'label_clips',
                 collectionName: 'label_clips',
+                expand: {},
               });
             }
 
@@ -236,7 +255,10 @@ describe('Same Entity Strategy Properties', () => {
               ...entity,
               id: fc.sample(fc.uuid(), 1)[0],
               canonicalName: 'DifferentEntity',
-              entityHash: fc.sample(fc.string({ minLength: 32, maxLength: 32 }), 1)[0],
+              entityHash: fc.sample(
+                fc.string({ minLength: 32, maxLength: 32 }),
+                1
+              )[0],
             };
 
             for (let i = 0; i < 2; i++) {
@@ -256,6 +278,7 @@ describe('Same Entity Strategy Properties', () => {
                 updated: new Date().toISOString(),
                 collectionId: 'media_clips',
                 collectionName: 'media_clips',
+                expand: {},
               };
               availableClips.push(clip);
 
@@ -267,7 +290,10 @@ describe('Same Entity Strategy Properties', () => {
                 TaskRef: undefined,
                 LabelEntityRef: differentEntity.id,
                 LabelTrackRef: undefined,
-                labelHash: fc.sample(fc.string({ minLength: 32, maxLength: 32 }), 1)[0],
+                labelHash: fc.sample(
+                  fc.string({ minLength: 32, maxLength: 32 }),
+                  1
+                )[0],
                 labelType: differentEntity.labelType,
                 type: differentEntity.canonicalName,
                 start: clip.start,
@@ -282,6 +308,7 @@ describe('Same Entity Strategy Properties', () => {
                 updated: new Date().toISOString(),
                 collectionId: 'label_clips',
                 collectionName: 'label_clips',
+                expand: {},
               });
             }
 
@@ -298,6 +325,7 @@ describe('Same Entity Strategy Properties', () => {
               updated: new Date().toISOString(),
               collectionId: 'timelines',
               collectionName: 'timelines',
+              expand: {},
             };
 
             const context: TimelineStrategyContext = {
@@ -316,7 +344,9 @@ describe('Same Entity Strategy Properties', () => {
 
             // All recommended clips should share the entity with seed clip
             for (const candidate of candidates) {
-              const clip = availableClips.find((c) => c.id === candidate.clipId);
+              const clip = availableClips.find(
+                (c) => c.id === candidate.clipId
+              );
               expect(clip).toBeDefined();
 
               // Find label clips for this candidate
@@ -324,21 +354,21 @@ describe('Same Entity Strategy Properties', () => {
                 (lc) =>
                   lc.MediaRef === clip!.MediaRef &&
                   lc.start >= clip!.start &&
-                  lc.end <= clip!.end,
+                  lc.end <= clip!.end
               );
 
               // At least one label clip should have the shared entity
               const hasSharedEntity = candidateLabelClips.some(
-                (lc) => lc.LabelEntityRef === entity.id,
+                (lc) => lc.LabelEntityRef === entity.id
               );
               expect(hasSharedEntity).toBe(true);
             }
 
             // Should recommend exactly numSharedClips (clips with shared entity)
             expect(candidates.length).toBe(numSharedClips);
-          },
+          }
         ),
-        { numRuns: 100 },
+        { numRuns: 100 }
       );
     });
 
@@ -363,6 +393,7 @@ describe('Same Entity Strategy Properties', () => {
               updated: new Date().toISOString(),
               collectionId: 'media_clips',
               collectionName: 'media_clips',
+              expand: {},
             };
 
             const timeline: Timeline = {
@@ -378,6 +409,7 @@ describe('Same Entity Strategy Properties', () => {
               updated: new Date().toISOString(),
               collectionId: 'timelines',
               collectionName: 'timelines',
+              expand: {},
             };
 
             const context: TimelineStrategyContext = {
@@ -395,9 +427,9 @@ describe('Same Entity Strategy Properties', () => {
             const candidates = await strategy.executeForTimeline(context);
 
             expect(candidates).toEqual([]);
-          },
+          }
         ),
-        { numRuns: 100 },
+        { numRuns: 100 }
       );
     });
 
@@ -420,6 +452,7 @@ describe('Same Entity Strategy Properties', () => {
               updated: new Date().toISOString(),
               collectionId: 'timelines',
               collectionName: 'timelines',
+              expand: {},
             };
 
             const context: TimelineStrategyContext = {
@@ -437,9 +470,9 @@ describe('Same Entity Strategy Properties', () => {
             const candidates = await strategy.executeForTimeline(context);
 
             expect(candidates).toEqual([]);
-          },
+          }
         ),
-        { numRuns: 100 },
+        { numRuns: 100 }
       );
     });
 
@@ -461,7 +494,10 @@ describe('Same Entity Strategy Properties', () => {
                 TaskRef: undefined,
                 LabelEntityRef: entity.id,
                 LabelTrackRef: undefined,
-                labelHash: fc.sample(fc.string({ minLength: 32, maxLength: 32 }), 1)[0],
+                labelHash: fc.sample(
+                  fc.string({ minLength: 32, maxLength: 32 }),
+                  1
+                )[0],
                 labelType: entity.labelType,
                 type: entity.canonicalName,
                 start: i * 20,
@@ -476,6 +512,7 @@ describe('Same Entity Strategy Properties', () => {
                 updated: new Date().toISOString(),
                 collectionId: 'label_clips',
                 collectionName: 'label_clips',
+                expand: {},
               });
             }
 
@@ -496,9 +533,9 @@ describe('Same Entity Strategy Properties', () => {
               expect(candidate.score).toBeGreaterThanOrEqual(0);
               expect(candidate.score).toBeLessThanOrEqual(1);
             }
-          },
+          }
         ),
-        { numRuns: 100 },
+        { numRuns: 100 }
       );
     });
   });

@@ -8,6 +8,9 @@ import { ClipList } from '@/components/clip/clip-list';
 import { InlineClipCreator } from '@/components/clip/inline-clip-creator';
 import { InlineClipEditor } from '@/components/clip/inline-clip-editor';
 import { LabelSearchPanel } from '@/components/labels/label-search-panel';
+import { MediaRecommendationsPanel } from '@/components/recommendations/media-recommendations-panel';
+import { MediaRecommendationProvider } from '@/contexts/media-recommendation-context';
+import { useMediaRecommendations } from '@/hooks/use-media-recommendations';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -24,7 +27,11 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import type { MediaClip, DetectLabelsPayload } from '@project/shared';
+import type {
+  MediaClip,
+  DetectLabelsPayload,
+  MediaRecommendation,
+} from '@project/shared';
 import {
   ClipType,
   TaskType,
@@ -32,16 +39,28 @@ import {
   ProcessingProvider,
 } from '@project/shared/enums';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { TaskMutator } from '@project/shared/mutator';
+import {
+  TaskMutator,
+  MediaClipMutator,
+  MediaRecommendationMutator,
+} from '@project/shared/mutator';
 import pb from '@/lib/pocketbase-client';
 import { toast } from 'sonner';
+import { useWorkspace } from '@/hooks/use-workspace';
 
-export default function MediaDetailsPage() {
+function MediaDetailsPageContentWithRecommendations() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
   const id = params.id as string;
   const { media, clips, isLoading, error, refresh } = useMediaDetails(id);
+  const { currentWorkspace } = useWorkspace();
+  const {
+    recommendations,
+    isLoading: isLoadingRecommendations,
+    generateRecommendations,
+    refreshRecommendations,
+  } = useMediaRecommendations();
   const [isInlineCreateMode, setIsInlineCreateMode] = useState(false);
   const [editingClipId, setEditingClipId] = useState<string | null>(null);
   const [isDetectingLabels, setIsDetectingLabels] = useState(false);
@@ -203,6 +222,64 @@ export default function MediaDetailsPage() {
     } finally {
       setIsDetectingLabels(false);
     }
+  };
+
+  const handleCreateClipFromRecommendation = async (
+    recommendation: MediaRecommendation
+  ) => {
+    if (!media || !currentWorkspace) {
+      toast.error('Media or workspace not available');
+      return;
+    }
+
+    try {
+      const clipMutator = new MediaClipMutator(pb);
+      const recommendationMutator = new MediaRecommendationMutator(pb);
+      const duration = recommendation.end - recommendation.start;
+
+      // Create the clip
+      const clip = await clipMutator.create({
+        WorkspaceRef: currentWorkspace.id,
+        MediaRef: media.id,
+        type: ClipType.RECOMMENDATION,
+        start: recommendation.start,
+        end: recommendation.end,
+        duration,
+        version: 1,
+      });
+
+      // Link the recommendation to the created clip
+      await recommendationMutator.update(recommendation.id, {
+        MediaClipRef: clip.id,
+      });
+
+      toast.success('Clip created from recommendation');
+      refresh(); // Refresh clips list
+      await refreshRecommendations(); // Refresh recommendations to hide the used one
+    } catch (error) {
+      console.error('Failed to create clip from recommendation:', error);
+      toast.error('Failed to create clip', {
+        description:
+          error instanceof Error ? error.message : 'An unknown error occurred',
+      });
+    }
+  };
+
+  const handlePreviewRecommendation = (recommendation: MediaRecommendation) => {
+    // Jump to the start time of the recommendation
+    handleJumpToTime(recommendation.start);
+
+    // Optionally, set the time range in the video player by updating URL with a clip
+    // For now, just jumping to the start time
+  };
+
+  const handleGenerateRecommendations = async () => {
+    if (!media) return;
+
+    await generateRecommendations({
+      mediaId: media.id,
+      // Use default strategies and parameters
+    });
   };
 
   if (isLoading) {
@@ -455,6 +532,13 @@ export default function MediaDetailsPage() {
                     <Tag className="h-4 w-4" />
                     Labels
                   </TabsTrigger>
+                  <TabsTrigger
+                    value="recommendations"
+                    className="flex-1 gap-1.5"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    Recommendations
+                  </TabsTrigger>
                 </TabsList>
               </CardHeader>
 
@@ -490,11 +574,35 @@ export default function MediaDetailsPage() {
                     onViewClip={handleViewClip}
                   />
                 </TabsContent>
+
+                <TabsContent
+                  value="recommendations"
+                  className="flex-1 overflow-y-auto px-3 sm:px-6 max-h-[400px] lg:max-h-none mt-0"
+                >
+                  <MediaRecommendationsPanel
+                    recommendations={recommendations}
+                    isLoading={isLoadingRecommendations}
+                    onCreateClip={handleCreateClipFromRecommendation}
+                    onPreview={handlePreviewRecommendation}
+                    onGenerateMore={handleGenerateRecommendations}
+                  />
+                </TabsContent>
               </CardContent>
             </Tabs>
           </Card>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function MediaDetailsPage() {
+  const params = useParams();
+  const id = params.id as string;
+
+  return (
+    <MediaRecommendationProvider mediaId={id}>
+      <MediaDetailsPageContentWithRecommendations />
+    </MediaRecommendationProvider>
   );
 }

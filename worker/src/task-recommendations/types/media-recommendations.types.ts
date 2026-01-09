@@ -1,7 +1,4 @@
-import type {
-  RecommendationStrategy,
-  LabelType,
-} from '@project/shared';
+import type { RecommendationStrategy, LabelType } from '@project/shared';
 
 /**
  * Payload for generating media recommendations

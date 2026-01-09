@@ -10,7 +10,7 @@ import { PocketBaseService } from '../../shared/services/pocketbase.service';
  * Scored candidate for timeline recommendation
  */
 export interface ScoredTimelineCandidate {
-  clipId: string; // RecommendedClipRef
+  clipId: string; // MediaClipRef
   score: number;
   reason: string;
   reasonData: Record<string, unknown>;
@@ -33,7 +33,7 @@ export interface TimelineRecommendationContext {
 /**
  * Result of write operation
  */
-export interface WriteResult {
+export interface TimelineWriteResult {
   created: number;
   updated: number;
   pruned: number;
@@ -43,13 +43,13 @@ export interface WriteResult {
 
 /**
  * TimelineRecommendationWriter handles upsert and pruning logic for timeline recommendations.
- * 
+ *
  * Key responsibilities:
- * - Upsert recommendations based on queryHash + RecommendedClipRef
+ * - Upsert recommendations based on queryHash + MediaClipRef
  * - Enforce top-M limit per queryHash
  * - Recompute ranks to maintain contiguous ordering
  * - Skip materialized (accepted) recommendations to preserve user actions
- * 
+ *
  * Requirements: 3.2, 3.4, 3.6, 3.7, 7.4
  */
 export class TimelineRecommendationWriter {
@@ -62,14 +62,14 @@ export class TimelineRecommendationWriter {
 
   /**
    * Write recommendations for a given context.
-   * 
+   *
    * Process:
    * 1. Identify materialized recommendations to skip
    * 2. Sort candidates by score (descending)
    * 3. Upsert each candidate with computed rank (skipping materialized)
    * 4. Prune excess recommendations beyond maxPerContext
    * 5. Recompute ranks to ensure contiguous ordering
-   * 
+   *
    * @param queryHash - Deterministic hash for the query context
    * @param candidates - Scored candidates to write
    * @param context - Context information for the recommendations
@@ -79,7 +79,7 @@ export class TimelineRecommendationWriter {
     queryHash: string,
     candidates: ScoredTimelineCandidate[],
     context: TimelineRecommendationContext
-  ): Promise<WriteResult> {
+  ): Promise<TimelineWriteResult> {
     this.logger.debug(
       `Writing ${candidates.length} timeline recommendations for queryHash: ${queryHash}`
     );
@@ -103,11 +103,12 @@ export class TimelineRecommendationWriter {
     // Upsert each candidate with its rank
     for (let i = 0; i < topCandidates.length; i++) {
       const candidate = topCandidates[i];
-      
+
       // Check if this recommendation is materialized
-      const existing = await this.pocketbaseService.timelineRecommendationMutator.getFirstByFilter(
-        `queryHash = "${queryHash}" && MediaClipRef = "${candidate.clipId}"`
-      );
+      const existing =
+        await this.pocketbaseService.timelineRecommendationMutator.getFirstByFilter(
+          `queryHash = "${queryHash}" && MediaClipRef = "${candidate.clipId}"`
+        );
 
       if (existing && materializedIds.includes(existing.id)) {
         // Skip materialized recommendations
@@ -133,7 +134,11 @@ export class TimelineRecommendationWriter {
     }
 
     // Prune any excess recommendations beyond maxPerContext (excluding materialized)
-    const pruned = await this.pruneExcess(queryHash, this.maxPerContext, materializedIds);
+    const pruned = await this.pruneExcess(
+      queryHash,
+      this.maxPerContext,
+      materializedIds
+    );
 
     // Recompute ranks to ensure contiguous ordering (excluding materialized)
     await this.recomputeRanks(queryHash, materializedIds);
@@ -155,9 +160,9 @@ export class TimelineRecommendationWriter {
 
   /**
    * Upsert a single recommendation.
-   * 
-   * Matches on (queryHash, RecommendedClipRef) for upsert behavior.
-   * 
+   *
+   * Matches on (queryHash, MediaClipRef) for upsert behavior.
+   *
    * @param queryHash - Query hash
    * @param candidate - Scored candidate
    * @param rank - Computed rank (0-based)
@@ -174,7 +179,7 @@ export class TimelineRecommendationWriter {
       WorkspaceRef: context.workspaceId,
       TimelineRef: context.timelineId,
       SeedClipRef: context.seedClipId,
-      RecommendedClipRef: candidate.clipId,
+      MediaClipRef: candidate.clipId,
       score: candidate.score,
       rank,
       reason: candidate.reason,
@@ -187,13 +192,17 @@ export class TimelineRecommendationWriter {
     };
 
     // Check if recommendation already exists
-    const existing = await this.pocketbaseService.timelineRecommendationMutator.getFirstByFilter(
-      `queryHash = "${queryHash}" && MediaClipRef = "${candidate.clipId}"`
-    );
+    const existing =
+      await this.pocketbaseService.timelineRecommendationMutator.getFirstByFilter(
+        `queryHash = "${queryHash}" && MediaClipRef = "${candidate.clipId}"`
+      );
 
     if (existing) {
       // Update existing recommendation
-      await this.pocketbaseService.timelineRecommendationMutator.update(existing.id, input);
+      await this.pocketbaseService.timelineRecommendationMutator.update(
+        existing.id,
+        input
+      );
       return 'updated';
     } else {
       // Create new recommendation
@@ -204,10 +213,10 @@ export class TimelineRecommendationWriter {
 
   /**
    * Prune excess recommendations beyond the keepCount limit.
-   * 
+   *
    * Deletes recommendations with rank >= keepCount for the given queryHash,
    * excluding materialized recommendations.
-   * 
+   *
    * @param queryHash - Query hash
    * @param keepCount - Number of recommendations to keep
    * @param materializedIds - IDs of materialized recommendations to preserve
@@ -219,7 +228,13 @@ export class TimelineRecommendationWriter {
     materializedIds: string[]
   ): Promise<number> {
     // Get all recommendations for this queryHash sorted by rank
-    const allRecs = await this.pocketbaseService.timelineRecommendationMutator.getByQueryHash(queryHash, {}, 1, 1000);
+    const allRecs =
+      await this.pocketbaseService.timelineRecommendationMutator.getByQueryHash(
+        queryHash,
+        {},
+        1,
+        1000
+      );
 
     // Find recommendations beyond the keepCount limit, excluding materialized
     const toDelete = allRecs.items.filter(
@@ -236,11 +251,11 @@ export class TimelineRecommendationWriter {
 
   /**
    * Recompute ranks to ensure contiguous ordering.
-   * 
+   *
    * Fetches all recommendations for the queryHash, sorts by score descending,
    * and updates ranks to be contiguous (0, 1, 2, ...), excluding materialized
    * recommendations which keep their original ranks.
-   * 
+   *
    * @param queryHash - Query hash
    * @param materializedIds - IDs of materialized recommendations to preserve
    */
@@ -249,7 +264,13 @@ export class TimelineRecommendationWriter {
     materializedIds: string[]
   ): Promise<void> {
     // Get all recommendations for this queryHash
-    const allRecs = await this.pocketbaseService.timelineRecommendationMutator.getByQueryHash(queryHash, {}, 1, 1000);
+    const allRecs =
+      await this.pocketbaseService.timelineRecommendationMutator.getByQueryHash(
+        queryHash,
+        {},
+        1,
+        1000
+      );
 
     // Separate materialized and non-materialized recommendations
     // const materialized = allRecs.items.filter((rec) =>
@@ -267,7 +288,10 @@ export class TimelineRecommendationWriter {
       const rec = sorted[i];
       if (rec.rank !== i) {
         // Only update if rank has changed
-        await this.pocketbaseService.timelineRecommendationMutator.update(rec.id, { rank: i });
+        await this.pocketbaseService.timelineRecommendationMutator.update(
+          rec.id,
+          { rank: i }
+        );
       }
     }
 
@@ -277,21 +301,22 @@ export class TimelineRecommendationWriter {
 
   /**
    * Identify materialized recommendations to skip during updates.
-   * 
+   *
    * Materialized recommendations are those that have been accepted (acceptedAt is set).
    * These should be preserved and not modified during regeneration.
-   * 
+   *
    * @param queryHash - Query hash
    * @returns Array of recommendation IDs that are materialized
    */
   private async skipMaterialized(queryHash: string): Promise<string[]> {
     // Get all recommendations for this queryHash that have been accepted
-    const accepted = await this.pocketbaseService.timelineRecommendationMutator.getByQueryHash(
-      queryHash,
-      { excludeAccepted: false }, // Include accepted
-      1,
-      1000
-    );
+    const accepted =
+      await this.pocketbaseService.timelineRecommendationMutator.getByQueryHash(
+        queryHash,
+        { excludeAccepted: false }, // Include accepted
+        1,
+        1000
+      );
 
     // Filter to only those with acceptedAt set
     const materialized = accepted.items.filter((rec) => rec.acceptedAt);

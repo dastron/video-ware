@@ -14,14 +14,11 @@ import { Logger } from '@nestjs/common';
 import { Job, Queue } from 'bullmq';
 import { InjectQueue } from '@nestjs/bullmq';
 import { QUEUE_NAMES } from '../../queue/queue.constants';
-import { RecommendationStepType } from '../../queue/types/step.types';
 import { PocketBaseService } from '../../shared/services/pocketbase.service';
-import { BaseParentProcessor } from '../../queue/processors/base-parent.processor';
-import type {
-  ParentJobData,
-  StepJobData,
-  StepResult,
-} from '../../queue/types/job.types';
+import {
+  BaseSimpleProcessor,
+  type SimpleJobData,
+} from '../../queue/processors/base-simple.processor';
 import type {
   GenerateTimelineRecommendationsStepInput,
   GenerateTimelineRecommendationsResult,
@@ -41,7 +38,9 @@ import { RecommendationStrategy } from '@project/shared';
 import { combineScores } from '../strategies/score-combiner';
 
 /**
- * Parent processor for generate_timeline_recommendations tasks
+ * Processor for generate_timeline_recommendations tasks
+ *
+ * This is a simple (non-flow) job processor that generates timeline-level recommendations.
  *
  * Key features:
  * - Loads timeline, clips, and label data from PocketBase
@@ -51,9 +50,18 @@ import { combineScores } from '../strategies/score-combiner';
  * - Filters out overlapping clips (in append mode)
  * - Writes recommendations with upsert and pruning
  * - Returns result with generated and pruned counts
+ *
+ * Idempotency:
+ * - Job data contains only configuration (workspace, timeline, strategies, etc.)
+ * - Checks for existing recommendations via queryHash before generating
+ * - Recommendations are stored in database, not in job data
+ * - Can be safely retried without side effects
  */
 @Processor(QUEUE_NAMES.TIMELINE_RECOMMENDATIONS)
-export class GenerateTimelineRecommendationsProcessor extends BaseParentProcessor {
+export class GenerateTimelineRecommendationsProcessor extends BaseSimpleProcessor<
+  SimpleJobData,
+  GenerateTimelineRecommendationsResult
+> {
   protected readonly logger = new Logger(
     GenerateTimelineRecommendationsProcessor.name
   );
@@ -87,121 +95,22 @@ export class GenerateTimelineRecommendationsProcessor extends BaseParentProcesso
   }
 
   /**
-   * Get the queue instance for accessing child jobs
+   * Process method - generates timeline recommendations
+   * Called by BaseSimpleProcessor with automatic status updates
    */
-  protected getQueue(): Queue {
-    return this.recommendationsQueue;
-  }
-
-  /**
-   * Get the total number of steps expected for this task
-   * Timeline recommendations has only 1 step: generate recommendations
-   */
-  protected getTotalSteps(_parentData: ParentJobData): number {
-    return 1;
-  }
-
-  /**
-   * Process parent job - orchestrates recommendation generation
-   */
-  protected async processParentJob(job: Job<ParentJobData>): Promise<void> {
-    const { task, stepResults } = job.data;
-
-    this.logger.log(`Processing parent job for task ${task.id}`);
-
-    // Wait for child to complete
-    const childrenValues = await job.getChildrenValues();
-
-    this.logger.log(`Child completed for task ${task.id}`, {
-      childrenCount: Object.keys(childrenValues).length,
-    });
-
-    // Aggregate step results from children
-    const aggregatedResults: Record<string, StepResult> = { ...stepResults };
-
-    for (const [, childResult] of Object.entries(childrenValues)) {
-      if (
-        childResult &&
-        typeof childResult === 'object' &&
-        'stepType' in childResult
-      ) {
-        const result = childResult as StepResult;
-        aggregatedResults[result.stepType] = result;
-      }
-    }
-
-    // Cache step results in parent job data
-    await job.updateData({
-      ...job.data,
-      stepResults: aggregatedResults,
-    });
+  async process(
+    job: Job<SimpleJobData>
+  ): Promise<GenerateTimelineRecommendationsResult> {
+    const { input } = job.data;
+    const stepInput = input as GenerateTimelineRecommendationsStepInput;
 
     this.logger.log(
-      `Cached ${Object.keys(aggregatedResults).length} step results for task ${task.id}`
+      `Generating timeline recommendations for timeline ${stepInput.timelineId}`
     );
 
-    // Check if generation succeeded
-    const generateResult =
-      aggregatedResults[RecommendationStepType.GENERATE_TIMELINE_RECOMMENDATIONS];
-
-    if (generateResult?.status === 'completed') {
-      this.logger.log(
-        `Task ${task.id} completed successfully: timeline recommendations generated`
-      );
-    } else {
-      this.logger.error(
-        `Task ${task.id} failed: timeline recommendations generation failed`
-      );
-      throw new Error('Timeline recommendations generation failed');
-    }
-  }
-
-  /**
-   * Process step job - generates timeline recommendations
-   */
-  protected async processStepJob(job: Job<StepJobData>): Promise<StepResult> {
-    const { stepType, input } = job.data;
-    const startedAt = new Date();
-
-    this.logger.log(`Processing step ${stepType} for job ${job.id}`);
-
-    try {
-      const stepInput = input as GenerateTimelineRecommendationsStepInput;
-
-      // Execute recommendation generation
-      const output = await this.generateRecommendations(stepInput, job);
-
-      // Create successful result
-      const result: StepResult = {
-        stepType,
-        status: 'completed',
-        output,
-        startedAt: startedAt.toISOString(),
-        completedAt: new Date().toISOString(),
-      };
-
-      this.logger.log(`Step ${stepType} completed successfully`);
-      return result;
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      this.logger.error(
-        `Step ${stepType} failed: ${errorMessage}`,
-        error instanceof Error ? error.stack : undefined
-      );
-
-      // Create failed result
-      const result: StepResult = {
-        stepType,
-        status: 'failed',
-        error: errorMessage,
-        startedAt: startedAt.toISOString(),
-        completedAt: new Date().toISOString(),
-      };
-
-      // Re-throw to let BullMQ handle retry logic
-      throw error;
-    }
+    // Execute recommendation generation
+    // BaseSimpleProcessor handles status updates and error handling
+    return this.generateRecommendations(stepInput, job);
   }
 
   /**
@@ -213,8 +122,9 @@ export class GenerateTimelineRecommendationsProcessor extends BaseParentProcesso
    * 3. Combine scores from multiple strategies
    * 4. Apply search parameters
    * 5. Filter out overlapping clips (in append mode)
-   * 6. Write recommendations with upsert and pruning
-   * 7. Return result with counts
+   * 6. Ensure we have at least 4 recommendations (lowering quality thresholds if needed)
+   * 7. Write recommendations with upsert and pruning
+   * 8. Return result with counts
    */
   private async generateRecommendations(
     input: GenerateTimelineRecommendationsStepInput,
@@ -347,46 +257,47 @@ export class GenerateTimelineRecommendationsProcessor extends BaseParentProcesso
     workspaceId: string,
     timelineId: string,
     seedClipId: string | undefined,
-    searchParams: NonNullable<GenerateTimelineRecommendationsStepInput['searchParams']>
+    searchParams: NonNullable<
+      GenerateTimelineRecommendationsStepInput['searchParams']
+    >
   ): Promise<TimelineStrategyContext> {
     // Load workspace
-    const workspace = await this.pocketbaseService.workspaceMutator.getById(
-      workspaceId
-    );
+    const workspace =
+      await this.pocketbaseService.workspaceMutator.getById(workspaceId);
     if (!workspace) {
       throw new Error(`Workspace ${workspaceId} not found`);
     }
 
     // Load timeline
-    const timeline = await this.pocketbaseService.timelineMutator.getById(
-      timelineId
-    );
+    const timeline =
+      await this.pocketbaseService.timelineMutator.getById(timelineId);
     if (!timeline) {
       throw new Error(`Timeline ${timelineId} not found`);
     }
 
     // Load timeline clips
-    const timelineClips = await this.pocketbaseService.timelineClipMutator.getByTimeline(
-      timelineId
-    );
+    const timelineClips =
+      await this.pocketbaseService.timelineClipMutator.getByTimeline(
+        timelineId
+      );
 
     // Load seed clip if provided
     let seedClip: TimelineStrategyContext['seedClip'];
     if (seedClipId) {
-      const loadedClip = await this.pocketbaseService.mediaClipMutator.getById(
-        seedClipId
-      );
+      const loadedClip =
+        await this.pocketbaseService.mediaClipMutator.getById(seedClipId);
       if (!loadedClip) {
-        this.logger.warn(`Seed clip ${seedClipId} not found, continuing without seed`);
+        this.logger.warn(
+          `Seed clip ${seedClipId} not found, continuing without seed`
+        );
       }
       seedClip = loadedClip ?? undefined;
     }
 
     // Load available media clips for the workspace
     // TODO: Apply search params to filter available clips
-    const availableClipsResult = await this.pocketbaseService.mediaClipMutator.getByWorkspace(
-      workspaceId
-    );
+    const availableClipsResult =
+      await this.pocketbaseService.mediaClipMutator.getByWorkspace(workspaceId);
     const availableClips = availableClipsResult.items;
 
     // Load label clips for available media
@@ -460,7 +371,10 @@ export class GenerateTimelineRecommendationsProcessor extends BaseParentProcesso
    * Applies strategy weights if provided.
    */
   private combineCandidates(
-    candidatesByStrategy: Map<RecommendationStrategy, ScoredTimelineCandidate[]>,
+    candidatesByStrategy: Map<
+      RecommendationStrategy,
+      ScoredTimelineCandidate[]
+    >,
     strategyWeights: Partial<Record<RecommendationStrategy, number>>
   ): Array<{
     clipId: string;
@@ -471,7 +385,9 @@ export class GenerateTimelineRecommendationsProcessor extends BaseParentProcesso
   }> {
     // If only one strategy, return its candidates directly (converted to writer format)
     if (candidatesByStrategy.size === 1) {
-      const [strategy, candidates] = Array.from(candidatesByStrategy.entries())[0];
+      const [strategy, candidates] = Array.from(
+        candidatesByStrategy.entries()
+      )[0];
       return candidates.map((c) => ({
         clipId: c.clipId,
         score: c.score,
@@ -493,7 +409,7 @@ export class GenerateTimelineRecommendationsProcessor extends BaseParentProcesso
           candidatesByClip.set(candidate.clipId, new Map());
         }
 
-        candidatesByClip.get(candidate.clipId)!.set(strategy, candidate);
+        candidatesByClip.get(candidate.clipId)?.set(strategy, candidate);
       }
     }
 
@@ -508,7 +424,8 @@ export class GenerateTimelineRecommendationsProcessor extends BaseParentProcesso
 
     for (const [clipId, candidatesForClip] of candidatesByClip.entries()) {
       // Extract scores by strategy
-      const scoresByStrategy: Partial<Record<RecommendationStrategy, number>> = {};
+      const scoresByStrategy: Partial<Record<RecommendationStrategy, number>> =
+        {};
       let primaryCandidate: ScoredTimelineCandidate | undefined;
       let primaryStrategy: RecommendationStrategy | undefined;
 
@@ -571,12 +488,11 @@ export class GenerateTimelineRecommendationsProcessor extends BaseParentProcesso
     strategy: RecommendationStrategy;
   }> {
     // Build occupied ranges from timeline clips
-    const occupiedRanges = this.overlapChecker.buildOccupiedRanges(timelineClips);
+    const occupiedRanges =
+      this.overlapChecker.buildOccupiedRanges(timelineClips);
 
     // Build clip lookup map
-    const clipLookup = new Map(
-      availableClips.map((clip) => [clip.id, clip])
-    );
+    const clipLookup = new Map(availableClips.map((clip) => [clip.id, clip]));
 
     // Filter candidates by overlap
     const candidateClipIds = candidates.map((c) => c.clipId);
@@ -610,7 +526,9 @@ export class GenerateTimelineRecommendationsProcessor extends BaseParentProcesso
    * Uses the maximum version from all media referenced by clips.
    * This ensures recommendations refresh when any media's labels change.
    */
-  private getMediaVersion(availableClips: TimelineStrategyContext['availableClips']): number {
+  private getMediaVersion(
+    availableClips: TimelineStrategyContext['availableClips']
+  ): number {
     // Get unique media IDs
     const mediaIds = new Set(availableClips.map((clip) => clip.MediaRef));
 

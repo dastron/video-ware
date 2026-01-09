@@ -31,13 +31,13 @@ export class ConfidenceDurationStrategy extends BaseRecommendationStrategy {
    * we recommend segments with the highest confidence scores.
    */
   async executeForMedia(
-    context: MediaStrategyContext,
+    context: MediaStrategyContext
   ): Promise<ScoredMediaCandidate[]> {
     const candidates: ScoredMediaCandidate[] = [];
 
     // Filter for high confidence clips
     const highConfidenceClips = context.labelClips.filter(
-      (lc) => lc.confidence >= this.HIGH_CONFIDENCE_THRESHOLD,
+      (lc) => lc.confidence >= this.HIGH_CONFIDENCE_THRESHOLD
     );
 
     for (const clip of highConfidenceClips) {
@@ -55,7 +55,7 @@ export class ConfidenceDurationStrategy extends BaseRecommendationStrategy {
             confidence: clip.confidence,
             labelType,
           },
-          context.filterParams,
+          context.filterParams
         )
       ) {
         continue;
@@ -66,7 +66,7 @@ export class ConfidenceDurationStrategy extends BaseRecommendationStrategy {
         (mc) =>
           mc.MediaRef === context.media.id &&
           Math.abs(mc.start - clip.start) < 0.1 &&
-          Math.abs(mc.end - clip.end) < 0.1,
+          Math.abs(mc.end - clip.end) < 0.1
       );
 
       const duration = clip.end - clip.start;
@@ -99,7 +99,7 @@ export class ConfidenceDurationStrategy extends BaseRecommendationStrategy {
    * Prioritizes both quality and duration consistency.
    */
   async executeForTimeline(
-    context: TimelineStrategyContext,
+    context: TimelineStrategyContext
   ): Promise<ScoredTimelineCandidate[]> {
     const candidates: ScoredTimelineCandidate[] = [];
 
@@ -112,7 +112,7 @@ export class ConfidenceDurationStrategy extends BaseRecommendationStrategy {
     for (const clip of context.availableClips) {
       // Skip if clip is already in timeline
       const alreadyInTimeline = context.timelineClips.some(
-        (tc) => tc.MediaClipRef === clip.id,
+        (tc) => tc.MediaClipRef === clip.id
       );
       if (alreadyInTimeline) continue;
 
@@ -121,7 +121,7 @@ export class ConfidenceDurationStrategy extends BaseRecommendationStrategy {
         (lc) =>
           lc.MediaRef === clip.MediaRef &&
           lc.start >= clip.start &&
-          lc.end <= clip.end,
+          lc.end <= clip.end
       );
 
       // Skip if no label clips
@@ -142,13 +142,16 @@ export class ConfidenceDurationStrategy extends BaseRecommendationStrategy {
 
       if (seedDuration !== null) {
         durationDelta = Math.abs(clipDuration - seedDuration);
-        
+
         // Score based on duration similarity
         if (durationDelta <= this.MAX_DURATION_DELTA) {
           durationScore = 1 - durationDelta / this.MAX_DURATION_DELTA;
         } else {
           // Penalize clips with very different durations
-          durationScore = Math.max(0, 0.5 - (durationDelta - this.MAX_DURATION_DELTA) / 20);
+          durationScore = Math.max(
+            0,
+            0.5 - (durationDelta - this.MAX_DURATION_DELTA) / 20
+          );
         }
       }
 

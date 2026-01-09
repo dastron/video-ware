@@ -1,13 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { FlowProducer } from 'bullmq';
 import { ConfigService } from '@nestjs/config';
-import type { Task } from '@project/shared';
-import { TaskType } from '@project/shared';
-import {
-  TranscodeFlowBuilder,
-  RenderFlowBuilder,
-  LabelsFlowBuilder,
-} from './flows';
 import type { FlowDefinition } from './flows';
 
 /**
@@ -33,25 +26,6 @@ export class FlowService {
   }
 
   /**
-   * Create and add a flow based on task type
-   *
-   * @param task - Task record containing type and payload
-   * @returns Parent job ID
-   */
-  async createFlow(task: Task): Promise<string> {
-    this.logger.log(`Creating flow for task ${task.id} (type: ${task.type})`);
-
-    const flowDefinition = this.buildFlowForTask(task);
-    const result = await this.flowProducer.add(flowDefinition);
-
-    this.logger.log(
-      `Flow created for task ${task.id}, parent job: ${result.job.id}`
-    );
-
-    return result.job.id!;
-  }
-
-  /**
    * Add a pre-built flow to BullMQ
    * Generic method that accepts any flow definition
    *
@@ -63,28 +37,13 @@ export class FlowService {
 
     const result = await this.flowProducer.add(flowDefinition);
 
+    if (!result.job.id) {
+      throw new Error('Flow job was created but has no ID');
+    }
+
     this.logger.log(`Flow added, parent job: ${result.job.id}`);
 
-    return result.job.id!;
-  }
-
-  /**
-   * Build flow definition based on task type
-   */
-  private buildFlowForTask(task: Task): FlowDefinition {
-    switch (task.type) {
-      case TaskType.PROCESS_UPLOAD:
-        return TranscodeFlowBuilder.buildFlow(task);
-
-      case TaskType.RENDER_TIMELINE:
-        return RenderFlowBuilder.buildFlow(task);
-
-      case TaskType.DETECT_LABELS:
-        return LabelsFlowBuilder.buildFlow(task);
-
-      default:
-        throw new Error(`Unknown task type: ${task.type}`);
-    }
+    return result.job.id;
   }
 
   /**

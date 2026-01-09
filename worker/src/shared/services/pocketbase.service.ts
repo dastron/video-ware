@@ -109,7 +109,9 @@ export class PocketBaseService implements OnModuleInit {
     this.labelMediaMutator = new LabelMediaMutator(this.pb);
     this.labelTrackMutator = new LabelTrackMutator(this.pb);
     this.mediaRecommendationMutator = new MediaRecommendationMutator(this.pb);
-    this.timelineRecommendationMutator = new TimelineRecommendationMutator(this.pb);
+    this.timelineRecommendationMutator = new TimelineRecommendationMutator(
+      this.pb
+    );
     this.mediaClipMutator = new MediaClipMutator(this.pb);
     this.mediaMutator = new MediaMutator(this.pb);
     this.mediaLabelMutator = new MediaLabelMutator(this.pb);
