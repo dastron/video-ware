@@ -369,7 +369,7 @@ describe('FFmpegService', () => {
         (execMock as any)[Symbol.for('nodejs.util.promisify.custom')]
       ).toHaveBeenCalledWith(
         expect.stringContaining(
-          'ffmpeg -y -i "/input.mp4" -vn -f wav "/output.wav"'
+          'ffmpeg -y -i "/input.mp4" -vn -ac 1 -ar 16000 -f wav "/output.wav"'
         )
       );
     });

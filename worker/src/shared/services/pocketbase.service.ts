@@ -2,31 +2,34 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   type TypedPocketBase,
-  type UploadMutator,
-  type MediaMutator,
-  type MediaClipMutator,
-  type MediaLabelMutator,
-  type LabelClipMutator,
-  type LabelEntityMutator,
-  type FileMutator,
-  type TaskMutator,
-  type WorkspaceMutator,
-  type UserMutator,
-  type TimelineMutator,
-  type TimelineClipMutator,
-  type TimelineRenderMutator,
-  type WatchedFileMutator,
   type TaskStatus,
   type Media,
   type MediaInput,
   type TimelineRenderInput,
   type FileType,
   type FileSource,
-  type LabelTrackMutator,
-  type LabelMediaMutator,
   FileStatus,
   FileInput,
   File,
+  // Mutator classes
+  FileMutator,
+  LabelClipMutator,
+  LabelEntityMutator,
+  LabelMediaMutator,
+  LabelTrackMutator,
+  MediaClipMutator,
+  MediaMutator,
+  MediaLabelMutator,
+  MediaRecommendationMutator,
+  TaskMutator,
+  TimelineClipMutator,
+  TimelineMutator,
+  TimelineRenderMutator,
+  TimelineRecommendationMutator,
+  UploadMutator,
+  UserMutator,
+  WatchedFileMutator,
+  WorkspaceMutator,
 } from '@project/shared';
 import { PocketBaseClientService } from './pocketbase-client.service';
 
@@ -46,6 +49,8 @@ export class PocketBaseService implements OnModuleInit {
   public timelineClipMutator!: TimelineClipMutator;
   public timelineMutator!: TimelineMutator;
   public timelineRenderMutator!: TimelineRenderMutator;
+  public mediaRecommendationMutator!: MediaRecommendationMutator;
+  public timelineRecommendationMutator!: TimelineRecommendationMutator;
   public uploadMutator!: UploadMutator;
   public userMutator!: UserMutator;
   public watchedFileMutator!: WatchedFileMutator;
@@ -87,8 +92,8 @@ export class PocketBaseService implements OnModuleInit {
 
       this.logger.log(`Connected to PocketBase at ${url}`);
 
-      // Initialize all mutators with dynamic import
-      await this.initializeMutators();
+      // Initialize all mutators
+      this.initializeMutators();
     } catch (error) {
       this.logger.error(
         `Failed to connect to PocketBase: ${error instanceof Error ? error.message : String(error)}`
@@ -97,30 +102,25 @@ export class PocketBaseService implements OnModuleInit {
     }
   }
 
-  private async initializeMutators() {
-    // Dynamically import ESM shared package
-    const sharedModule = await (eval(`import('@project/shared')`) as Promise<
-      typeof import('@project/shared')
-    >);
-
-    this.fileMutator = new sharedModule.FileMutator(this.pb);
-    this.labelClipMutator = new sharedModule.LabelClipMutator(this.pb);
-    this.labelEntityMutator = new sharedModule.LabelEntityMutator(this.pb);
-    this.labelMediaMutator = new sharedModule.LabelMediaMutator(this.pb);
-    this.labelTrackMutator = new sharedModule.LabelTrackMutator(this.pb);
-    this.mediaClipMutator = new sharedModule.MediaClipMutator(this.pb);
-    this.mediaMutator = new sharedModule.MediaMutator(this.pb);
-    this.mediaLabelMutator = new sharedModule.MediaLabelMutator(this.pb);
-    this.taskMutator = new sharedModule.TaskMutator(this.pb);
-    this.timelineClipMutator = new sharedModule.TimelineClipMutator(this.pb);
-    this.timelineMutator = new sharedModule.TimelineMutator(this.pb);
-    this.timelineRenderMutator = new sharedModule.TimelineRenderMutator(
-      this.pb
-    );
-    this.uploadMutator = new sharedModule.UploadMutator(this.pb);
-    this.userMutator = new sharedModule.UserMutator(this.pb);
-    this.watchedFileMutator = new sharedModule.WatchedFileMutator(this.pb);
-    this.workspaceMutator = new sharedModule.WorkspaceMutator(this.pb);
+  private initializeMutators() {
+    this.fileMutator = new FileMutator(this.pb);
+    this.labelClipMutator = new LabelClipMutator(this.pb);
+    this.labelEntityMutator = new LabelEntityMutator(this.pb);
+    this.labelMediaMutator = new LabelMediaMutator(this.pb);
+    this.labelTrackMutator = new LabelTrackMutator(this.pb);
+    this.mediaRecommendationMutator = new MediaRecommendationMutator(this.pb);
+    this.timelineRecommendationMutator = new TimelineRecommendationMutator(this.pb);
+    this.mediaClipMutator = new MediaClipMutator(this.pb);
+    this.mediaMutator = new MediaMutator(this.pb);
+    this.mediaLabelMutator = new MediaLabelMutator(this.pb);
+    this.taskMutator = new TaskMutator(this.pb);
+    this.timelineClipMutator = new TimelineClipMutator(this.pb);
+    this.timelineMutator = new TimelineMutator(this.pb);
+    this.timelineRenderMutator = new TimelineRenderMutator(this.pb);
+    this.uploadMutator = new UploadMutator(this.pb);
+    this.userMutator = new UserMutator(this.pb);
+    this.watchedFileMutator = new WatchedFileMutator(this.pb);
+    this.workspaceMutator = new WorkspaceMutator(this.pb);
 
     this.logger.log('All mutators initialized successfully');
   }

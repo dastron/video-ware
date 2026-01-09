@@ -17,3 +17,5 @@ export * from './schema/timeline.js';
 export * from './schema/timeline-clip.js';
 export * from './schema/timeline-render.js';
 export * from './schema/watched-file.js';
+export * from './schema/media-recommendation.js';
+export * from './schema/timeline-recommendation.js';

@@ -17,11 +17,13 @@ export { LabelClipMutator } from './label-clip';
 export { LabelEntityMutator } from './label-entity';
 export { TaskMutator } from './task';
 export { WatchedFileMutator } from './watched-file';
+export { MediaRecommendationMutator } from './media-recommendation';
 
 // Timeline and clip mutators
 export { TimelineMutator } from './timeline';
 export { TimelineClipMutator } from './timeline-clip';
 export { TimelineRenderMutator } from './timeline-render';
+export { TimelineRecommendationMutator } from './timeline-recommendation';
 
 // Task payload and result types
 export type { ProcessUploadPayload, ProcessUploadResult } from '../types';

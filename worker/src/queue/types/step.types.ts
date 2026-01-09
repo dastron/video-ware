@@ -28,10 +28,16 @@ export enum DetectLabelsStepType {
   SPEECH_TRANSCRIPTION = 'labels:speech_transcription',
 }
 
+export enum RecommendationStepType {
+  GENERATE_MEDIA_RECOMMENDATIONS = 'recommendations:generate_media',
+  GENERATE_TIMELINE_RECOMMENDATIONS = 'recommendations:generate_timeline',
+}
+
 /**
  * Combined union type of all step types
  */
 export type StepType =
   | TranscodeStepType
   | RenderStepType
-  | DetectLabelsStepType;
+  | DetectLabelsStepType
+  | RecommendationStepType;

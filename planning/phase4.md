@@ -5,7 +5,7 @@ This stage turns label-derived clips into an assistive editing experience. Recom
 ## Desired Outcomes
 - While editing a timeline, the UI shows a small, explainable set of recommended clips to add next.
 - Recommendations are derived from `Labelclips` + existing `MediaClip` records, but stored separately in a dedicated recommendations table.
-- Recommendations have strict size limits (top-N per context + TTL pruning) so tables don’t grow unbounded.
+- Recommendations have strict size limits (top-N per context ) so tables don’t grow unbounded.
 - The system captures basic feedback (accepted/dismissed) so ranking can evolve over time.
 
 ## Non-Goals
@@ -22,7 +22,7 @@ Recommendations should point to existing `MediaClip` records:
 
 Avoid creating “recommendation clips” in `media_clips`. The editable unit is `MediaClip`; recommendations are pointers + metadata.
 
-### `clip_recommendations` (new)
+### `label_recommendations` (new)
 One record represents “we recommend clip X in context Y”.
 
 Suggested fields:
@@ -112,7 +112,7 @@ Write path rules:
 - Prune any recommendations beyond top N for the same `queryHash` (or context grouping).
 
 ### 4) Add UI integration in the timeline editor
-- Subscribe to `clip_recommendations` for the current context (`queryHash`) or poll after enqueueing.
+- Subscribe to `label_recommendations` for the current context (`queryHash`) or poll after enqueueing.
 - Add “Generate suggestions” (explicit) first; later it can auto-run on selection change with debounce.
 - Implement accept/dismiss:
   - Accept: add `recommendedClipRef` into timeline items; set `acceptedAt`.
@@ -120,11 +120,11 @@ Write path rules:
 
 ### 5) Feedback capture
 Keep it minimal:
-- `acceptedAt` / `dismissedAt` timestamps on `clip_recommendations`.
+- `acceptedAt` / `dismissedAt` timestamps on `label_recommendations`.
 - Optional `recommendation_events` table later if you want richer analytics.
 
 ## Acceptance Criteria
-- With labels and derived clips present, selecting a clip in a timeline can produce a list of recommendations stored in `clip_recommendations`.
+- With labels and derived clips present, selecting a clip in a timeline can produce a list of recommendations stored in `label_recommendations`.
 - Recommendations are capped to top N and expire via TTL without manual cleanup.
 - UI can add a recommended clip to the timeline with one action and shows a short explanation.
 - Accept/dismiss updates are persisted and visible for debugging.
@@ -138,7 +138,7 @@ Keep it minimal:
 ## AI Prompt
 ```
 You are implementing assistive recommendations for a label-driven timeline editor in a Next.js + PocketBase app.
-Implement: a `clip_recommendations` collection that stores pointers to existing MediaClip records (do not store recommendations as MediaClip rows); a `recommend_clips` task that computes rule-based recommendations using Labelclips + MediaClip (same entity, adjacent shot, temporal proximity) and writes a strictly size-limited, TTL-expiring top-N set per context using a deterministic queryHash; UI hooks in the timeline editor to request recommendations, display them with short reasons, and support add/replace/dismiss actions while persisting acceptedAt/dismissedAt.
+Implement: a `label_recommendations` collection that stores pointers to existing MediaClip records (do not store recommendations as MediaClip rows); a `recommend_clips` task that computes rule-based recommendations using Labelclips + MediaClip (same entity, adjacent shot, temporal proximity) and writes a strictly size-limited, TTL-expiring top-N set per context using a deterministic queryHash; UI hooks in the timeline editor to request recommendations, display them with short reasons, and support add/replace/dismiss actions while persisting acceptedAt/dismissedAt.
 Constraints: recommendations must be prunable and bounded; MediaClip remains the editable unit; explanations must be readable and structured; results must be deterministic and testable for a fixed input dataset.
 Produce: collection field checklist, queryHash scheme, scoring strategies, pruning policy, UI interaction plan, and a testing checklist.
 ```
