@@ -68,6 +68,33 @@ This project is evolving into a media upload + processing system (FFmpeg + Googl
 - Phase 0 setup notes: `docs/VIDEO_WARE_PHASE0.md`
 - Planning docs: `planning/phase0.md`
 
+## Google Cloud Video Intelligence Configuration
+
+Video Ware integrates with Google Cloud Video Intelligence API for AI-powered video analysis. The system supports five independent processors that can be enabled/disabled for cost optimization:
+
+- **Label Detection** - Content categorization and scene detection (~$0.01/min)
+- **Object Tracking** - Object movement analysis (~$0.025/min)
+- **Face Detection** - Face presence detection (~$0.025/min)
+- **Person Detection** - Person tracking with pose landmarks (~$0.025/min)
+- **Speech Transcription** - Speech-to-text with timestamps (~$0.024/min)
+
+**Quick Start:**
+```bash
+# Enable only what you need in .env
+ENABLE_LABEL_DETECTION=true
+ENABLE_OBJECT_TRACKING=false
+ENABLE_FACE_DETECTION=false
+ENABLE_PERSON_DETECTION=false
+ENABLE_SPEECH_TRANSCRIPTION=true
+
+# Configure Google Cloud credentials
+GOOGLE_PROJECT_ID=your-gcp-project-id
+GOOGLE_CLOUD_CREDENTIALS={"type":"service_account",...}
+GCS_BUCKET=your-gcs-bucket-name
+```
+
+For detailed configuration, cost optimization strategies, and troubleshooting, see the **[GCVI Configuration Guide](GCVI_CONFIGURATION.md)**.
+
 ## Development Workflow
 
 ### Backend Development (PocketBase)
@@ -293,6 +320,29 @@ Create `.env.local` in the webapp directory:
 # webapp/.env.local
 NEXT_PUBLIC_POCKETBASE_URL=http://localhost:8090
 ```
+
+For worker configuration, create `.env` in the worker directory:
+
+```bash
+# worker/.env
+POCKETBASE_URL=http://localhost:8090
+
+# Google Cloud Configuration (optional)
+GOOGLE_PROJECT_ID=your-gcp-project-id
+GOOGLE_CLOUD_CREDENTIALS={"type":"service_account",...}
+GCS_BUCKET=your-gcs-bucket-name
+
+# GCVI Processor Configuration (optional)
+ENABLE_LABEL_DETECTION=true
+ENABLE_OBJECT_TRACKING=false
+ENABLE_FACE_DETECTION=false
+ENABLE_PERSON_DETECTION=false
+ENABLE_SPEECH_TRANSCRIPTION=true
+```
+
+See `.env.example` for a complete list of available configuration options.
+
+For detailed GCVI processor configuration and cost optimization, see the **[GCVI Configuration Guide](GCVI_CONFIGURATION.md)**.
 
 ## Troubleshooting
 

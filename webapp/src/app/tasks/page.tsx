@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { useWorkspace } from '@/hooks/use-workspace';
 import { TaskProvider } from '@/contexts/task-context';
@@ -13,6 +13,15 @@ import Link from 'next/link';
 function TasksPageContent() {
   const { tasks, isLoading: tasksLoading } = useTasks();
   const { currentWorkspace } = useWorkspace();
+
+  // Filter tasks to only show create_labels, transcode, and render_timeline
+  const filteredTasks = useMemo(() => {
+    const allowedTypes = ['create_labels', 'transcode', 'render_timeline'];
+    return tasks.filter((task) => {
+      const taskType = Array.isArray(task.type) ? task.type[0] : task.type;
+      return allowedTypes.includes(taskType);
+    });
+  }, [tasks]);
 
   if (!currentWorkspace) {
     return null;
@@ -30,7 +39,7 @@ function TasksPageContent() {
         </p>
       </div>
 
-      <TaskMonitor tasks={tasks} isLoading={tasksLoading} />
+      <TaskMonitor tasks={filteredTasks} isLoading={tasksLoading} />
     </div>
   );
 }

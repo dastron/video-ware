@@ -111,13 +111,13 @@ export interface LabelsFlowDefinition {
 }
 
 export interface LabelsChildJobDefinition {
-  name: DetectLabelsStepType;
+  name: DetectLabelsStepType | RecommendationStepType;
   queueName: string;
   data: {
     taskId: string;
     workspaceId: string;
     attemptNumber: number;
-    stepType: DetectLabelsStepType;
+    stepType: DetectLabelsStepType | RecommendationStepType;
     parentJobId: string;
     input: any;
   };
