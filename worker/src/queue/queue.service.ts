@@ -3,12 +3,8 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { QUEUE_NAMES } from './queue.constants';
 import { FlowService } from './flow.service';
+import { JobService } from './job.service';
 import { TaskType } from '@project/shared';
-import {
-  TranscodeFlowBuilder,
-  RenderFlowBuilder,
-  LabelsFlowBuilder,
-} from './flows';
 import type {
   Task,
   GenerateTimelineRecommendationsPayload,
@@ -37,7 +33,8 @@ export class QueueService {
     private mediaRecommendationsQueue: Queue,
     @InjectQueue(QUEUE_NAMES.TIMELINE_RECOMMENDATIONS)
     private timelineRecommendationsQueue: Queue,
-    private readonly flowService: FlowService
+    private readonly flowService: FlowService,
+    private readonly jobService: JobService
   ) {}
 
   /**
@@ -61,6 +58,9 @@ export class QueueService {
 
       case TaskType.RENDER_TIMELINE:
         return this.addRenderJob(task);
+
+      case TaskType.FULL_INGEST:
+        return this.addFullIngestJob(task);
 
       // Regular jobs (single-step processing)
       case TaskType.GENERATE_MEDIA_RECOMMENDATIONS:
@@ -87,16 +87,7 @@ export class QueueService {
    * Creates a flow with parent-child jobs for step-based processing.
    */
   async addTranscodeJob(task: Task) {
-    this.logger.log(`Adding transcode job for task ${task.id}`);
-
-    // Build and add the transcode flow
-    const flowDefinition = TranscodeFlowBuilder.buildFlow(task);
-    const parentJobId = await this.flowService.addFlow(flowDefinition);
-    this.logger.log(
-      `Created transcode flow for task ${task.id}, parent job: ${parentJobId}`
-    );
-
-    return parentJobId;
+    return this.jobService.submitTranscodeJob(task);
   }
 
   /**
@@ -104,16 +95,7 @@ export class QueueService {
    * Creates a flow with parent-child jobs for step-based processing.
    */
   async addIntelligenceJob(task: Task) {
-    this.logger.log(`Adding intelligence job for task ${task.id}`);
-
-    // Build and add the labels flow
-    const flowDefinition = LabelsFlowBuilder.buildFlow(task);
-    const parentJobId = await this.flowService.addFlow(flowDefinition);
-    this.logger.log(
-      `Created intelligence flow for task ${task.id}, parent job: ${parentJobId}`
-    );
-
-    return parentJobId;
+    return this.jobService.submitLabelsJob(task);
   }
 
   /**
@@ -121,16 +103,14 @@ export class QueueService {
    * Creates a flow with parent-child jobs for step-based processing.
    */
   async addRenderJob(task: Task) {
-    this.logger.log(`Adding render job for task ${task.id}`);
+    return this.jobService.submitRenderJob(task);
+  }
 
-    // Build and add the render flow
-    const flowDefinition = RenderFlowBuilder.buildFlow(task);
-    const parentJobId = await this.flowService.addFlow(flowDefinition);
-    this.logger.log(
-      `Created render flow for task ${task.id}, parent job: ${parentJobId}`
-    );
-
-    return parentJobId;
+  /**
+   * Add a full ingest job to the queue.
+   */
+  async addFullIngestJob(task: Task) {
+    return this.jobService.submitFullIngestJob(task);
   }
 
   /**

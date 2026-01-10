@@ -98,8 +98,8 @@ export class TemporalNearbyStrategy extends BaseRecommendationStrategy {
         );
 
         candidates.push({
-          startTime: clip.start,
-          endTime: clip.end,
+          start: clip.start,
+          end: clip.end,
           clipId: matchingClip?.id,
           score,
           reason: `Part of temporal cluster with ${nearbyClips.length} nearby ${nearbyClips.length === 1 ? 'segment' : 'segments'}`,

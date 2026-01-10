@@ -3,7 +3,7 @@ import {
   RecommendationStrategy,
   LabelType,
   RecommendationTargetMode,
-} from '@project/shared';
+} from '../enums';
 
 /**
  * Input for generating a media recommendation query hash

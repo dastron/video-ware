@@ -297,3 +297,21 @@ export interface GenerateMediaRecommendationsResult {
   /** Query hash for deduplication */
   queryHash: string;
 }
+
+/**
+ * Payload for full_ingest task (combined transcode + labels)
+ */
+export interface FullIngestPayload {
+  /** ID of the Upload record */
+  uploadId: string;
+  /** Configuration for transcode/proxy */
+  transcode?: TranscodeConfig;
+  /** Configuration for sprite sheet */
+  sprite?: SpriteConfig;
+  /** Configuration for thumbnail */
+  thumbnail?: ThumbnailConfig;
+  /** Configuration for label detection */
+  labels?: DetectLabelsConfig;
+  /** Processing provider */
+  provider?: ProcessingProvider;
+}

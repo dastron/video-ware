@@ -1,0 +1,90 @@
+import { RecommendationStrategy } from '@project/shared';
+import type {
+  IRecommendationStrategy,
+  ScoredMediaCandidate,
+  ScoredTimelineCandidate,
+} from '../types';
+import { SameEntityStrategy } from './same-entity.strategy';
+import { AdjacentShotStrategy } from './adjacent-shot.strategy';
+import { TemporalNearbyStrategy } from './temporal-nearby.strategy';
+import { ConfidenceDurationStrategy } from './confidence-duration.strategy';
+
+/**
+ * Strategy Registry
+ */
+export class StrategyRegistry {
+  private strategies: Map<RecommendationStrategy, IRecommendationStrategy> =
+    new Map();
+
+  constructor() {
+    this.register(new SameEntityStrategy());
+    this.register(new AdjacentShotStrategy());
+    this.register(new TemporalNearbyStrategy());
+    this.register(new ConfidenceDurationStrategy());
+  }
+
+  register(strategy: IRecommendationStrategy) {
+    this.strategies.set(strategy.name, strategy);
+  }
+
+  get(name: RecommendationStrategy): IRecommendationStrategy | undefined {
+    return this.strategies.get(name);
+  }
+
+  getAll(): IRecommendationStrategy[] {
+    return Array.from(this.strategies.values());
+  }
+}
+
+/**
+ * Simple Score Combiner
+ */
+export class ScoreCombiner {
+  combineMediaCandidates(
+    candidatesByStrategy: Map<RecommendationStrategy, ScoredMediaCandidate[]>
+  ): ScoredMediaCandidate[] {
+    const combined = new Map<string, ScoredMediaCandidate>();
+
+    for (const candidates of candidatesByStrategy.values()) {
+      for (const cand of candidates) {
+        const key = `${cand.start}-${cand.end}`;
+        if (!combined.has(key)) {
+          combined.set(key, { ...cand });
+        } else {
+          const existing = combined.get(key)!;
+          // Weighted average or max (simplified for now)
+          existing.score = (existing.score + cand.score) / 2;
+          existing.reason += `; ${cand.reason}`;
+        }
+      }
+    }
+
+    return Array.from(combined.values());
+  }
+
+  combineTimelineCandidates(
+    candidatesByStrategy: Map<RecommendationStrategy, ScoredTimelineCandidate[]>
+  ): ScoredTimelineCandidate[] {
+    const combined = new Map<string, ScoredTimelineCandidate>();
+
+    for (const candidates of candidatesByStrategy.values()) {
+      for (const cand of candidates) {
+        if (!combined.has(cand.clipId)) {
+          combined.set(cand.clipId, { ...cand });
+        } else {
+          const existing = combined.get(cand.clipId)!;
+          existing.score = (existing.score + cand.score) / 2;
+          existing.reason += `; ${cand.reason}`;
+        }
+      }
+    }
+
+    return Array.from(combined.values());
+  }
+}
+
+export * from './base-strategy';
+export * from './same-entity.strategy';
+export * from './adjacent-shot.strategy';
+export * from './temporal-nearby.strategy';
+export * from './confidence-duration.strategy';

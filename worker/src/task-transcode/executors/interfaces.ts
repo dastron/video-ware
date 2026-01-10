@@ -21,6 +21,8 @@ export interface ThumbnailConfig {
   timestamp: number | 'midpoint';
   width: number;
   height: number;
+  sourceWidth: number;
+  sourceHeight: number;
 }
 
 /**
@@ -39,6 +41,8 @@ export interface SpriteConfig {
   rows: number;
   tileWidth: number;
   tileHeight: number;
+  sourceWidth?: number;
+  sourceHeight?: number;
 }
 
 /**

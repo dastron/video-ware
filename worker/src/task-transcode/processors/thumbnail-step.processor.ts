@@ -42,15 +42,22 @@ export class ThumbnailStepProcessor extends BaseStepProcessor<
       this.pocketbaseService
     );
 
-    // Probe for duration (independent of other steps)
+    // Probe for duration and dimensions (independent of other steps)
     const { probeOutput } = await this.probeExecutor.execute(filePath);
+
+    // Create enhanced config with source dimensions
+    const enhancedConfig = {
+      ...input.config,
+      sourceWidth: probeOutput.width,
+      sourceHeight: probeOutput.height,
+    };
 
     // Generate thumbnail
     const thumbnailPath = `${filePath}_thumbnail.jpg`;
     await this.thumbnailExecutor.execute(
       filePath,
       thumbnailPath,
-      input.config,
+      enhancedConfig,
       probeOutput.duration
     );
 

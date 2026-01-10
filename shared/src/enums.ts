@@ -122,6 +122,7 @@ export enum TaskType {
   GENERATE_TIMELINE_RECOMMENDATIONS = 'generate_timeline_recommendations',
   GENERATE_MEDIA_RECOMMENDATIONS = 'generate_media_recommendations',
   RENDER_TIMELINE = 'render_timeline',
+  FULL_INGEST = 'full_ingest',
 }
 
 export enum ProcessingProvider {

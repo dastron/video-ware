@@ -41,16 +41,17 @@ export function TimelineRecommendationsPanel({
     return (
       <div className={cn('flex flex-col gap-4', className)}>
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-semibold">Recommendations</h2>
-          </div>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" disabled className="h-8 w-8">
+            <RefreshCw className="h-4 w-4 animate-spin" />
+          </Button>
+          <Sparkles className="h-5 w-5 text-primary" />
+          <h2 className="text-lg font-semibold">Recommendations</h2>
         </div>
 
         {/* Loading skeleton */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          {[1, 2, 3].map((i) => (
+        <div className="grid grid-cols-1 gap-4">
+          {[1, 2, 3, 4].map((i) => (
             <div
               key={i}
               className="h-64 bg-muted/50 rounded-lg animate-pulse"
@@ -66,11 +67,20 @@ export function TimelineRecommendationsPanel({
     return (
       <div className={cn('flex flex-col gap-4', className)}>
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-semibold">Recommendations</h2>
-          </div>
+        <div className="flex items-center gap-2">
+          {onMoreLikeThis && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onMoreLikeThis}
+              className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors"
+              title="Refresh recommendations"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          )}
+          <Sparkles className="h-5 w-5 text-primary" />
+          <h2 className="text-lg font-semibold">Recommendations</h2>
         </div>
 
         {/* Empty state */}
@@ -80,13 +90,18 @@ export function TimelineRecommendationsPanel({
             No recommendations available
           </h3>
           <p className="text-sm text-muted-foreground max-w-sm mb-4">
-            Select a clip in your timeline to get intelligent suggestions for
-            what to add next.
+            Select a clip in your timeline or click refresh to get intelligent
+            suggestions for what to add next.
           </p>
           {onMoreLikeThis && (
-            <Button variant="outline" size="sm" onClick={onMoreLikeThis}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Generate Recommendations
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onMoreLikeThis}
+              className="gap-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Refresh
             </Button>
           )}
         </div>
@@ -97,26 +112,30 @@ export function TimelineRecommendationsPanel({
   // Show recommendations
   return (
     <div className={cn('flex flex-col gap-4', className)}>
-      {/* Header with "More like this" button */}
+      {/* Header with "Refresh" button on the left */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
+          {onMoreLikeThis && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onMoreLikeThis}
+              className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors"
+              title="Refresh recommendations"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          )}
           <Sparkles className="h-5 w-5 text-primary" />
           <h2 className="text-lg font-semibold">Recommendations</h2>
-          <span className="text-sm text-muted-foreground">
+          <span className="text-sm text-muted-foreground ml-1">
             ({recommendations.length})
           </span>
         </div>
-
-        {onMoreLikeThis && (
-          <Button variant="outline" size="sm" onClick={onMoreLikeThis}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            More like this
-          </Button>
-        )}
       </div>
 
       {/* Recommendations list */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 gap-4 pb-8">
         {recommendations.map((recommendation) => (
           <TimelineRecommendationCard
             key={recommendation.id}

@@ -55,7 +55,7 @@ export interface TranscodeFlowDefinition {
   name: string;
   queueName: string;
   data: ParentJobData;
-  children: TranscodeChildJobDefinition[];
+  children: (TranscodeChildJobDefinition | FlowDefinition)[];
 }
 
 export interface TranscodeChildJobDefinition {
@@ -69,8 +69,8 @@ export interface TranscodeChildJobDefinition {
     parentJobId: string;
     input: any;
   };
-  opts: ChildJobOpts;
-  children?: ChildJobDependency[];
+  opts?: ChildJobOpts;
+  children?: (ChildJobDependency | FlowDefinition)[];
 }
 
 // ============================================================================
@@ -81,7 +81,7 @@ export interface RenderFlowDefinition {
   name: string;
   queueName: string;
   data: ParentJobData;
-  children: RenderChildJobDefinition[];
+  children: (RenderChildJobDefinition | FlowDefinition)[];
 }
 
 export interface RenderChildJobDefinition {
@@ -95,8 +95,8 @@ export interface RenderChildJobDefinition {
     parentJobId: string;
     input: any;
   };
-  opts: ChildJobOpts;
-  children?: ChildJobDependency[];
+  opts?: ChildJobOpts;
+  children?: (ChildJobDependency | FlowDefinition)[];
 }
 
 // ============================================================================
@@ -107,7 +107,7 @@ export interface LabelsFlowDefinition {
   name: string;
   queueName: string;
   data: ParentJobData;
-  children: LabelsChildJobDefinition[];
+  children: (LabelsChildJobDefinition | FlowDefinition)[];
 }
 
 export interface LabelsChildJobDefinition {
@@ -121,8 +121,8 @@ export interface LabelsChildJobDefinition {
     parentJobId: string;
     input: any;
   };
-  opts: ChildJobOpts;
-  children?: ChildJobDependency[];
+  opts?: ChildJobOpts;
+  children?: (ChildJobDependency | FlowDefinition)[];
 }
 
 // ============================================================================
@@ -133,7 +133,7 @@ export interface RecommendationsFlowDefinition {
   name: string;
   queueName: string;
   data: ParentJobData;
-  children: RecommendationsChildJobDefinition[];
+  children: (RecommendationsChildJobDefinition | FlowDefinition)[];
 }
 
 export interface RecommendationsChildJobDefinition {
@@ -147,8 +147,8 @@ export interface RecommendationsChildJobDefinition {
     parentJobId: string;
     input: any;
   };
-  opts: ChildJobOpts;
-  children?: ChildJobDependency[];
+  opts?: ChildJobOpts;
+  children?: (ChildJobDependency | FlowDefinition)[];
 }
 
 // ============================================================================

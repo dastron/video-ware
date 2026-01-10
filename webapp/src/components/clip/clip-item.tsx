@@ -315,7 +315,7 @@ export function ClipItem({
         </div>
 
         {/* Actions */}
-        <div className="flex flex-col border-l border-border/50">
+        <div className="flex flex-col border-l border-border/50 bg-muted/20 lg:bg-transparent">
           {/* Add to Timeline Button */}
           <Dialog
             open={isAddToTimelineDialogOpen}

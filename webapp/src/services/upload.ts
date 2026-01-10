@@ -323,11 +323,11 @@ export class UploadService {
       uploadId,
       provider: this.config.defaultProvider,
       sprite: {
-        fps: 1,
-        cols: 10,
-        rows: 10,
-        tileWidth: 320,
-        tileHeight: 180,
+        fps: 1, // Fixed interval: 1 frame per second
+        cols: 10, // Fixed width: 10 columns
+        rows: 200, // Initial rows (will be recalculated based on actual frames needed)
+        tileWidth: 320, // Fixed tile width
+        tileHeight: 180, // Will be recalculated based on aspect ratio
       },
       thumbnail: {
         timestamp: 'midpoint',

@@ -64,10 +64,6 @@ export class TimelineOverlapChecker {
     // Sort by start time for efficient overlap checking
     ranges.sort((a, b) => a.start - b.start);
 
-    this.logger.debug(
-      `Built ${ranges.length} occupied ranges from timeline clips`
-    );
-
     return ranges;
   }
 
@@ -101,12 +97,6 @@ export class TimelineOverlapChecker {
 
     const hasOverlap = overlapping.length > 0;
 
-    if (hasOverlap) {
-      this.logger.debug(
-        `Candidate clip ${candidateClip.id} [${candidateStart}, ${candidateEnd}) overlaps with ${overlapping.length} ranges`
-      );
-    }
-
     return {
       hasOverlap,
       overlappingRanges: overlapping,
@@ -131,9 +121,6 @@ export class TimelineOverlapChecker {
   ): MediaClip[] {
     // In replace mode, allow overlaps (user will replace existing clip)
     if (targetMode === 'replace') {
-      this.logger.debug(
-        `Replace mode: allowing all ${candidateClips.length} candidates (overlaps permitted)`
-      );
       return candidateClips;
     }
 
@@ -142,11 +129,6 @@ export class TimelineOverlapChecker {
       const result = this.checkOverlap(clip, occupiedRanges);
       return !result.hasOverlap;
     });
-
-    const filtered = candidateClips.length - nonOverlapping.length;
-    this.logger.debug(
-      `Append mode: filtered ${filtered} overlapping clips, ${nonOverlapping.length} remaining`
-    );
 
     return nonOverlapping;
   }

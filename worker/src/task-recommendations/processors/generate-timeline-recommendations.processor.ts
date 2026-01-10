@@ -33,8 +33,10 @@ import {
 } from '../strategies';
 import { TimelineRecommendationWriter } from '../utils/timeline-recommendation-writer';
 import { TimelineOverlapChecker } from '../utils/timeline-overlap-checker';
-import { buildTimelineQueryHash } from '../utils/query-hash';
-import { RecommendationStrategy } from '@project/shared';
+import {
+  RecommendationStrategy,
+  buildTimelineQueryHash,
+} from '@project/shared';
 import { combineScores } from '../strategies/score-combiner';
 
 /**

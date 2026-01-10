@@ -75,8 +75,8 @@ export class ConfidenceDurationStrategy extends BaseRecommendationStrategy {
       const score = clip.confidence;
 
       candidates.push({
-        startTime: clip.start,
-        endTime: clip.end,
+        start: clip.start,
+        end: clip.end,
         clipId: matchingClip?.id,
         score,
         reason: `High confidence detection (${Math.round(clip.confidence * 100)}%)`,

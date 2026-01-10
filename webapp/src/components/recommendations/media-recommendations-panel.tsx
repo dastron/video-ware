@@ -1,18 +1,21 @@
 'use client';
 
 import { useState } from 'react';
-import { MediaRecommendation } from '@project/shared';
+import { Media, MediaRecommendation } from '@project/shared';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import { ScoredMediaCandidate } from '@/services/recommendations/types';
 import { MediaRecommendationCard } from './media-recommendation-card';
 import { Button } from '@/components/ui/button';
-import { Sparkles, RefreshCw } from 'lucide-react';
+import { Sparkles, RefreshCw, LayoutGrid } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface MediaRecommendationsPanelProps {
   recommendations: MediaRecommendation[];
+  media?: Media;
   isLoading?: boolean;
   onCreateClip?: (recommendation: MediaRecommendation) => void;
   onPreview?: (recommendation: MediaRecommendation) => void;
-  onGenerateMore?: () => void;
+  onRefresh?: () => void;
   className?: string;
 }
 
@@ -31,23 +34,18 @@ interface MediaRecommendationsPanelProps {
  */
 export function MediaRecommendationsPanel({
   recommendations,
+  media,
   isLoading = false,
   onCreateClip,
   onPreview,
-  onGenerateMore,
+  onRefresh,
   className,
 }: MediaRecommendationsPanelProps) {
   const [selectedRecommendation, setSelectedRecommendation] =
     useState<MediaRecommendation | null>(null);
 
-  // Filter out recommendations that have already been converted to clips
-  const availableRecommendations = recommendations.filter(
-    (rec) => !rec.MediaClipRef
-  );
-
   const handleSelect = (recommendation: MediaRecommendation) => {
     setSelectedRecommendation(recommendation);
-    // Trigger preview when selecting
     if (onPreview) {
       onPreview(recommendation);
     }
@@ -78,31 +76,51 @@ export function MediaRecommendationsPanel({
   }
 
   // Show empty state
-  if (!availableRecommendations || availableRecommendations.length === 0) {
+  if (!recommendations || recommendations.length === 0) {
     return (
-      <div className={cn('flex flex-col gap-4', className)}>
+      <div className={cn('flex flex-col h-full', className)}>
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between px-6 py-4 border-b">
           <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-semibold">Recommended Segments</h2>
+            <div className="bg-primary/10 p-2 rounded-lg">
+              <Sparkles className="h-4 w-4 text-primary" />
+            </div>
+            <h2 className="text-sm font-bold tracking-tight">AI SUGGESTIONS</h2>
           </div>
+          {onRefresh && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-primary transition-colors"
+              onClick={onRefresh}
+              disabled={isLoading}
+            >
+              <RefreshCw
+                className={cn('h-4 w-4', isLoading && 'animate-spin')}
+              />
+            </Button>
+          )}
         </div>
 
         {/* Empty state */}
-        <div className="flex flex-col items-center justify-center py-12 px-4 text-center border-2 border-dashed border-border rounded-lg bg-muted/20">
-          <Sparkles className="h-12 w-12 text-muted-foreground/50 mb-4" />
-          <h3 className="text-base font-medium text-foreground mb-2">
-            No recommendations available
+        <div className="flex flex-col items-center justify-center flex-1 py-12 px-6 text-center">
+          <div className="bg-muted/30 p-6 rounded-full mb-6">
+            <Sparkles className="h-10 w-10 text-muted-foreground/30" />
+          </div>
+          <h3 className="text-lg font-semibold text-foreground mb-2">
+            No suggestions yet
           </h3>
-          <p className="text-sm text-muted-foreground max-w-sm mb-4">
-            Generate intelligent recommendations for this media based on labels
-            and content analysis.
+          <p className="text-sm text-muted-foreground max-w-[240px] leading-relaxed mb-8">
+            Click refresh to generate intelligent clip suggestions based on your
+            media content.
           </p>
-          {onGenerateMore && (
-            <Button variant="outline" size="sm" onClick={onGenerateMore}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Generate Recommendations
+          {onRefresh && (
+            <Button
+              variant="default"
+              className="rounded-full px-8 shadow-lg shadow-primary/20"
+              onClick={onRefresh}
+            >
+              Refresh Recommendations
             </Button>
           )}
         </div>
@@ -110,38 +128,65 @@ export function MediaRecommendationsPanel({
     );
   }
 
-  // Show recommendations
   return (
-    <div className={cn('flex flex-col gap-4', className)}>
-      {/* Header with "Generate More" button */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-semibold">Recommended Segments</h2>
-          <span className="text-sm text-muted-foreground">
-            ({availableRecommendations.length})
-          </span>
+    <div className={cn('flex flex-col h-full bg-background/50', className)}>
+      {/* Refined Header */}
+      <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-background/80 backdrop-blur-md z-10">
+        <div className="flex items-center gap-3">
+          <div className="bg-primary/10 p-2 rounded-lg">
+            <Sparkles className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold tracking-tight uppercase">
+              AI Suggestions
+            </h2>
+            <p className="text-[10px] text-muted-foreground font-medium">
+              {recommendations.length} SEGMENTS FOUND
+            </p>
+          </div>
         </div>
 
-        {onGenerateMore && (
-          <Button variant="outline" size="sm" onClick={onGenerateMore}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Generate More
-          </Button>
-        )}
+        <div className="flex items-center gap-1">
+          {onRefresh && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-primary transition-colors hover:bg-primary/5"
+              onClick={onRefresh}
+              disabled={isLoading}
+              title="Refresh suggestions"
+            >
+              <RefreshCw
+                className={cn('h-4 w-4', isLoading && 'animate-spin')}
+              />
+            </Button>
+          )}
+        </div>
       </div>
 
-      {/* Recommendations grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {availableRecommendations.map((recommendation) => (
+      {/* Recommendations Grid - Single Column for Sidebar/Panel feel */}
+      <div className="flex-1 overflow-y-auto">
+        {recommendations.map((recommendation, idx) => (
           <MediaRecommendationCard
-            key={recommendation.id}
+            key={`${recommendation.start}-${recommendation.end}-${idx}`}
             recommendation={recommendation}
-            selected={selectedRecommendation?.id === recommendation.id}
+            media={media}
+            selected={
+              selectedRecommendation?.start === recommendation.start &&
+              selectedRecommendation?.end === recommendation.end
+            }
             onSelect={handleSelect}
             onCreateClip={onCreateClip}
           />
         ))}
+
+        {/* Subtle footer */}
+        <div className="py-8 flex flex-col items-center gap-2 opacity-30 grayscale">
+          <LayoutGrid className="h-6 w-6" />
+          <span className="text-[10px] font-bold uppercase tracking-widest">
+            End of suggestions
+          </span>
+        </div>
       </div>
     </div>
   );

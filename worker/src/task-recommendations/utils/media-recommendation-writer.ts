@@ -78,10 +78,6 @@ export class MediaRecommendationWriter {
     candidates: ScoredMediaCandidate[],
     context: MediaRecommendationContext
   ): Promise<MediaWriteResult> {
-    this.logger.debug(
-      `Writing ${candidates.length} media recommendations for queryHash: ${queryHash}`
-    );
-
     // Sort candidates by score descending
     const sortedCandidates = [...candidates].sort((a, b) => b.score - a.score);
 
@@ -115,10 +111,6 @@ export class MediaRecommendationWriter {
     await this.recomputeRanks(queryHash);
 
     const total = topCandidates.length;
-
-    this.logger.debug(
-      `Write complete: ${created} created, ${updated} updated, ${pruned} pruned, ${total} total`
-    );
 
     return {
       created,

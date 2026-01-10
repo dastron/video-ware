@@ -58,7 +58,28 @@ export class FFmpegTranscodeExecutor implements ITranscodeExecutor {
       return { width: config.sourceWidth, height: config.sourceHeight };
     }
 
-    return resolutions[config.resolution] || resolutions['720p'];
+    // Get target resolution
+    const targetRes = resolutions[config.resolution] || resolutions['720p'];
+
+    // Calculate source aspect ratio
+    const sourceAspectRatio = config.sourceWidth / config.sourceHeight;
+
+    // Maintain aspect ratio by adjusting dimensions
+    // Scale to fit within target resolution while preserving aspect ratio
+    let width = targetRes.width;
+    let height = Math.round(width / sourceAspectRatio);
+
+    // If height exceeds target, scale by height instead
+    if (height > targetRes.height) {
+      height = targetRes.height;
+      width = Math.round(height * sourceAspectRatio);
+    }
+
+    // Ensure dimensions are even (required by most video codecs)
+    width = Math.round(width / 2) * 2;
+    height = Math.round(height / 2) * 2;
+
+    return { width, height };
   }
 
   private resolveCodec(codec: string): string {

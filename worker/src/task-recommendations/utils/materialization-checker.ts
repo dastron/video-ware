@@ -39,10 +39,6 @@ export class MaterializationChecker {
    * @returns Array of recommendation IDs that are materialized
    */
   async getMaterializedIds(queryHash: string): Promise<string[]> {
-    this.logger.debug(
-      `Getting materialized recommendations for queryHash: ${queryHash}`
-    );
-
     // Get all recommendations for this queryHash that have been accepted
     const result =
       await this.pocketbaseService.timelineRecommendationMutator.getByQueryHash(
@@ -54,10 +50,6 @@ export class MaterializationChecker {
 
     // Filter to only those with acceptedAt set
     const materialized = result.items.filter((rec) => this.isMaterialized(rec));
-
-    this.logger.debug(
-      `Found ${materialized.length} materialized recommendations`
-    );
 
     return materialized.map((rec) => rec.id);
   }

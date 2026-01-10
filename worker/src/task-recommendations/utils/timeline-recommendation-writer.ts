@@ -80,16 +80,8 @@ export class TimelineRecommendationWriter {
     candidates: ScoredTimelineCandidate[],
     context: TimelineRecommendationContext
   ): Promise<TimelineWriteResult> {
-    this.logger.debug(
-      `Writing ${candidates.length} timeline recommendations for queryHash: ${queryHash}`
-    );
-
     // Get IDs of materialized recommendations to skip
     const materializedIds = await this.skipMaterialized(queryHash);
-    this.logger.debug(
-      `Found ${materializedIds.length} materialized recommendations to preserve`
-    );
-
     // Sort candidates by score descending
     const sortedCandidates = [...candidates].sort((a, b) => b.score - a.score);
 
@@ -112,9 +104,6 @@ export class TimelineRecommendationWriter {
 
       if (existing && materializedIds.includes(existing.id)) {
         // Skip materialized recommendations
-        this.logger.debug(
-          `Skipping materialized recommendation: ${existing.id}`
-        );
         skipped++;
         continue;
       }
@@ -144,10 +133,6 @@ export class TimelineRecommendationWriter {
     await this.recomputeRanks(queryHash, materializedIds);
 
     const total = topCandidates.length;
-
-    this.logger.debug(
-      `Write complete: ${created} created, ${updated} updated, ${pruned} pruned, ${skipped} skipped, ${total} total`
-    );
 
     return {
       created,

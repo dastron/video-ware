@@ -13,10 +13,8 @@ import {
   RecommendationStrategy,
   RecommendationTargetMode,
   LabelType,
-  TaskType,
-  TaskStatus,
 } from '@project/shared';
-import { TimelineRecommendationMutator, TaskMutator } from '@project/shared';
+import { TimelineRecommendationMutator } from '@project/shared';
 import pb from '@/lib/pocketbase-client';
 import type { RecordSubscription } from 'pocketbase';
 
@@ -113,7 +111,6 @@ export function TimelineRecommendationProvider({
 
   // Create mutator - memoized to prevent recreation
   const mutator = useMemo(() => new TimelineRecommendationMutator(pb), []);
-  const taskMutator = useMemo(() => new TaskMutator(pb), []);
 
   // Clear error helper
   const clearError = useCallback(() => {
@@ -205,12 +202,77 @@ export function TimelineRecommendationProvider({
     ]
   );
 
+  // Generate recommendations by calling the new on-demand API
+  const generateRecommendations = useCallback(
+    async (params: GenerateTimelineRecommendationsParams) => {
+      const { timelineId, seedClipId, maxResults = 10 } = params;
+
+      if (!timelineId) {
+        setError('Timeline ID is required to generate recommendations');
+        return;
+      }
+
+      setIsLoading(true);
+      clearError();
+
+      try {
+        // Get workspace from timeline
+        const timeline = await pb.collection('Timelines').getOne(timelineId);
+        const workspaceId = timeline.WorkspaceRef;
+
+        const urlParams = new URLSearchParams({
+          workspaceId,
+          timelineId,
+          maxResults: maxResults.toString(),
+        });
+
+        if (seedClipId) {
+          urlParams.set('seedClipId', seedClipId);
+        }
+
+        const token = pb.authStore.token;
+        if (!token) {
+          throw new Error(
+            'User must be authenticated to generate recommendations'
+          );
+        }
+
+        const response = await fetch(
+          `/api-next/recommendations/timeline?${urlParams.toString()}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(
+            errorData.error || 'Failed to generate recommendations'
+          );
+        }
+
+        const data = await response.json();
+        setRecommendations(data.items || []);
+      } catch (error) {
+        handleError(error, 'generate');
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [clearError, handleError]
+  );
+
   // Refresh recommendations
   const refreshRecommendations = useCallback(async () => {
     if (currentTimelineIdRef.current) {
-      await fetchRecommendations(currentTimelineIdRef.current);
+      await generateRecommendations({
+        timelineId: currentTimelineIdRef.current,
+        targetMode: RecommendationTargetMode.APPEND, // Default mode
+      });
     }
-  }, [fetchRecommendations]);
+  }, [generateRecommendations]);
 
   // Accept a recommendation
   const acceptRecommendation = useCallback(
@@ -308,79 +370,6 @@ export function TimelineRecommendationProvider({
   const toggleExcludeDismissed = useCallback(() => {
     setExcludeDismissed((prev) => !prev);
   }, []);
-
-  // Generate recommendations by creating a task
-  const generateRecommendations = useCallback(
-    async (params: GenerateTimelineRecommendationsParams) => {
-      const {
-        timelineId,
-        seedClipId,
-        targetMode,
-        strategies,
-        strategyWeights,
-        searchParams,
-        maxResults,
-      } = params;
-
-      if (!timelineId) {
-        setError('Timeline ID is required to generate recommendations');
-        return;
-      }
-
-      setIsLoading(true);
-      clearError();
-
-      try {
-        // Get current user
-        const user = pb.authStore.model;
-        if (!user) {
-          throw new Error(
-            'User must be authenticated to generate recommendations'
-          );
-        }
-
-        // Get workspace from timeline
-        const timeline = await pb.collection('Timelines').getOne(timelineId);
-        const workspaceId = timeline.WorkspaceRef;
-
-        // Create task with payload
-        await taskMutator.create({
-          sourceType: 'Timelines',
-          sourceId: timelineId,
-          type: TaskType.GENERATE_TIMELINE_RECOMMENDATIONS,
-          status: TaskStatus.QUEUED,
-          progress: 1,
-          attempts: 1,
-          priority: 0,
-          payload: {
-            workspaceId,
-            timelineId,
-            seedClipId,
-            targetMode,
-            strategies: strategies || [
-              RecommendationStrategy.SAME_ENTITY,
-              RecommendationStrategy.ADJACENT_SHOT,
-              RecommendationStrategy.TEMPORAL_NEARBY,
-              RecommendationStrategy.CONFIDENCE_DURATION,
-            ],
-            strategyWeights,
-            searchParams,
-            maxResults: maxResults || 20,
-          },
-          WorkspaceRef: workspaceId,
-          UserRef: user.id,
-        });
-
-        // The task will be picked up by the worker and recommendations will
-        // appear via real-time subscription
-      } catch (error) {
-        handleError(error, 'generate');
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [taskMutator, clearError, handleError]
-  );
 
   // Real-time subscription management
   const subscribe = useCallback(

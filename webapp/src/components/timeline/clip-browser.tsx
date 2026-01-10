@@ -1,12 +1,6 @@
 'use client';
 
-import React, {
-  useState,
-  useEffect,
-  useCallback,
-  useMemo,
-  useRef,
-} from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { MediaClipMutator } from '@project/shared/mutator';
 import { ClipType } from '@project/shared';
 import { useWorkspace } from '@/hooks/use-workspace';
@@ -24,15 +18,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Search, Film, AlertCircle } from 'lucide-react';
-import {
-  ClipBrowserItem,
-  type MediaClipWithExpand,
-  CARD_WIDTH,
-  CARD_HEIGHT,
-} from './clip-browser-item';
+import { ClipBrowserItem, type MediaClipWithExpand } from './clip-browser-item';
 
 interface ClipBrowserProps {
-  height: number;
+  height?: number;
 }
 
 const CLIP_TYPE_OPTIONS = [
@@ -46,10 +35,7 @@ const CLIP_TYPE_OPTIONS = [
   { value: ClipType.RECOMMENDATION, label: 'Recommendation' },
 ];
 
-const GAP = 12;
-const HEADER_HEIGHT = 60;
-
-export function ClipBrowser({ height }: ClipBrowserProps) {
+export function ClipBrowser({ height: _height = 300 }: ClipBrowserProps) {
   const { currentWorkspace } = useWorkspace();
   const { addClip } = useTimeline();
   const [clips, setClips] = useState<MediaClipWithExpand[]>([]);
@@ -58,17 +44,14 @@ export function ClipBrowser({ height }: ClipBrowserProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [sortBy, setBySort] = useState<'recent' | 'duration' | 'name'>(
+    'recent'
+  );
 
   // Create mutator instance
   const mediaClipMutator = useMemo(() => new MediaClipMutator(pb), []);
 
-  // Calculate grid dimensions based on available space
-  const gridDimensions = useMemo(() => {
-    const availableHeight = height - HEADER_HEIGHT;
-    const rows = Math.max(1, Math.floor(availableHeight / (CARD_HEIGHT + GAP)));
-    return { rows };
-  }, [height]);
+  // No longer using fixed grid dimensions
 
   // Debounce search query
   useEffect(() => {
@@ -95,14 +78,40 @@ export function ClipBrowser({ height }: ClipBrowserProps) {
           searchQuery: debouncedSearchQuery || undefined,
         }
       );
-      setClips(result.items as MediaClipWithExpand[]);
+
+      const items = result.items as MediaClipWithExpand[];
+
+      // Client-side sorting
+      if (sortBy === 'name') {
+        items.sort((a, b) => {
+          const nameA = a.expand?.MediaRef?.expand?.UploadRef?.filename || '';
+          const nameB = b.expand?.MediaRef?.expand?.UploadRef?.filename || '';
+          return nameA.localeCompare(nameB);
+        });
+      } else if (sortBy === 'duration') {
+        items.sort((a, b) => b.end - b.start - (a.end - a.start));
+      } else {
+        // Default to recent (creation date)
+        items.sort(
+          (a, b) =>
+            new Date(b.created).getTime() - new Date(a.created).getTime()
+        );
+      }
+
+      setClips(items);
     } catch (err) {
       console.error('Failed to load clips:', err);
       setError(err instanceof Error ? err.message : 'Failed to load clips');
     } finally {
       setIsLoading(false);
     }
-  }, [currentWorkspace, mediaClipMutator, typeFilter, debouncedSearchQuery]);
+  }, [
+    currentWorkspace,
+    mediaClipMutator,
+    typeFilter,
+    debouncedSearchQuery,
+    sortBy,
+  ]);
 
   // Load clips when workspace or filters change
   useEffect(() => {
@@ -120,23 +129,7 @@ export function ClipBrowser({ height }: ClipBrowserProps) {
     [addClip]
   );
 
-  // Handle horizontal scroll with vertical mouse wheel
-  useEffect(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-
-    const handleWheel = (e: WheelEvent) => {
-      // Only handle vertical wheel events
-      if (e.deltaY !== 0) {
-        e.preventDefault();
-        // Scroll horizontally based on vertical wheel movement
-        container.scrollLeft += e.deltaY;
-      }
-    };
-
-    container.addEventListener('wheel', handleWheel, { passive: false });
-    return () => container.removeEventListener('wheel', handleWheel);
-  }, []);
+  // Removed horizontal scroll with mouse wheel effect
 
   if (!currentWorkspace) {
     return (
@@ -154,54 +147,57 @@ export function ClipBrowser({ height }: ClipBrowserProps) {
   return (
     <div className="h-full flex flex-col">
       {/* Header with Search and Filter */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b flex-shrink-0">
-        <div className="relative flex-1 max-w-xs">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search clips..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8 h-9"
-          />
-        </div>
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-[160px] h-9">
-            <SelectValue placeholder="Filter by type" />
-          </SelectTrigger>
-          <SelectContent>
-            {CLIP_TYPE_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {clips.length > 0 && (
-          <div className="text-sm text-muted-foreground">
-            {clips.length} clip{clips.length !== 1 ? 's' : ''}
+      <div className="flex flex-col gap-3 px-4 py-3 border-b flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search clips..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8 h-9"
+            />
           </div>
-        )}
+          <Select value={sortBy} onValueChange={(val: any) => setBySort(val)}>
+            <SelectTrigger className="w-[120px] h-9">
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="recent">Recent</SelectItem>
+              <SelectItem value="duration">Duration</SelectItem>
+              <SelectItem value="name">Name</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center justify-between">
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="w-[140px] h-8 text-xs">
+              <SelectValue placeholder="All Types" />
+            </SelectTrigger>
+            <SelectContent>
+              {CLIP_TYPE_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {clips.length > 0 && (
+            <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground/60">
+              {clips.length} clip{clips.length !== 1 ? 's' : ''}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Clips Grid with Horizontal Scroll */}
+      {/* Content Area with Fluid Grid */}
       <div
-        ref={scrollContainerRef}
-        className="flex-1 overflow-x-auto overflow-y-hidden px-4 py-3"
-        style={{
-          scrollbarWidth: 'thin',
-        }}
+        className="flex-1 overflow-y-auto px-4 py-4"
+        style={{ scrollbarWidth: 'thin' }}
       >
         {isLoading && clips.length === 0 ? (
-          // Loading skeletons in grid
-          <div
-            className="inline-grid gap-3 h-full"
-            style={{
-              gridTemplateRows: `repeat(${gridDimensions.rows}, ${CARD_HEIGHT}px)`,
-              gridAutoFlow: 'column',
-              gridAutoColumns: `${CARD_WIDTH}px`,
-            }}
-          >
-            {Array.from({ length: gridDimensions.rows * 3 }).map((_, i) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">
+            {Array.from({ length: 6 }).map((_, i) => (
               <ClipCardSkeleton key={i} />
             ))}
           </div>
@@ -223,15 +219,8 @@ export function ClipBrowser({ height }: ClipBrowserProps) {
             </div>
           </div>
         ) : (
-          <div
-            className="inline-grid gap-3 h-full"
-            style={{
-              gridTemplateRows: `repeat(${gridDimensions.rows}, ${CARD_HEIGHT}px)`,
-              gridAutoFlow: 'column',
-              gridAutoColumns: `${CARD_WIDTH}px`,
-            }}
-          >
-            {clips.map((clip) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3 pb-8">
+            {clips.map((clip: MediaClipWithExpand) => (
               <ClipBrowserItem
                 key={clip.id}
                 clip={clip}
@@ -247,13 +236,10 @@ export function ClipBrowser({ height }: ClipBrowserProps) {
 
 function ClipCardSkeleton() {
   return (
-    <Card
-      className="overflow-hidden"
-      style={{ width: `${CARD_WIDTH}px`, height: `${CARD_HEIGHT}px` }}
-    >
-      <CardContent className="p-2 h-full flex flex-col">
+    <Card className="overflow-hidden w-full h-40">
+      <CardContent className="p-2.5 h-full flex flex-col">
         <Skeleton className="w-full h-24 rounded mb-2 flex-shrink-0" />
-        <div className="flex-1 flex flex-col gap-1 min-h-0">
+        <div className="flex-1 flex flex-col gap-1 min-h-0 text-xs">
           <Skeleton className="h-3 w-3/4" />
           <Skeleton className="h-2.5 w-1/2" />
         </div>

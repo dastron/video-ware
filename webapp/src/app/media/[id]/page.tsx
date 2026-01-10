@@ -39,11 +39,7 @@ import {
   ProcessingProvider,
 } from '@project/shared/enums';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import {
-  TaskMutator,
-  MediaClipMutator,
-  MediaRecommendationMutator,
-} from '@project/shared/mutator';
+import { TaskMutator, MediaClipMutator } from '@project/shared/mutator';
 import pb from '@/lib/pocketbase-client';
 import { toast } from 'sonner';
 import { useWorkspace } from '@/hooks/use-workspace';
@@ -59,7 +55,6 @@ function MediaDetailsPageContentWithRecommendations() {
     recommendations,
     isLoading: isLoadingRecommendations,
     generateRecommendations,
-    refreshRecommendations,
   } = useMediaRecommendations();
   const [isInlineCreateMode, setIsInlineCreateMode] = useState(false);
   const [editingClipId, setEditingClipId] = useState<string | null>(null);
@@ -234,11 +229,10 @@ function MediaDetailsPageContentWithRecommendations() {
 
     try {
       const clipMutator = new MediaClipMutator(pb);
-      const recommendationMutator = new MediaRecommendationMutator(pb);
       const duration = recommendation.end - recommendation.start;
 
       // Create the clip
-      const clip = await clipMutator.create({
+      await clipMutator.create({
         WorkspaceRef: currentWorkspace.id,
         MediaRef: media.id,
         type: ClipType.RECOMMENDATION,
@@ -248,14 +242,8 @@ function MediaDetailsPageContentWithRecommendations() {
         version: 1,
       });
 
-      // Link the recommendation to the created clip
-      await recommendationMutator.update(recommendation.id, {
-        MediaClipRef: clip.id,
-      });
-
       toast.success('Clip created from recommendation');
       refresh(); // Refresh clips list
-      await refreshRecommendations(); // Refresh recommendations to hide the used one
     } catch (error) {
       console.error('Failed to create clip from recommendation:', error);
       toast.error('Failed to create clip', {
@@ -274,12 +262,9 @@ function MediaDetailsPageContentWithRecommendations() {
   };
 
   const handleGenerateRecommendations = async () => {
-    if (!media) return;
+    if (!media || !currentWorkspace) return;
 
-    await generateRecommendations({
-      mediaId: media.id,
-      // Use default strategies and parameters
-    });
+    await generateRecommendations(media.id, currentWorkspace.id);
   };
 
   if (isLoading) {
@@ -581,10 +566,11 @@ function MediaDetailsPageContentWithRecommendations() {
                 >
                   <MediaRecommendationsPanel
                     recommendations={recommendations}
+                    media={media}
                     isLoading={isLoadingRecommendations}
                     onCreateClip={handleCreateClipFromRecommendation}
                     onPreview={handlePreviewRecommendation}
-                    onGenerateMore={handleGenerateRecommendations}
+                    onRefresh={handleGenerateRecommendations}
                   />
                 </TabsContent>
               </CardContent>

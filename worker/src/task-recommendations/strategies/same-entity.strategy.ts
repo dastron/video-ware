@@ -85,8 +85,8 @@ export class SameEntityStrategy extends BaseRecommendationStrategy {
         const score = Math.min(1, baseScore + occurrenceBonus);
 
         candidates.push({
-          startTime: clip.start,
-          endTime: clip.end,
+          start: clip.start,
+          end: clip.end,
           clipId: matchingClip?.id,
           score,
           reason: `Contains ${entity.canonicalName} (appears ${clips.length} times)`,

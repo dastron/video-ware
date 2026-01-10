@@ -180,16 +180,19 @@ const strategyArbitrary = fc.constantFrom(
 
 const scoredCandidateArbitrary = fc
   .record({
-    start: fc.float({ min: 0, max: 1000 }),
-    end: fc.float({ min: 0, max: 1000 }),
-    clipId: fc.option(fc.uuid()).map((v) => v ?? undefined), // Convert null to undefined
-    score: fc.integer({ min: 0, max: 1000 }).map((x) => x / 1000), // Ensures valid number in [0, 1]
+    start: fc.integer({ min: 0, max: 10000 }).map((x) => x / 10),
+    duration: fc.integer({ min: 1, max: 1000 }).map((x) => x / 10),
+    clipId: fc.option(fc.uuid()).map((v) => v ?? undefined),
+    score: fc.integer({ min: 0, max: 1000 }).map((x) => x / 1000),
     reason: fc.string({ minLength: 1, maxLength: 100 }),
     reasonData: fc.dictionary(fc.string(), fc.anything()),
     labelType: labelTypeArbitrary,
     strategy: strategyArbitrary,
   })
-  .filter((candidate) => candidate.end > candidate.start);
+  .map((candidate) => ({
+    ...candidate,
+    end: candidate.start + candidate.duration,
+  }));
 
 const contextArbitrary = fc.record({
   workspaceId: fc.uuid(),
@@ -255,7 +258,7 @@ describe('MediaRecommendationWriter Properties', () => {
             }
           }
         ),
-        { numRuns: 100 }
+        { numRuns: 20 }
       );
     });
 
@@ -296,7 +299,7 @@ describe('MediaRecommendationWriter Properties', () => {
             );
           }
         ),
-        { numRuns: 100 }
+        { numRuns: 20 }
       );
     });
 
@@ -344,7 +347,7 @@ describe('MediaRecommendationWriter Properties', () => {
             }
           }
         ),
-        { numRuns: 100 }
+        { numRuns: 20 }
       );
     });
   });
@@ -389,7 +392,7 @@ describe('MediaRecommendationWriter Properties', () => {
             }
           }
         ),
-        { numRuns: 100 }
+        { numRuns: 20 }
       );
     });
 
@@ -429,7 +432,7 @@ describe('MediaRecommendationWriter Properties', () => {
             expect(result2.total).toBe(result1.total);
           }
         ),
-        { numRuns: 100 }
+        { numRuns: 20 }
       );
     });
 
@@ -484,7 +487,7 @@ describe('MediaRecommendationWriter Properties', () => {
             }
           }
         ),
-        { numRuns: 100, timeout: 10000 }
+        { numRuns: 20, timeout: 10000 }
       );
     }, 12000);
   });

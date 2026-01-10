@@ -68,8 +68,8 @@ export interface TimelineStrategyContext {
  * Scored candidate for media recommendations
  */
 export interface ScoredMediaCandidate {
-  startTime: number;
-  endTime: number;
+  start: number;
+  end: number;
   clipId?: string; // if matches existing MediaClip
   score: number; // 0-1 relevance score
   reason: string; // human-readable explanation

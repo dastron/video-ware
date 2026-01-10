@@ -104,6 +104,11 @@ export class StorageService implements OnModuleInit {
     try {
       this.backend = await createStorageBackend(config);
       this.logger.log(`Initialized storage backend: ${storageType}`);
+
+      // If S3 is enabled, check if we need to migrate from local storage
+      if (storageType === StorageBackendType.S3) {
+        await this.migrateLocalToS3();
+      }
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
@@ -111,6 +116,89 @@ export class StorageService implements OnModuleInit {
         `Failed to initialize storage backend: ${errorMessage}`
       );
       throw error;
+    }
+  }
+
+  /**
+   * Migrate files from local storage to S3 if they exist locally but not in S3
+   */
+  private async migrateLocalToS3() {
+    try {
+      const localPath = this.configService.get<string>(
+        'storage.localPath',
+        './data'
+      );
+
+      // Check if local storage directory exists
+      if (!fs.existsSync(localPath)) {
+        this.logger.log(
+          `No local storage directory found at ${localPath}, skipping migration`
+        );
+        return;
+      }
+
+      this.logger.log(
+        'Checking for files to migrate from local storage to S3...'
+      );
+
+      // Create a temporary local backend to list files
+      const localBackend = new LocalStorageBackend({
+        basePath: localPath,
+      });
+      await localBackend.initialize();
+
+      // List all files in local storage
+      // We use an empty prefix to list from the root of the storage directory
+      const localFiles = await localBackend.listFiles('');
+
+      if (localFiles.length === 0) {
+        this.logger.log('No local files found to migrate');
+        return;
+      }
+
+      this.logger.log(
+        `Found ${localFiles.length} files in local storage. Starting migration...`
+      );
+
+      let migratedCount = 0;
+      let skippedCount = 0;
+      let errorCount = 0;
+
+      for (const file of localFiles) {
+        try {
+          // Check if file already exists in S3
+          const existsInS3 = await this.backend.exists(file.key);
+
+          if (existsInS3) {
+            skippedCount++;
+            continue;
+          }
+
+          this.logger.debug(`Migrating ${file.key} to S3...`);
+
+          // Read file from local using the local backend
+          const fileStream = await localBackend.download(file.key);
+
+          // Upload to S3
+          await this.backend.upload(fileStream, file.key);
+
+          migratedCount++;
+        } catch (err) {
+          errorCount++;
+          const errorMessage = err instanceof Error ? err.message : String(err);
+          this.logger.error(`Failed to migrate ${file.key}: ${errorMessage}`);
+        }
+      }
+
+      this.logger.log(
+        `Migration complete. Migrated: ${migratedCount}, Skipped: ${skippedCount}, Errors: ${errorCount}`
+      );
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.error(`Migration failed: ${errorMessage}`);
+      // We don't throw here to allow the service to continue starting up
+      // ignoring the migration failure
     }
   }
 

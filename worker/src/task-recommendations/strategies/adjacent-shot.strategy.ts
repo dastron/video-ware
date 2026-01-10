@@ -83,8 +83,8 @@ export class AdjacentShotStrategy extends BaseRecommendationStrategy {
         const score = (prevShot.confidence + proximityScore) / 2;
 
         candidates.push({
-          startTime: prevShot.start,
-          endTime: prevShot.end,
+          start: prevShot.start,
+          end: prevShot.end,
           clipId: matchingClip?.id,
           score,
           reason: `Shot immediately before (shot ${i})`,
@@ -117,8 +117,8 @@ export class AdjacentShotStrategy extends BaseRecommendationStrategy {
         const score = (nextShot.confidence + proximityScore) / 2;
 
         candidates.push({
-          startTime: nextShot.start,
-          endTime: nextShot.end,
+          start: nextShot.start,
+          end: nextShot.end,
           clipId: matchingClip?.id,
           score,
           reason: `Shot immediately after (shot ${i + 2})`,

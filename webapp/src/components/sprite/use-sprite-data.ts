@@ -3,9 +3,11 @@ import type { Media, File } from '@project/shared';
 import pb from '@/lib/pocketbase-client';
 
 export interface SpriteConfig {
-  cols: number;
-  rows: number;
-  fps: number;
+  cols: number; // Fixed at 10
+  rows: number; // Dynamic based on video duration (up to 250 for 2500 frames)
+  fps: number; // Fixed at 1
+  tileWidth?: number; // Fixed at 320px
+  tileHeight?: number; // Dynamic based on aspect ratio
 }
 
 export function useSpriteData(media: Media) {

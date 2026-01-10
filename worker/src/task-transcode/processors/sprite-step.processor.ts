@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import * as path from 'path';
 import { BaseStepProcessor } from '../../queue/processors/base-step.processor';
-import { FFmpegSpriteExecutor } from '../executors';
+import { FFmpegProbeExecutor, FFmpegSpriteExecutor } from '../executors';
 import { StorageService } from '../../shared/services/storage.service';
 import { PocketBaseService } from '../../shared/services/pocketbase.service';
 import { FileResolver } from '../utils/file-resolver';
@@ -22,6 +22,7 @@ export class SpriteStepProcessor extends BaseStepProcessor<
   protected readonly logger = new Logger(SpriteStepProcessor.name);
 
   constructor(
+    private readonly probeExecutor: FFmpegProbeExecutor,
     private readonly spriteExecutor: FFmpegSpriteExecutor,
     private readonly storageService: StorageService,
     private readonly pocketbaseService: PocketBaseService
@@ -41,9 +42,42 @@ export class SpriteStepProcessor extends BaseStepProcessor<
       this.pocketbaseService
     );
 
+    // Probe for dimensions and duration
+    const { probeOutput } = await this.probeExecutor.execute(filePath);
+
+    // Always use configured fps (1 frame per second), but cap at maxFrames
+    const maxFrames = 2500;
+    const configuredFps = input.config.fps; // Fixed at 1 fps
+    const cols = input.config.cols; // Fixed at 10
+
+    // Calculate how many frames we would generate at this interval
+    const potentialFrames = Math.floor(probeOutput.duration * configuredFps);
+
+    // Cap at maxFrames - we simply won't generate frames beyond this limit
+    const actualFrames = Math.min(potentialFrames, maxFrames);
+
+    // Calculate rows needed for the actual number of frames
+    const rows = Math.ceil(actualFrames / cols);
+
+    this.logger.log(
+      `Generating ${actualFrames} frames (${cols}x${rows}) at ${configuredFps} fps for ${probeOutput.duration}s video` +
+        (potentialFrames > maxFrames
+          ? ` (capped from ${potentialFrames} frames)`
+          : '')
+    );
+
+    // Create enhanced config with source dimensions and calculated rows
+    const enhancedConfig = {
+      ...input.config,
+      sourceWidth: probeOutput.width,
+      sourceHeight: probeOutput.height,
+      fps: configuredFps, // Always use configured fps
+      rows, // Override rows with calculated value
+    };
+
     // Generate sprite
     const spritePath = `${filePath}_sprite.jpg`;
-    await this.spriteExecutor.execute(filePath, spritePath, input.config);
+    await this.spriteExecutor.execute(filePath, spritePath, enhancedConfig);
 
     // Get upload for workspace reference
     const upload = await this.pocketbaseService.getUpload(input.uploadId);
@@ -51,7 +85,7 @@ export class SpriteStepProcessor extends BaseStepProcessor<
       throw new Error(`Upload ${input.uploadId} not found`);
     }
 
-    // Create File record
+    // Create File record with sprite configuration in meta
     const fileName = path.basename(spritePath);
     const storageKey = `uploads/${input.uploadId}/${FileType.SPRITE}/${fileName}`;
 
@@ -64,6 +98,15 @@ export class SpriteStepProcessor extends BaseStepProcessor<
       workspaceRef: upload.WorkspaceRef,
       uploadRef: input.uploadId,
       mimeType: 'image/jpeg',
+      meta: {
+        spriteConfig: {
+          cols: enhancedConfig.cols,
+          rows: enhancedConfig.rows,
+          fps: enhancedConfig.fps,
+          tileWidth: enhancedConfig.tileWidth,
+          tileHeight: enhancedConfig.tileHeight,
+        },
+      },
     });
 
     // Update Media record

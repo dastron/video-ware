@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { QueueService } from './queue.service';
 import { FlowService } from './flow.service';
+import { JobService } from './job.service';
 import { QUEUE_NAMES } from './queue.constants';
 
 @Module({
@@ -15,7 +16,7 @@ import { QUEUE_NAMES } from './queue.constants';
       { name: QUEUE_NAMES.TIMELINE_RECOMMENDATIONS }
     ),
   ],
-  providers: [QueueService, FlowService],
-  exports: [QueueService, FlowService, BullModule],
+  providers: [QueueService, FlowService, JobService],
+  exports: [QueueService, FlowService, JobService, BullModule],
 })
 export class QueueModule {}

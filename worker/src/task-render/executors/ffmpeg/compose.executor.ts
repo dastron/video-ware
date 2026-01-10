@@ -96,6 +96,29 @@ export class FFmpegComposeExecutor implements IComposeExecutor {
     const inputFiles: string[] = [];
     const filterComplex: string[] = [];
 
+    // Determine target aspect ratio from first clip or use output settings
+    const firstClipMedia = Object.values(clipMediaMap)[0]?.media;
+    const targetAspectRatio = firstClipMedia?.aspectRatio || 16 / 9;
+
+    // Parse target resolution and adjust for aspect ratio
+    const [targetWidth, targetHeight] = outputSettings.resolution
+      .split('x')
+      .map(Number);
+
+    // Calculate actual output dimensions maintaining aspect ratio
+    let outputWidth = targetWidth;
+    let outputHeight = Math.round(outputWidth / targetAspectRatio);
+
+    // If height exceeds target, scale by height instead
+    if (outputHeight > targetHeight) {
+      outputHeight = targetHeight;
+      outputWidth = Math.round(outputHeight * targetAspectRatio);
+    }
+
+    // Ensure dimensions are even (required by most video codecs)
+    outputWidth = Math.round(outputWidth / 2) * 2;
+    outputHeight = Math.round(outputHeight / 2) * 2;
+
     for (let i = 0; i < editList.length; i++) {
       const segment = editList[i];
 
@@ -119,8 +142,8 @@ export class FFmpegComposeExecutor implements IComposeExecutor {
         segment.endTimeOffset.seconds + segment.endTimeOffset.nanos / 1e9;
       const duration = endTime - startTime;
 
-      // Create filter for this segment
-      const segmentFilter = `[${i}:v]trim=start=${startTime}:duration=${duration},setpts=PTS-STARTPTS[v${i}]; [${i}:a]atrim=start=${startTime}:duration=${duration},asetpts=PTS-STARTPTS[a${i}]`;
+      // Create filter for this segment with scaling to maintain aspect ratio
+      const segmentFilter = `[${i}:v]trim=start=${startTime}:duration=${duration},setpts=PTS-STARTPTS,scale=${outputWidth}:${outputHeight}:force_original_aspect_ratio=decrease,pad=${outputWidth}:${outputHeight}:(ow-iw)/2:(oh-ih)/2[v${i}]; [${i}:a]atrim=start=${startTime}:duration=${duration},asetpts=PTS-STARTPTS[a${i}]`;
       filterComplex.push(segmentFilter);
     }
 
@@ -139,9 +162,8 @@ export class FFmpegComposeExecutor implements IComposeExecutor {
     // Add output settings
     args.push('-c:v', outputSettings.codec);
 
-    // Parse resolution
-    const [width, height] = outputSettings.resolution.split('x').map(Number);
-    args.push('-s', `${width}x${height}`);
+    // Use calculated dimensions
+    args.push('-s', `${outputWidth}x${outputHeight}`);
 
     // Add output format
     args.push('-f', outputSettings.format);

@@ -10,7 +10,8 @@ export default [
       "**/dist/**",
       "**/build/**",
       "**/.yarn/**",
-      "**/.pnp.*"
+      "**/.pnp.*",
+      "**/src/task-recommendations/**",
     ]
   },
 

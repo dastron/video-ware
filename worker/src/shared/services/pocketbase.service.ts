@@ -300,6 +300,7 @@ export class PocketBaseService implements OnModuleInit {
     workspaceRef: string;
     uploadRef: string;
     mimeType: string;
+    meta?: Record<string, any>;
   }): Promise<File> {
     const {
       localFilePath,
@@ -310,6 +311,7 @@ export class PocketBaseService implements OnModuleInit {
       workspaceRef,
       uploadRef,
       mimeType,
+      meta = {},
     } = params;
 
     try {
@@ -333,7 +335,7 @@ export class PocketBaseService implements OnModuleInit {
       formData.append('s3Key', storageKey);
       formData.append('WorkspaceRef', workspaceRef);
       formData.append('UploadRef', uploadRef);
-      formData.append('meta', JSON.stringify({ mimeType }));
+      formData.append('meta', JSON.stringify({ mimeType, ...meta }));
 
       // Append the actual file
       formData.append('file', blob as unknown as Blob, fileName);

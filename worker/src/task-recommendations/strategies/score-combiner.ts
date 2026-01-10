@@ -245,8 +245,8 @@ export class ScoreCombiner {
    */
   private getMediaSegmentKey(candidate: ScoredMediaCandidate): string {
     // Round to 2 decimal places to handle floating point precision
-    const start = Math.round(candidate.startTime * 100) / 100;
-    const end = Math.round(candidate.endTime * 100) / 100;
+    const start = Math.round(candidate.start * 100) / 100;
+    const end = Math.round(candidate.end * 100) / 100;
     return `${start}-${end}`;
   }
 

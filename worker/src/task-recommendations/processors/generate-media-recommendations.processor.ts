@@ -33,8 +33,11 @@ import {
   type ScoredMediaCandidate,
 } from '../strategies';
 import { MediaRecommendationWriter } from '../utils/media-recommendation-writer';
-import { buildMediaQueryHash } from '../utils/query-hash';
-import { RecommendationStrategy, LabelType } from '@project/shared';
+import {
+  RecommendationStrategy,
+  LabelType,
+  buildMediaQueryHash,
+} from '@project/shared';
 
 /**
  * Processor for generate_media_recommendations tasks
@@ -185,7 +188,7 @@ export class GenerateMediaRecommendationsProcessor extends BaseSimpleProcessor<
     const queryHash = buildMediaQueryHash({
       workspaceId,
       mediaId,
-      mediaVersion: context.media.version ?? 1,
+      mediaVersion: context.media.version || 1,
       strategies,
       filterParams: filterParams || {},
     });
@@ -328,8 +331,8 @@ export class GenerateMediaRecommendationsProcessor extends BaseSimpleProcessor<
 
     // Convert to writer format
     return combinedCandidates.map((candidate) => ({
-      start: candidate.startTime,
-      end: candidate.endTime,
+      start: candidate.start,
+      end: candidate.end,
       clipId: candidate.clipId,
       score: candidate.score,
       reason: candidate.reason,

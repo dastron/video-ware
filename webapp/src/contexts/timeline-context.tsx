@@ -22,6 +22,13 @@ interface TimelineContextType {
   error: string | null;
   hasUnsavedChanges: boolean;
 
+  // Playback state
+  currentTime: number;
+  isPlaying: boolean;
+  duration: number;
+  setCurrentTime: React.Dispatch<React.SetStateAction<number>>;
+  setIsPlaying: React.Dispatch<React.SetStateAction<boolean>>;
+
   // Selected clip state
   selectedClipId: string | null;
   setSelectedClipId: (clipId: string | null) => void;
@@ -45,6 +52,10 @@ interface TimelineContextType {
     clipId: string,
     start: number,
     end: number
+  ) => Promise<void>;
+  updateClip: (
+    clipId: string,
+    data: Partial<import('@project/shared').TimelineClipInput>
   ) => Promise<void>;
 
   // Render operations
@@ -76,6 +87,19 @@ export function TimelineProvider({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
+
+  // Playback state
+  const [currentTime, setCurrentTime] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  // Calculate total duration from clips
+  const duration = useMemo(() => {
+    if (!timeline) return 0;
+    return timeline.clips.reduce(
+      (sum, clip) => sum + (clip.end - clip.start),
+      0
+    );
+  }, [timeline]);
 
   // Create timeline service - memoized to prevent recreation
   const timelineService = useMemo(() => new TimelineService(pb), []);
@@ -336,6 +360,46 @@ export function TimelineProvider({
     [timeline, timelineService, clearError, handleError]
   );
 
+  // Update any clip property
+  const updateClip = useCallback(
+    async (
+      clipId: string,
+      data: Partial<import('@project/shared').TimelineClipInput>
+    ) => {
+      if (!timeline) {
+        throw new Error('No timeline loaded');
+      }
+
+      setIsLoading(true);
+      clearError();
+
+      try {
+        const mutator = new (
+          await import('@project/shared/mutator')
+        ).TimelineClipMutator(pb);
+        const updatedClip = await mutator.update(
+          clipId,
+          data as Record<string, any>
+        );
+
+        // Update local state
+        setTimeline((prev) => {
+          if (!prev) return prev;
+          const updatedClips = prev.clips.map((clip) =>
+            clip.id === clipId ? { ...clip, ...updatedClip } : clip
+          );
+          return { ...prev, clips: updatedClips };
+        });
+      } catch (error) {
+        handleError(error, 'update clip');
+        throw error;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [timeline, clearError, handleError]
+  );
+
   // Create render task
   const createRenderTask = useCallback(
     async (outputSettings: OutputSettings) => {
@@ -383,6 +447,13 @@ export function TimelineProvider({
     error,
     hasUnsavedChanges,
 
+    // Playback state
+    currentTime,
+    isPlaying,
+    duration,
+    setCurrentTime,
+    setIsPlaying,
+
     // Selected clip state
     selectedClipId,
     setSelectedClipId,
@@ -398,6 +469,7 @@ export function TimelineProvider({
     removeClip,
     reorderClips,
     updateClipTimes,
+    updateClip,
 
     // Render operations
     createRenderTask,

@@ -95,6 +95,10 @@ function createMockPocketBase(): TypedPocketBase {
       mediaType: MediaType.VIDEO,
       UploadRef: 'upload-1',
       version: 1,
+      width: 1920,
+      height: 1080,
+      aspectRatio: 16 / 9,
+      mediaData: {},
       expand: {},
     };
     mediaCollection._storage.set(id, media);

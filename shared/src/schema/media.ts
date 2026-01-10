@@ -19,7 +19,10 @@ export const MediaSchema = z
     mediaType: SelectField([MediaType.VIDEO, MediaType.AUDIO, MediaType.IMAGE]),
     mediaDate: DateField().optional(),
     duration: NumberField(), // seconds as float
-    mediaData: JSONField(), // { codec, fps, width, height, ... }
+    width: NumberField(), // video width in pixels
+    height: NumberField(), // video height in pixels
+    aspectRatio: NumberField(), // calculated aspect ratio (width/height)
+    mediaData: JSONField(), // full probe output
     thumbnailFileRef: RelationField({ collection: 'Files' }).optional(),
     spriteFileRef: RelationField({ collection: 'Files' }).optional(),
     proxyFileRef: RelationField({ collection: 'Files' }).optional(),
@@ -35,6 +38,9 @@ export const MediaInputSchema = z.object({
   mediaType: z.enum([MediaType.VIDEO, MediaType.AUDIO, MediaType.IMAGE]),
   mediaDate: DateField().optional(),
   duration: NumberField({ min: 0 }),
+  width: NumberField({ min: 0 }).optional(),
+  height: NumberField({ min: 0 }).optional(),
+  aspectRatio: NumberField({ min: 0 }).optional(),
   mediaData: JSONField(),
   thumbnailFileRef: z.string().optional(),
   spriteFileRef: z.string().optional(),

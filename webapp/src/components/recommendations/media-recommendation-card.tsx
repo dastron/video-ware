@@ -1,16 +1,20 @@
 'use client';
 
-import { useState } from 'react';
-import { MediaRecommendation, LabelType, Media } from '@project/shared';
-import { Card, CardContent } from '@/components/ui/card';
+import { LabelType, Media, MediaRecommendation } from '@project/shared';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Clock, Play, Plus } from 'lucide-react';
+import { Clock, Play, Plus, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { SpriteAnimator } from '@/components/sprite/sprite-animator';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface MediaRecommendationCardProps {
   recommendation: MediaRecommendation;
+  media?: Media;
   selected?: boolean;
   onSelect?: (recommendation: MediaRecommendation) => void;
   onCreateClip?: (recommendation: MediaRecommendation) => void;
@@ -30,29 +34,23 @@ interface MediaRecommendationCardProps {
  *
  * Requirements: 10.2, 10.3, 10.4
  */
+import { MediaBaseCard } from '@/components/media/media-base-card';
+
 export function MediaRecommendationCard({
   recommendation,
+  media,
   selected = false,
   onSelect,
   onCreateClip,
   className,
 }: MediaRecommendationCardProps) {
-  const [isHovering, setIsHovering] = useState(false);
-
-  // Format time as MM:SS
-  const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
   // Calculate duration
   const duration = recommendation.end - recommendation.start;
 
-  // Normalize labelType to single value (it can be an array due to SelectField)
+  // Normalize labelType to single value
   const labelType = Array.isArray(recommendation.labelType)
-    ? recommendation.labelType[0]
-    : recommendation.labelType;
+    ? (recommendation.labelType[0] as LabelType)
+    : (recommendation.labelType as LabelType);
 
   // Get label type display name
   const getLabelTypeDisplay = (type: LabelType): string => {
@@ -78,112 +76,98 @@ export function MediaRecommendationCard({
     return variantMap[type] || 'outline';
   };
 
-  // Get Media from expanded relations - much simpler than TimelineRecommendation!
-  const media = recommendation.expand?.MediaRef as Media | undefined;
-
-  const handleClick = () => {
-    if (onSelect) {
-      onSelect(recommendation);
-    }
-  };
-
-  const handleCreateClip = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent card selection when clicking create button
-    if (onCreateClip) {
-      onCreateClip(recommendation);
-    }
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   return (
-    <Card
+    <MediaBaseCard
+      media={media}
+      startTime={recommendation.start}
+      endTime={recommendation.end}
       className={cn(
-        'cursor-pointer transition-all overflow-hidden p-0 hover:shadow-md hover:border-primary/50',
-        selected && 'border-primary shadow-md ring-2 ring-primary/20',
+        'group transition-all duration-300',
+        selected && 'border-primary ring-2 ring-primary/20 bg-primary/5',
         className
       )}
-      onMouseEnter={() => setIsHovering(true)}
-      onMouseLeave={() => setIsHovering(false)}
-      onClick={handleClick}
-    >
-      <CardContent className="p-0 flex flex-col">
-        {/* Thumbnail/Preview Area */}
-        <div className="w-full h-32 bg-muted/50 relative overflow-hidden border-b border-border/50">
-          {media ? (
-            <SpriteAnimator
-              media={media}
-              start={recommendation.start}
-              end={recommendation.end}
-              isHovering={isHovering}
-              className="absolute inset-0"
-              fallbackIcon={
-                <div className="flex items-center justify-center h-full text-muted-foreground/50">
-                  <div className="text-muted-foreground/50 text-sm text-center px-4">
-                    {formatTime(recommendation.start)} -{' '}
-                    {formatTime(recommendation.end)}
-                  </div>
-                </div>
-              }
-            />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-muted-foreground/50 text-sm">
-                {formatTime(recommendation.start)} -{' '}
-                {formatTime(recommendation.end)}
-              </div>
-            </div>
-          )}
-
-          {/* Hover overlay with play icon */}
-          {isHovering && (
-            <div className="absolute inset-0 bg-black/40 flex items-center justify-center transition-opacity z-10">
-              <Play className="h-12 w-12 text-white/90" />
-            </div>
-          )}
-          {/* Selected indicator - top left */}
-          {selected && (
-            <div className="absolute top-2 left-2 z-20 bg-primary text-primary-foreground rounded-full p-1.5 shadow-lg">
-              <Play className="h-3 w-3" />
-            </div>
-          )}
-          {/* Create Clip button - top right */}
-          {onCreateClip && (
-            <div className="absolute top-2 right-2 z-20">
-              <Button
-                size="icon"
-                variant="default"
-                className="h-8 w-8 rounded-full shadow-lg hover:scale-110 transition-transform"
-                onClick={handleCreateClip}
-                title="Create clip"
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
+      onSelect={() => onSelect?.(recommendation)}
+      title={
+        <div className="flex items-center gap-2">
+          <Badge
+            variant={getLabelTypeVariant(labelType)}
+            className="uppercase text-[10px] font-bold h-5 px-1.5 bg-background/80 backdrop-blur-sm"
+          >
+            {getLabelTypeDisplay(labelType)}
+          </Badge>
+          <div className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground bg-background/80 backdrop-blur-sm px-1.5 h-5 rounded-md">
+            <Clock className="h-3 w-3" />
+            {duration.toFixed(1)}s
+          </div>
         </div>
-
-        {/* Content */}
-        <div className="p-4 flex flex-col gap-3">
-          {/* Header: Label Type Badge and Time Range */}
-          <div className="flex items-center justify-between gap-2">
-            <Badge
-              variant={getLabelTypeVariant(labelType)}
-              className="uppercase text-[10px] font-semibold h-5 px-2"
-            >
-              {getLabelTypeDisplay(labelType)}
-            </Badge>
-            <span className="text-xs font-medium tabular-nums text-muted-foreground flex items-center gap-1">
-              <Clock className="h-3 w-3" />
-              {duration.toFixed(1)}s
+      }
+      subtitle={
+        <div className="mt-1">
+          <p className="text-[11px] leading-tight text-foreground/90 font-medium line-clamp-2">
+            {recommendation.reason}
+          </p>
+          <div className="flex items-center justify-between mt-1.5">
+            <span className="text-[10px] font-bold text-muted-foreground tabular-nums">
+              {formatTime(recommendation.start)} —{' '}
+              {formatTime(recommendation.end)}
             </span>
-          </div>
-
-          {/* Time Range */}
-          <div className="text-xs font-mono text-muted-foreground">
-            {formatTime(recommendation.start)} -{' '}
-            {formatTime(recommendation.end)}
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] font-bold text-primary">
+                {Math.round(recommendation.score * 100)}%
+              </span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3 w-3 text-muted-foreground/30 hover:text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="text-[10px]">
+                      Confidence: {Math.round(recommendation.score * 100)}%
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      }
+      badges={
+        [
+          selected && (
+            <div
+              key="selected"
+              className="bg-primary text-primary-foreground rounded-full p-1 shadow-lg animate-in zoom-in-50 duration-300"
+            >
+              <Play className="h-3 w-3 fill-current" />
+            </div>
+          ),
+        ].filter(Boolean) as React.ReactNode[]
+      }
+      overlayActions={
+        [
+          onCreateClip && (
+            <Button
+              key="create"
+              size="icon"
+              variant="default"
+              className="h-8 w-8 rounded-full shadow-xl lg:translate-y-2 lg:opacity-0 lg:group-hover:translate-y-0 lg:group-hover:opacity-100 transition-all duration-300"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCreateClip(recommendation);
+              }}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          ),
+        ].filter(Boolean) as React.ReactNode[]
+      }
+      thumbnailHeight="h-32"
+    />
   );
 }

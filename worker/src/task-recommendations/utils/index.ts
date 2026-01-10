@@ -8,7 +8,6 @@
  * - Materialization checker for preserving accepted recommendations
  */
 
-export * from './query-hash';
 export * from './media-recommendation-writer';
 export * from './timeline-recommendation-writer';
 export * from './timeline-overlap-checker';

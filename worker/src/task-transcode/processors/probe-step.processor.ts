@@ -79,6 +79,12 @@ export class ProbeStepProcessor extends BaseStepProcessor<
       );
     }
 
+    // Calculate aspect ratio
+    const aspectRatio =
+      probeOutput.width > 0 && probeOutput.height > 0
+        ? probeOutput.width / probeOutput.height
+        : undefined;
+
     // Create Media record
     const mediaData: MediaInput = {
       WorkspaceRef: upload.WorkspaceRef,
@@ -86,6 +92,9 @@ export class ProbeStepProcessor extends BaseStepProcessor<
       mediaType: this.determineMediaType(probeOutput),
       mediaDate: mediaDate?.toISOString(),
       duration: probeOutput.duration,
+      width: probeOutput.width,
+      height: probeOutput.height,
+      aspectRatio,
       mediaData: probeOutput,
       version: 1,
     };

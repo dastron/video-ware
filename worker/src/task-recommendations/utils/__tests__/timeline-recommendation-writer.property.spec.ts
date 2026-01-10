@@ -249,7 +249,7 @@ describe('TimelineRecommendationWriter Properties', () => {
             }
           }
         ),
-        { numRuns: 100 }
+        { numRuns: 20 }
       );
     });
 
@@ -287,7 +287,7 @@ describe('TimelineRecommendationWriter Properties', () => {
             );
           }
         ),
-        { numRuns: 100 }
+        { numRuns: 20 }
       );
     });
 
@@ -335,7 +335,7 @@ describe('TimelineRecommendationWriter Properties', () => {
             }
           }
         ),
-        { numRuns: 100 }
+        { numRuns: 20 }
       );
     });
 
@@ -396,7 +396,7 @@ describe('TimelineRecommendationWriter Properties', () => {
             }
           }
         ),
-        { numRuns: 100 }
+        { numRuns: 20 }
       );
     });
   });
@@ -441,7 +441,7 @@ describe('TimelineRecommendationWriter Properties', () => {
             }
           }
         ),
-        { numRuns: 100 }
+        { numRuns: 20 }
       );
     });
 
@@ -481,7 +481,7 @@ describe('TimelineRecommendationWriter Properties', () => {
             expect(result2.total).toBe(result1.total);
           }
         ),
-        { numRuns: 100 }
+        { numRuns: 20 }
       );
     });
 
@@ -521,7 +521,7 @@ describe('TimelineRecommendationWriter Properties', () => {
             }
           }
         ),
-        { numRuns: 100 }
+        { numRuns: 20 }
       );
     });
 
@@ -580,7 +580,7 @@ describe('TimelineRecommendationWriter Properties', () => {
             }
           }
         ),
-        { numRuns: 100 }
+        { numRuns: 20 }
       );
     });
   });

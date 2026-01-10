@@ -255,67 +255,6 @@ export class LabelsFlowBuilder {
         },
       ],
     });
-
-    // GENERATE_MEDIA_RECOMMENDATIONS step (depends on all label detection steps)
-    // This runs after all labels are generated to immediately process recommendations
-    const mediaRecommendationsOptions = getStepJobOptions(
-      RecommendationStepType.GENERATE_MEDIA_RECOMMENDATIONS
-    );
-
-    // Build step input with default strategies (all available strategies)
-    const stepInput: GenerateMediaRecommendationsStepInput = {
-      type: 'recommendations:generate_media',
-      workspaceId: task.WorkspaceRef,
-      mediaId,
-      strategies: [
-        RecommendationStrategy.SAME_ENTITY,
-        RecommendationStrategy.ADJACENT_SHOT,
-        RecommendationStrategy.TEMPORAL_NEARBY,
-        RecommendationStrategy.CONFIDENCE_DURATION,
-      ],
-      maxResults: 20, // Default max results
-    };
-
-    flow.children.push({
-      name: RecommendationStepType.GENERATE_MEDIA_RECOMMENDATIONS,
-      queueName: QUEUE_NAMES.MEDIA_RECOMMENDATIONS,
-      data: {
-        ...baseJobData,
-        stepType: RecommendationStepType.GENERATE_MEDIA_RECOMMENDATIONS,
-        parentJobId: '',
-        input: stepInput,
-      },
-      opts: {
-        attempts: mediaRecommendationsOptions.attempts,
-        backoff: {
-          type: 'exponential',
-          delay: mediaRecommendationsOptions.backoff,
-        },
-      },
-      children: [
-        {
-          name: DetectLabelsStepType.LABEL_DETECTION,
-          queueName: QUEUE_NAMES.LABELS,
-        },
-        {
-          name: DetectLabelsStepType.OBJECT_TRACKING,
-          queueName: QUEUE_NAMES.LABELS,
-        },
-        {
-          name: DetectLabelsStepType.FACE_DETECTION,
-          queueName: QUEUE_NAMES.LABELS,
-        },
-        {
-          name: DetectLabelsStepType.PERSON_DETECTION,
-          queueName: QUEUE_NAMES.LABELS,
-        },
-        {
-          name: DetectLabelsStepType.SPEECH_TRANSCRIPTION,
-          queueName: QUEUE_NAMES.LABELS,
-        },
-      ],
-    });
-
     return flow;
   }
 }
