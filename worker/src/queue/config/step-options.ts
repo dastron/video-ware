@@ -11,12 +11,18 @@ import {
  */
 export interface StepJobOptions {
   attempts: number;
-  backoff: number; // Initial backoff delay in milliseconds
+  backoff: {
+    type: 'exponential';
+    delay: number;
+  };
 }
 
 const DEFAULT_OPTIONS: StepJobOptions = {
   attempts: 3,
-  backoff: 30000, // 30 seconds
+  backoff: {
+    type: 'exponential',
+    delay: 30000,
+  },
 };
 
 /**
@@ -29,7 +35,6 @@ export const STEP_JOB_OPTIONS: Record<string, StepJobOptions> = {
   [TranscodeStepType.SPRITE]: DEFAULT_OPTIONS,
   [TranscodeStepType.FILMSTRIP]: DEFAULT_OPTIONS,
   [TranscodeStepType.TRANSCODE]: DEFAULT_OPTIONS,
-  [TranscodeStepType.FINALIZE]: DEFAULT_OPTIONS,
 
   // Render steps
   [RenderStepType.RESOLVE_CLIPS]: DEFAULT_OPTIONS,

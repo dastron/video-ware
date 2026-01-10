@@ -46,21 +46,12 @@ export class RenderParentProcessor extends BaseFlowProcessor {
   }
 
   /**
-   * Get the total number of steps expected for this task
-   * Render flow always includes 4 steps: RESOLVE_CLIPS, COMPOSE, UPLOAD, CREATE_RECORDS
-   */
-  protected getTotalSteps(_parentData: ParentJobData): number {
-    // Render flow always includes all 4 steps
-    return 4;
-  }
-
-  /**
    * Process parent job - orchestrates child steps and aggregates results
    */
   protected async processParentJob(job: Job<ParentJobData>): Promise<void> {
-    const { task } = job.data;
+    const { taskId } = job.data;
 
-    this.logger.log(`Processing parent job for task ${task.id}`);
+    this.logger.log(`Processing parent job for task ${taskId}`);
 
     // Task status is now managed by the base class event handlers
     // No need to manually update here as it will be set by onActive event
@@ -69,7 +60,7 @@ export class RenderParentProcessor extends BaseFlowProcessor {
     // BullMQ automatically handles this - parent job only completes when all children are done
     const childrenValues = await job.getChildrenValues();
 
-    this.logger.log(`All children completed for task ${task.id}`, {
+    this.logger.log(`All children completed for task ${taskId}`, {
       childrenCount: Object.keys(childrenValues).length,
     });
 
@@ -85,13 +76,13 @@ export class RenderParentProcessor extends BaseFlowProcessor {
     if (failedSteps.length > 0) {
       // Base class will handle the task status update on failure
       this.logger.error(
-        `Task ${task.id} has ${failedSteps.length} failed steps`
+        `Task ${taskId} has ${failedSteps.length} failed steps`
       );
       throw new Error(`Task failed with ${failedSteps.length} failed steps`);
     }
 
     // Task succeeded - base class will handle the status update on completion
-    this.logger.log(`Task ${task.id} completed successfully`);
+    this.logger.log(`Task ${taskId} completed successfully`);
   }
 
   /**

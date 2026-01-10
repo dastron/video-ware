@@ -1,13 +1,7 @@
 import { RecordService } from 'pocketbase';
 import type { ListResult } from 'pocketbase';
 import { TaskInputSchema, type Task, type TaskInput } from '../schema';
-import {
-  type ProcessUploadPayload,
-  type DetectLabelsPayload,
-  type RenderTimelinePayload,
-  type GenerateTimelineRecommendationsPayload,
-  type GenerateMediaRecommendationsPayload,
-} from '../types';
+import { type ProcessUploadPayload } from '../types';
 import { TaskStatus, TaskType } from '../enums';
 import type { TypedPocketBase } from '../types';
 import { BaseMutator, type MutatorOptions } from './base';
@@ -57,62 +51,6 @@ export class TaskMutator extends BaseMutator<Task, TaskInput> {
       payload: payload as unknown as Record<string, unknown>,
       WorkspaceRef: workspaceId,
       UserRef: userId,
-    });
-  }
-
-  /**
-   * Create a detect labels task
-   * @param workspaceId The workspace ID
-   * @param userId The user ID
-   * @param mediaId The media ID
-   * @param payload The task payload
-   * @returns The created task
-   */
-  async createDetectLabelsTask(
-    workspaceId: string,
-    userId: string,
-    mediaId: string,
-    payload: DetectLabelsPayload
-  ): Promise<Task> {
-    return this.create({
-      sourceType: 'media',
-      sourceId: mediaId,
-      type: TaskType.DETECT_LABELS,
-      status: TaskStatus.QUEUED,
-      progress: 1,
-      attempts: 1,
-      payload: payload as unknown as Record<string, unknown>,
-      WorkspaceRef: workspaceId,
-      UserRef: userId,
-      provider: payload.provider,
-    });
-  }
-
-  /**
-   * Create a render timeline task
-   * @param workspaceId The workspace ID
-   * @param userId The user ID
-   * @param timelineId The timeline ID
-   * @param payload The task payload
-   * @returns The created task
-   */
-  async createRenderTimelineTask(
-    workspaceId: string,
-    userId: string,
-    timelineId: string,
-    payload: RenderTimelinePayload
-  ): Promise<Task> {
-    return this.create({
-      sourceType: 'timeline',
-      sourceId: timelineId,
-      type: TaskType.RENDER_TIMELINE,
-      status: TaskStatus.QUEUED,
-      progress: 1,
-      attempts: 1,
-      payload: payload as unknown as Record<string, unknown>,
-      WorkspaceRef: workspaceId,
-      UserRef: userId,
-      provider: payload.provider,
     });
   }
 
@@ -192,59 +130,5 @@ export class TaskMutator extends BaseMutator<Task, TaskInput> {
       errorLog: '',
       result: {},
     } as Partial<Task>);
-  }
-
-  /**
-   * Create a generate timeline recommendations task
-   * @param workspaceId The workspace ID
-   * @param userId The user ID
-   * @param timelineId The timeline ID
-   * @param payload The task payload
-   * @returns The created task
-   */
-  async createGenerateTimelineRecommendationsTask(
-    workspaceId: string,
-    userId: string,
-    timelineId: string,
-    payload: GenerateTimelineRecommendationsPayload
-  ): Promise<Task> {
-    return this.create({
-      sourceType: 'timeline',
-      sourceId: timelineId,
-      type: TaskType.GENERATE_TIMELINE_RECOMMENDATIONS,
-      status: TaskStatus.QUEUED,
-      progress: 1,
-      attempts: 1,
-      payload: payload as unknown as Record<string, unknown>,
-      WorkspaceRef: workspaceId,
-      UserRef: userId,
-    });
-  }
-
-  /**
-   * Create a generate media recommendations task
-   * @param workspaceId The workspace ID
-   * @param userId The user ID
-   * @param mediaId The media ID
-   * @param payload The task payload
-   * @returns The created task
-   */
-  async createGenerateMediaRecommendationsTask(
-    workspaceId: string,
-    userId: string,
-    mediaId: string,
-    payload: GenerateMediaRecommendationsPayload
-  ): Promise<Task> {
-    return this.create({
-      sourceType: 'media',
-      sourceId: mediaId,
-      type: TaskType.GENERATE_MEDIA_RECOMMENDATIONS,
-      status: TaskStatus.QUEUED,
-      progress: 1,
-      attempts: 1,
-      payload: payload as unknown as Record<string, unknown>,
-      WorkspaceRef: workspaceId,
-      UserRef: userId,
-    });
   }
 }

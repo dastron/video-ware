@@ -84,23 +84,6 @@ export class DetectLabelsParentProcessor extends BaseFlowProcessor {
   }
 
   /**
-   * Get the total number of steps expected for this task
-   * Includes UPLOAD_TO_GCS plus all enabled GCVI processors
-   */
-  protected getTotalSteps(_parentData: ParentJobData): number {
-    let totalSteps = 1; // UPLOAD_TO_GCS is always included
-
-    // Count enabled processors
-    if (this.processorsConfigService.enableLabelDetection) totalSteps++;
-    if (this.processorsConfigService.enableObjectTracking) totalSteps++;
-    if (this.processorsConfigService.enableFaceDetection) totalSteps++;
-    if (this.processorsConfigService.enablePersonDetection) totalSteps++;
-    if (this.processorsConfigService.enableSpeechTranscription) totalSteps++;
-
-    return totalSteps;
-  }
-
-  /**
    * Process parent job - orchestrates child steps and aggregates results
    *
    * Detect labels tasks allow partial success:
@@ -109,9 +92,9 @@ export class DetectLabelsParentProcessor extends BaseFlowProcessor {
    * - Disabled processors are skipped and don't affect success/failure
    */
   protected async processParentJob(job: Job<ParentJobData>): Promise<void> {
-    const { task, stepResults } = job.data;
+    const { taskId, stepResults } = job.data;
 
-    this.logger.log(`Processing parent job for task ${task.id}`);
+    this.logger.log(`Processing parent job for task ${taskId}`);
 
     // Task status is now managed by the base class event handlers
     // No need to manually update here as it will be set by onActive event
@@ -120,7 +103,7 @@ export class DetectLabelsParentProcessor extends BaseFlowProcessor {
     // BullMQ automatically handles this - parent job only completes when all children are done
     const childrenValues = await job.getChildrenValues();
 
-    this.logger.log(`All children completed for task ${task.id}`, {
+    this.logger.log(`All children completed for task ${taskId}`, {
       childrenCount: Object.keys(childrenValues).length,
     });
 
@@ -196,7 +179,7 @@ export class DetectLabelsParentProcessor extends BaseFlowProcessor {
     });
 
     this.logger.log(
-      `Cached ${Object.keys(aggregatedResults).length} step results for task ${task.id}`
+      `Cached ${Object.keys(aggregatedResults).length} step results for task ${taskId}`
     );
 
     // Check which new processors succeeded
@@ -284,7 +267,7 @@ export class DetectLabelsParentProcessor extends BaseFlowProcessor {
     }
 
     // Log results
-    this.logger.log(`Detect labels results for task ${task.id}:`, {
+    this.logger.log(`Detect labels results for task ${taskId}:`, {
       successful: successfulProcessors,
       failed: failedProcessors,
     });
@@ -294,7 +277,7 @@ export class DetectLabelsParentProcessor extends BaseFlowProcessor {
     if (successfulProcessors.length === 0) {
       // All enabled processors failed
       this.logger.error(
-        `Task ${task.id} failed: all enabled processors failed`,
+        `Task ${taskId} failed: all enabled processors failed`,
         {
           failedProcessors,
         }
@@ -309,14 +292,14 @@ export class DetectLabelsParentProcessor extends BaseFlowProcessor {
     // Base class will handle the task status update on completion
     if (failedProcessors.length === 0) {
       this.logger.log(
-        `Task ${task.id} completed successfully with all processors`,
+        `Task ${taskId} completed successfully with all processors`,
         {
           successfulProcessors,
         }
       );
     } else {
       this.logger.log(
-        `Task ${task.id} completed successfully with partial results`,
+        `Task ${taskId} completed successfully with partial results`,
         {
           successfulProcessors,
           failedProcessors,

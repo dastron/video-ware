@@ -31,7 +31,6 @@ export class RenderFlowBuilder {
       queueName: QUEUE_NAMES.RENDER,
       data: {
         ...baseJobData,
-        task,
         stepResults: {},
       },
       children: [],
@@ -52,13 +51,7 @@ export class RenderFlowBuilder {
           editList,
         },
       },
-      opts: {
-        attempts: resolveClipsOptions.attempts,
-        backoff: {
-          type: 'exponential',
-          delay: resolveClipsOptions.backoff,
-        },
-      },
+      opts: resolveClipsOptions,
     });
 
     // COMPOSE step (depends on RESOLVE_CLIPS)
@@ -79,13 +72,7 @@ export class RenderFlowBuilder {
           tempDir: '', // Will be created by processor
         },
       },
-      opts: {
-        attempts: composeOptions.attempts,
-        backoff: {
-          type: 'exponential',
-          delay: composeOptions.backoff,
-        },
-      },
+      opts: composeOptions,
       children: [
         {
           name: RenderStepType.RESOLVE_CLIPS,
@@ -111,13 +98,7 @@ export class RenderFlowBuilder {
           format: outputSettings.format,
         },
       },
-      opts: {
-        attempts: uploadOptions.attempts,
-        backoff: {
-          type: 'exponential',
-          delay: uploadOptions.backoff,
-        },
-      },
+      opts: uploadOptions,
       children: [
         {
           name: RenderStepType.COMPOSE,
@@ -150,13 +131,7 @@ export class RenderFlowBuilder {
           tempDir: '', // Will be populated from COMPOSE output
         },
       },
-      opts: {
-        attempts: createRecordsOptions.attempts,
-        backoff: {
-          type: 'exponential',
-          delay: createRecordsOptions.backoff,
-        },
-      },
+      opts: createRecordsOptions,
       children: [
         {
           name: RenderStepType.UPLOAD,

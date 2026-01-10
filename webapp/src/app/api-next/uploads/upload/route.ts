@@ -207,6 +207,12 @@ export async function PUT(req: Request) {
             width: 640,
             height: 360,
           },
+          filmstrip: {
+            cols: 100,
+            rows: 1,
+            tileWidth: 160,
+            tileHeight: 180,
+          },
           transcode: {
             enabled: true,
             codec: 'h265',

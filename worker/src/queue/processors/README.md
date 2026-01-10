@@ -164,7 +164,6 @@ export class SendEmailProcessor extends BaseSimpleProcessor<EmailJobData> {
 **Abstract requirements:**
 - `processParentJob(job: Job<ParentJobData>): Promise<void>` - Orchestrate child steps
 - `processStepJob(job: Job<StepJobData>): Promise<StepResult>` - Process individual steps
-- `getTotalSteps(parentData: ParentJobData): number` - Return expected step count
 - `getQueue(): Queue` - Return the queue instance
 - `logger: Logger` - NestJS logger instance
 - `pocketbaseService: PocketBaseService` - PocketBase service
@@ -200,10 +199,6 @@ export class VideoProcessingProcessor extends BaseFlowProcessor {
 
   protected getQueue(): Queue {
     return this.queue;
-  }
-
-  protected getTotalSteps(parentData: VideoProcessingData): number {
-    return parentData.steps.length;
   }
 
   protected async processParentJob(job: Job<VideoProcessingData>): Promise<void> {

@@ -319,20 +319,28 @@ export class UploadService {
     userId: string
   ): Promise<Task> {
     // Default processing configuration
+    // Sprite: 100 steps (frames) total, fps: 1 for videos ≤100s, variable fps for longer videos
+    // Filmstrip: 100 steps always at 1 fps
     const payload: ProcessUploadPayload = {
       uploadId,
       provider: this.config.defaultProvider,
       sprite: {
-        fps: 1, // Fixed interval: 1 frame per second
-        cols: 10, // Fixed width: 10 columns
-        rows: 200, // Initial rows (will be recalculated based on actual frames needed)
-        tileWidth: 320, // Fixed tile width
-        tileHeight: 180, // Will be recalculated based on aspect ratio
+        fps: 1,
+        cols: 10,
+        rows: 10,
+        tileWidth: 320,
+        tileHeight: 180,
       },
       thumbnail: {
         timestamp: 'midpoint',
         width: 640,
         height: 360,
+      },
+      filmstrip: {
+        cols: 100,
+        rows: 1,
+        tileWidth: 160,
+        tileHeight: 180,
       },
       transcode: {
         enabled: true,

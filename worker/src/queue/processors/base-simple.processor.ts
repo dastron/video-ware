@@ -24,7 +24,6 @@ export interface SimpleJobData {
  *
  * Provides:
  * - Automatic task status updates (RUNNING → SUCCESS/FAILED)
- * - Progress tracking
  * - Error handling and logging
  * - Job lifecycle event handlers
  *
@@ -53,20 +52,18 @@ export abstract class BaseSimpleProcessor<
     this.logger.log(`Job ${job.id} started for task ${job.data.taskId}`);
     await this.updateTask(job.data.taskId, {
       status: TaskStatus.RUNNING,
-      progress: 0,
     });
   }
 
   /**
    * Handle job completion
-   * Updates task status to SUCCESS with 100% progress
+   * Updates task status to SUCCESS
    */
   @OnWorkerEvent('completed')
   async onCompleted(job: Job<TJobData>, result: TResult) {
     this.logger.log(`Job ${job.id} completed for task ${job.data.taskId}`);
     await this.updateTask(job.data.taskId, {
       status: TaskStatus.SUCCESS,
-      progress: 100,
       result,
     });
   }
@@ -109,22 +106,5 @@ export abstract class BaseSimpleProcessor<
         status: TaskStatus.RUNNING,
       });
     }
-  }
-
-  /**
-   * Handle job progress updates
-   * Updates task progress percentage
-   */
-  @OnWorkerEvent('progress')
-  async onProgress(job: Job<TJobData>, progress: number | object) {
-    const progressValue = typeof progress === 'number' ? progress : 0;
-
-    this.logger.debug(
-      `Job ${job.id} progress: ${progressValue}% for task ${job.data.taskId}`
-    );
-
-    await this.updateTask(job.data.taskId, {
-      progress: progressValue,
-    });
   }
 }

@@ -16,9 +16,6 @@ export interface TaskResult {
   completedSteps: string[];
   failedSteps: string[];
   currentStep?: string;
-  totalSteps: number;
-  completedCount: number;
-  failedCount: number;
   startedAt?: string;
   completedAt?: string;
 }
@@ -41,23 +38,15 @@ export interface TaskErrorLogEntry {
  * Provides:
  * - Parent job orchestration
  * - Child step coordination
- * - Progress aggregation across steps
  * - Error handling and retry logic
  * - Task result aggregation
  *
  * Subclasses must implement:
  * - processParentJob: Orchestrate child steps
  * - processStepJob: Process individual steps
- * - getTotalSteps: Return expected step count
  * - getQueue: Return the queue instance
  */
 export abstract class BaseFlowProcessor extends BaseProcessor {
-  /**
-   * Get the total number of steps expected for this task
-   * Used for calculating progress percentage
-   */
-  protected abstract getTotalSteps(parentData: ParentJobData): number;
-
   /**
    * Get the queue instance for accessing child jobs
    */
@@ -103,7 +92,6 @@ export abstract class BaseFlowProcessor extends BaseProcessor {
    */
   protected buildTaskResult(
     stepResults: Record<string, StepResult>,
-    totalSteps: number,
     startedAt?: string,
     completedAt?: string
   ): TaskResult {
@@ -122,37 +110,9 @@ export abstract class BaseFlowProcessor extends BaseProcessor {
       steps: stepResults,
       completedSteps,
       failedSteps,
-      totalSteps,
-      completedCount: completedSteps.length,
-      failedCount: failedSteps.length,
       startedAt,
       completedAt,
     };
-  }
-
-  /**
-   * Calculate progress percentage based on completed steps
-   */
-  protected calculateProgress(
-    stepResults: Record<string, StepResult>,
-    totalSteps: number
-  ): number {
-    if (totalSteps === 0) return 0;
-
-    const completedCount = Object.values(stepResults).filter(
-      (result) => result.status === 'completed'
-    ).length;
-
-    // Progress is based on completed steps
-    // Add small percentage for in-progress steps
-    const inProgressCount = Object.values(stepResults).filter(
-      (result) => result.status === 'running'
-    ).length;
-
-    const baseProgress = (completedCount / totalSteps) * 100;
-    const inProgressBonus = (inProgressCount / totalSteps) * 5; // 5% bonus for in-progress
-
-    return Math.min(99, baseProgress + inProgressBonus); // Cap at 99% until all complete
   }
 
   /**
@@ -192,13 +152,12 @@ export abstract class BaseFlowProcessor extends BaseProcessor {
     parentData: ParentJobData,
     startedAt?: string
   ): TaskResult {
-    const totalSteps = this.getTotalSteps(parentData);
-    return this.buildTaskResult(parentData.stepResults, totalSteps, startedAt);
+    return this.buildTaskResult(parentData.stepResults, startedAt);
   }
 
   /**
    * Handle job completion event
-   * Updates task status and progress when jobs complete
+   * Updates task status when jobs complete
    */
   @OnWorkerEvent('completed')
   async onCompleted(job: Job) {
@@ -216,7 +175,6 @@ export abstract class BaseFlowProcessor extends BaseProcessor {
    */
   private async handleParentCompleted(job: Job<ParentJobData>) {
     const parentData = job.data;
-    const totalSteps = this.getTotalSteps(parentData);
 
     // Get final step results from all child jobs
     const finalStepResults = { ...parentData.stepResults };
@@ -274,7 +232,6 @@ export abstract class BaseFlowProcessor extends BaseProcessor {
     // Build final task result
     const taskResult = this.buildTaskResult(
       finalStepResults,
-      totalSteps,
       job.timestamp ? new Date(job.timestamp).toISOString() : undefined,
       job.finishedOn ? new Date(job.finishedOn).toISOString() : undefined
     );
@@ -285,13 +242,12 @@ export abstract class BaseFlowProcessor extends BaseProcessor {
     // Update task with final results
     await this.updateTask(parentData.taskId, {
       status: TaskStatus.SUCCESS,
-      progress: 100,
       result: taskResult,
       errorLog: errorLog || undefined,
     });
 
     this.logger.log(
-      `Task ${parentData.taskId} completed successfully: ${taskResult.completedCount}/${totalSteps} steps completed`
+      `Task ${parentData.taskId} completed successfully: ${taskResult.completedSteps.length} steps completed, ${taskResult.failedSteps.length} steps failed`
     );
   }
 
@@ -329,7 +285,6 @@ export abstract class BaseFlowProcessor extends BaseProcessor {
         }
 
         const parentData = parentJob.data as ParentJobData;
-        const totalSteps = this.getTotalSteps(parentData);
 
         // Update step results in parent job data
         const updatedStepResults = {
@@ -342,8 +297,6 @@ export abstract class BaseFlowProcessor extends BaseProcessor {
           stepResults: updatedStepResults,
         });
 
-        // Calculate and update progress
-        const progress = this.calculateProgress(updatedStepResults, totalSteps);
         const taskResult = this.getTaskResult(
           { ...parentData, stepResults: updatedStepResults },
           parentJob.timestamp
@@ -353,16 +306,15 @@ export abstract class BaseFlowProcessor extends BaseProcessor {
         taskResult.currentStep = result.stepType;
 
         await this.updateTask(stepData.taskId, {
-          progress,
           result: taskResult,
         });
 
         this.logger.log(
-          `Step ${result.stepType} completed for task ${stepData.taskId}, progress: ${progress}%`
+          `Step ${result.stepType} completed for task ${stepData.taskId}`
         );
       } catch (error) {
         this.logger.error(
-          `Failed to update progress for step ${result.stepType}: ${this.formatError(error)}`,
+          `Failed to update task for step ${result.stepType}: ${this.formatError(error)}`,
           error instanceof Error ? error.stack : undefined
         );
       }
@@ -393,7 +345,6 @@ export abstract class BaseFlowProcessor extends BaseProcessor {
    */
   private async handleParentFailed(job: Job<ParentJobData>, error: Error) {
     const parentData = job.data;
-    const totalSteps = this.getTotalSteps(parentData);
 
     // Collect all step results including failures
     const finalStepResults: Record<string, StepResult> = {
@@ -445,7 +396,6 @@ export abstract class BaseFlowProcessor extends BaseProcessor {
 
     const taskResult = this.buildTaskResult(
       finalStepResults,
-      totalSteps,
       job.timestamp ? new Date(job.timestamp).toISOString() : undefined,
       job.finishedOn ? new Date(job.finishedOn).toISOString() : undefined
     );
@@ -458,13 +408,12 @@ export abstract class BaseFlowProcessor extends BaseProcessor {
 
     await this.updateTask(parentData.taskId, {
       status: TaskStatus.FAILED,
-      progress: this.calculateProgress(finalStepResults, totalSteps),
       result: taskResult,
       errorLog: JSON.stringify(allErrors, null, 2),
     });
 
     this.logger.error(
-      `Task ${parentData.taskId} failed: ${taskResult.failedCount}/${totalSteps} steps failed`
+      `Task ${parentData.taskId} failed: ${taskResult.failedSteps.length} steps failed`
     );
   }
 
@@ -505,7 +454,6 @@ export abstract class BaseFlowProcessor extends BaseProcessor {
         const parentJob = await this.getQueue().getJob(stepData.parentJobId);
         if (parentJob) {
           const parentData = parentJob.data as ParentJobData;
-          const totalSteps = this.getTotalSteps(parentData);
 
           const updatedStepResults = {
             ...parentData.stepResults,
@@ -517,10 +465,6 @@ export abstract class BaseFlowProcessor extends BaseProcessor {
             stepResults: updatedStepResults,
           });
 
-          const progress = this.calculateProgress(
-            updatedStepResults,
-            totalSteps
-          );
           const taskResult = this.getTaskResult(
             { ...parentData, stepResults: updatedStepResults },
             parentJob.timestamp
@@ -532,7 +476,6 @@ export abstract class BaseFlowProcessor extends BaseProcessor {
 
           await this.updateTask(stepData.taskId, {
             status: TaskStatus.FAILED,
-            progress,
             result: taskResult,
             errorLog: errorLog || undefined,
           });
@@ -558,7 +501,6 @@ export abstract class BaseFlowProcessor extends BaseProcessor {
         const parentJob = await this.getQueue().getJob(stepData.parentJobId);
         if (parentJob) {
           const parentData = parentJob.data as ParentJobData;
-          const totalSteps = this.getTotalSteps(parentData);
 
           const updatedStepResults: Record<string, StepResult> = {
             ...parentData.stepResults,
@@ -568,10 +510,6 @@ export abstract class BaseFlowProcessor extends BaseProcessor {
             },
           };
 
-          const progress = this.calculateProgress(
-            updatedStepResults,
-            totalSteps
-          );
           const taskResult = this.getTaskResult(
             { ...parentData, stepResults: updatedStepResults },
             parentJob.timestamp
@@ -581,7 +519,6 @@ export abstract class BaseFlowProcessor extends BaseProcessor {
 
           await this.updateTask(stepData.taskId, {
             status: TaskStatus.RUNNING,
-            progress,
             result: taskResult,
           });
         } else {
@@ -593,79 +530,6 @@ export abstract class BaseFlowProcessor extends BaseProcessor {
         );
         await this.updateTaskStatus(stepData.taskId, TaskStatus.RUNNING);
       }
-    }
-  }
-
-  /**
-   * Handle job progress event
-   */
-  @OnWorkerEvent('progress')
-  async onProgress(job: Job, progress: number | object) {
-    // Only handle progress for step jobs
-    if (job.name === 'parent') {
-      return;
-    }
-
-    const stepData = job.data as StepJobData;
-
-    // Skip dependency reference jobs
-    if (!stepData.stepType || !stepData.parentJobId) {
-      return;
-    }
-
-    try {
-      const parentJob = await this.getQueue().getJob(stepData.parentJobId);
-      if (!parentJob) {
-        return;
-      }
-
-      const parentData = parentJob.data as ParentJobData;
-      const totalSteps = this.getTotalSteps(parentData);
-
-      const stepProgress = typeof progress === 'number' ? progress : 0;
-      const updatedStepResults = {
-        ...parentData.stepResults,
-        [stepData.stepType]: {
-          stepType: stepData.stepType,
-          status: 'running' as const,
-          startedAt: job.timestamp
-            ? new Date(job.timestamp).toISOString()
-            : undefined,
-        },
-      };
-
-      const overallProgress = this.calculateProgress(
-        updatedStepResults,
-        totalSteps
-      );
-
-      // Adjust based on current step progress
-      const stepWeight = 100 / totalSteps;
-      const adjustedProgress = Math.min(
-        99,
-        overallProgress + (stepProgress * stepWeight) / 100
-      );
-
-      const taskResult = this.getTaskResult(
-        { ...parentData, stepResults: updatedStepResults },
-        parentJob.timestamp
-          ? new Date(parentJob.timestamp).toISOString()
-          : undefined
-      );
-      taskResult.currentStep = stepData.stepType;
-
-      await this.updateTask(stepData.taskId, {
-        progress: Math.round(adjustedProgress),
-        result: taskResult,
-      });
-
-      this.logger.debug(
-        `Task ${stepData.taskId} progress: ${Math.round(adjustedProgress)}% (step ${stepData.stepType}: ${stepProgress}%)`
-      );
-    } catch (error) {
-      this.logger.warn(
-        `Failed to update task progress: ${this.formatError(error)}`
-      );
     }
   }
 
@@ -686,19 +550,15 @@ export abstract class BaseFlowProcessor extends BaseProcessor {
    */
   private async handleParentActive(job: Job<ParentJobData>) {
     const parentData = job.data;
-    const totalSteps = this.getTotalSteps(parentData);
 
     const taskResult = this.getTaskResult(parentData, new Date().toISOString());
 
     await this.updateTask(parentData.taskId, {
       status: TaskStatus.RUNNING,
-      progress: 0,
       result: taskResult,
     });
 
-    this.logger.log(
-      `Task ${parentData.taskId} started with ${totalSteps} steps`
-    );
+    this.logger.log(`Task ${parentData.taskId} started`);
   }
 
   /**
@@ -716,7 +576,6 @@ export abstract class BaseFlowProcessor extends BaseProcessor {
       const parentJob = await this.getQueue().getJob(stepData.parentJobId);
       if (parentJob) {
         const parentData = parentJob.data as ParentJobData;
-        const totalSteps = this.getTotalSteps(parentData);
 
         const updatedStepResults = {
           ...parentData.stepResults,
@@ -727,7 +586,6 @@ export abstract class BaseFlowProcessor extends BaseProcessor {
           },
         };
 
-        const progress = this.calculateProgress(updatedStepResults, totalSteps);
         const taskResult = this.getTaskResult(
           { ...parentData, stepResults: updatedStepResults },
           parentJob.timestamp
@@ -738,7 +596,6 @@ export abstract class BaseFlowProcessor extends BaseProcessor {
 
         await this.updateTask(stepData.taskId, {
           status: TaskStatus.RUNNING,
-          progress: Math.round(progress),
           result: taskResult,
         });
 

@@ -22,7 +22,6 @@ import type {
   StepJobData,
   StepResult,
 } from '../../queue/types/job.types';
-import type { ProcessUploadPayload } from '@project/shared';
 import { BaseFlowProcessor } from '@/queue/processors';
 
 /**
@@ -55,27 +54,10 @@ export class TranscodeParentProcessor extends BaseFlowProcessor {
     return this.transcodeQueue;
   }
 
-  /**
-   * Get the total number of steps expected for this task
-   * Includes PROBE (always) plus THUMBNAIL, SPRITE, and TRANSCODE if enabled in payload
-   */
-  protected getTotalSteps(parentData: ParentJobData): number {
-    const payload = parentData.task.payload as ProcessUploadPayload;
-    let totalSteps = 1; // PROBE is always included
-
-    // Count enabled steps based on payload (same logic as flow builder)
-    if (payload.thumbnail) totalSteps++;
-    if (payload.sprite) totalSteps++;
-    if (payload.filmstrip) totalSteps++;
-    if (payload.transcode?.enabled) totalSteps++;
-
-    return totalSteps;
-  }
-
   protected async processParentJob(job: Job<ParentJobData>): Promise<void> {
-    const { task } = job.data;
+    const { taskId } = job.data;
 
-    this.logger.log(`Processing parent job for task ${task.id}`);
+    this.logger.log(`Processing parent job for task ${taskId}`);
 
     // Task status is now managed by the base class event handlers
     // No need to manually update here as it will be set by onActive event
@@ -85,7 +67,7 @@ export class TranscodeParentProcessor extends BaseFlowProcessor {
     const childrenValues = await job.getChildrenValues();
 
     this.logger.log(
-      `All ${Object.keys(childrenValues).length} children completed for task ${task.id}`
+      `All ${Object.keys(childrenValues).length} children completed for task ${taskId}`
     );
 
     // Check if any steps failed
@@ -100,13 +82,13 @@ export class TranscodeParentProcessor extends BaseFlowProcessor {
     if (failedSteps.length > 0) {
       // Base class will handle the task status update on failure
       this.logger.error(
-        `Task ${task.id} has ${failedSteps.length} failed steps`
+        `Task ${taskId} has ${failedSteps.length} failed steps`
       );
       throw new Error(`Task failed with ${failedSteps.length} failed steps`);
     }
 
     // Task succeeded - base class will handle the status update on completion
-    this.logger.log(`Task ${task.id} completed successfully`);
+    this.logger.log(`Task ${taskId} completed successfully`);
   }
 
   protected async processStepJob(job: Job<StepJobData>): Promise<StepResult> {

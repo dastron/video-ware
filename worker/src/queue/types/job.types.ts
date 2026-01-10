@@ -1,4 +1,3 @@
-import type { Task } from '@project/shared';
 import type { StepType } from './step.types';
 
 /**
@@ -13,7 +12,6 @@ export interface BaseJobData {
  * Parent job data that orchestrates child steps
  */
 export interface ParentJobData extends BaseJobData {
-  task: Task;
   stepResults: Record<string, StepResult>;
 }
 
@@ -30,7 +28,6 @@ export interface StepJobData extends BaseJobData {
  * Simple job data for non-flow jobs (direct processing without parent-child structure)
  */
 export interface SimpleJobData extends BaseJobData {
-  task: Task;
   input: StepInput;
 }
 

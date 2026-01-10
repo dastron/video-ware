@@ -13,7 +13,7 @@ import type { TranscodeFlowDefinition } from './types';
 export class TranscodeFlowBuilder {
   /**
    * Build a transcode flow definition for PROCESS_UPLOAD tasks
-   * Builds a parent-child job hierarchy with steps: PROBE, THUMBNAIL, SPRITE, TRANSCODE
+   * Builds a parent-child job hierarchy with steps: PROBE, THUMBNAIL, SPRITE, FILMSTRIP, TRANSCODE
    */
   static buildFlow(task: Task): TranscodeFlowDefinition {
     const payload = task.payload as ProcessUploadPayload;
@@ -31,7 +31,6 @@ export class TranscodeFlowBuilder {
       queueName: QUEUE_NAMES.TRANSCODE,
       data: {
         ...baseJobData,
-        task,
         stepResults: {},
       },
       children: [],
@@ -52,13 +51,7 @@ export class TranscodeFlowBuilder {
           filePath: '', // Will be resolved by processor
         },
       },
-      opts: {
-        attempts: probeOptions.attempts,
-        backoff: {
-          type: 'exponential',
-          delay: probeOptions.backoff,
-        },
-      },
+      opts: probeOptions,
     });
 
     // THUMBNAIL step (if configured)
@@ -78,13 +71,7 @@ export class TranscodeFlowBuilder {
             config: payload.thumbnail,
           },
         },
-        opts: {
-          attempts: thumbnailOptions.attempts,
-          backoff: {
-            type: 'exponential',
-            delay: thumbnailOptions.backoff,
-          },
-        },
+        opts: thumbnailOptions,
       });
     }
 
@@ -105,13 +92,7 @@ export class TranscodeFlowBuilder {
             config: payload.sprite,
           },
         },
-        opts: {
-          attempts: spriteOptions.attempts,
-          backoff: {
-            type: 'exponential',
-            delay: spriteOptions.backoff,
-          },
-        },
+        opts: spriteOptions,
       });
     }
 
@@ -132,13 +113,7 @@ export class TranscodeFlowBuilder {
             config: payload.filmstrip,
           },
         },
-        opts: {
-          attempts: filmstripOptions.attempts,
-          backoff: {
-            type: 'exponential',
-            delay: filmstripOptions.backoff,
-          },
-        },
+        opts: filmstripOptions,
       });
     }
 
@@ -160,13 +135,7 @@ export class TranscodeFlowBuilder {
             config: payload.transcode,
           },
         },
-        opts: {
-          attempts: transcodeOptions.attempts,
-          backoff: {
-            type: 'exponential',
-            delay: transcodeOptions.backoff,
-          },
-        },
+        opts: transcodeOptions,
       });
     }
 
