@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
-import * as path from 'path';
 import { BaseStepProcessor } from '../../queue/processors/base-step.processor';
 import {
   FFmpegProbeExecutor,
@@ -46,6 +45,12 @@ export class TranscodeStepProcessor extends BaseStepProcessor<
     input: TaskTranscodeTranscodeStep,
     _job: Job<StepJobData>
   ): Promise<TaskTranscodeTranscodeStepOutput> {
+    // Get upload for workspace reference first
+    const upload = await this.pocketbaseService.getUpload(input.uploadId);
+    if (!upload) {
+      throw new Error(`Upload ${input.uploadId} not found`);
+    }
+
     // Resolve file path
     const filePath = await FileResolver.resolveFilePath(
       input.uploadId,
@@ -69,19 +74,20 @@ export class TranscodeStepProcessor extends BaseStepProcessor<
       sourceHeight: probeOutput.height,
     };
 
+    // Generate output path using FileResolver
+    const fileName = 'proxy.mp4';
+    const proxyPath = FileResolver.resolveOutputFilePath(
+      upload.WorkspaceRef,
+      input.uploadId,
+      fileName,
+      this.storageService
+    );
+
     // Execute transcode
-    const proxyPath = `${filePath}_proxy.mp4`;
     await executor.execute(filePath, proxyPath, executorConfig);
 
-    // Get upload for workspace reference
-    const upload = await this.pocketbaseService.getUpload(input.uploadId);
-    if (!upload) {
-      throw new Error(`Upload ${input.uploadId} not found`);
-    }
-
     // Create File record
-    const fileName = path.basename(proxyPath);
-    const storageKey = `uploads/${input.uploadId}/${FileType.PROXY}/${fileName}`;
+    const storageKey = `uploads/${upload.WorkspaceRef}/${input.uploadId}/${FileType.PROXY}/${fileName}`;
 
     const proxyFile = await this.pocketbaseService.createFileWithUpload({
       localFilePath: proxyPath,

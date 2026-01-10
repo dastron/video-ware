@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
-import * as path from 'path';
 import { BaseStepProcessor } from '../../queue/processors/base-step.processor';
 import { FFmpegSpriteExecutor } from '../executors';
 import { StorageService } from '../../shared/services/storage.service';
@@ -96,8 +95,14 @@ export class FilmstripStepProcessor extends BaseStepProcessor<
         tileHeight,
       };
 
-      // Generate filmstrip
-      const filmstripPath = `${filePath}_filmstrip_${i}.jpg`;
+      // Generate output path using FileResolver
+      const fileName = `filmstrip_${i}.jpg`;
+      const filmstripPath = FileResolver.resolveOutputFilePath(
+        upload.WorkspaceRef,
+        input.uploadId,
+        fileName,
+        this.storageService
+      );
       if (i === 0) firstFilmstripPath = filmstripPath;
 
       await this.spriteExecutor.execute(
@@ -108,8 +113,7 @@ export class FilmstripStepProcessor extends BaseStepProcessor<
       );
 
       // Create File record
-      const fileName = path.basename(filmstripPath);
-      const storageKey = `uploads/${input.uploadId}/${FileType.FILMSTRIP}/${fileName}`;
+      const storageKey = `uploads/${upload.WorkspaceRef}/${input.uploadId}/${FileType.FILMSTRIP}/${fileName}`;
 
       const filmstripFile = await this.pocketbaseService.createFileWithUpload({
         localFilePath: filmstripPath,

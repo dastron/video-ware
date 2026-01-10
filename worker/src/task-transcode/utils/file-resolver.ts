@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common';
+import * as path from 'path';
 import { StorageService } from '../../shared/services/storage.service';
 import { PocketBaseService } from '../../shared/services/pocketbase.service';
 import { StorageBackendType, FileSource } from '@project/shared';
@@ -80,5 +81,34 @@ export class FileResolver {
       `Resolved file path for upload ${uploadId}: ${resolvedPath}`
     );
     return resolvedPath;
+  }
+
+  /**
+   * Generate output file path for derived files (thumbnails, sprites, proxies, etc.)
+   * Creates the path structure: ./data/uploads/<workspaceId>/<uploadId>/<filename>
+   *
+   * @param workspaceId - Workspace ID
+   * @param uploadId - Upload ID
+   * @param filename - Output filename (e.g., 'thumbnail.jpg', 'sprite.jpg', 'proxy.mp4')
+   * @param storageService - StorageService instance to get base path
+   * @returns Full filesystem path for the output file
+   */
+  static resolveOutputFilePath(
+    workspaceId: string,
+    uploadId: string,
+    filename: string,
+    storageService: StorageService
+  ): string {
+    const basePath = storageService.getBasePath();
+    const outputPath = path.join(
+      basePath,
+      'uploads',
+      workspaceId,
+      uploadId,
+      filename
+    );
+
+    this.logger.debug(`Generated output path for ${filename}: ${outputPath}`);
+    return outputPath;
   }
 }

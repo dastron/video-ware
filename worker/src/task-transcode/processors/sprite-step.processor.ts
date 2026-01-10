@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
-import * as path from 'path';
 import { BaseStepProcessor } from '../../queue/processors/base-step.processor';
 import { FFmpegProbeExecutor, FFmpegSpriteExecutor } from '../executors';
 import { StorageService } from '../../shared/services/storage.service';
@@ -37,6 +36,12 @@ export class SpriteStepProcessor extends BaseStepProcessor<
     input: TaskTranscodeSpriteStep,
     _job: Job<StepJobData>
   ): Promise<TaskTranscodeSpriteStepOutput> {
+    // Get upload for workspace reference first
+    const upload = await this.pocketbaseService.getUpload(input.uploadId);
+    if (!upload) {
+      throw new Error(`Upload ${input.uploadId} not found`);
+    }
+
     // Resolve file path
     const filePath = await FileResolver.resolveFilePath(
       input.uploadId,
@@ -77,19 +82,20 @@ export class SpriteStepProcessor extends BaseStepProcessor<
       rows,
     };
 
+    // Generate output path using FileResolver
+    const fileName = 'sprite.jpg';
+    const spritePath = FileResolver.resolveOutputFilePath(
+      upload.WorkspaceRef,
+      input.uploadId,
+      fileName,
+      this.storageService
+    );
+
     // Generate sprite
-    const spritePath = `${filePath}_sprite.jpg`;
     await this.spriteExecutor.execute(filePath, spritePath, enhancedConfig);
 
-    // Get upload for workspace reference
-    const upload = await this.pocketbaseService.getUpload(input.uploadId);
-    if (!upload) {
-      throw new Error(`Upload ${input.uploadId} not found`);
-    }
-
     // Create File record with sprite configuration in meta
-    const fileName = path.basename(spritePath);
-    const storageKey = `uploads/${input.uploadId}/${FileType.SPRITE}/${fileName}`;
+    const storageKey = `uploads/${upload.WorkspaceRef}/${input.uploadId}/${FileType.SPRITE}/${fileName}`;
 
     const spriteFile = await this.pocketbaseService.createFileWithUpload({
       localFilePath: spritePath,

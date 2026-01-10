@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
-import * as path from 'path';
 import { BaseStepProcessor } from '../../queue/processors/base-step.processor';
 import { FFmpegProbeExecutor, FFmpegThumbnailExecutor } from '../executors';
 import { StorageService } from '../../shared/services/storage.service';
@@ -37,6 +36,12 @@ export class ThumbnailStepProcessor extends BaseStepProcessor<
     input: TaskTranscodeThumbnailStep,
     _job: Job<StepJobData>
   ): Promise<TaskTranscodeThumbnailStepOutput> {
+    // Get upload for workspace reference first
+    const upload = await this.pocketbaseService.getUpload(input.uploadId);
+    if (!upload) {
+      throw new Error(`Upload ${input.uploadId} not found`);
+    }
+
     // Resolve file path
     const filePath = await FileResolver.resolveFilePath(
       input.uploadId,
@@ -59,8 +64,16 @@ export class ThumbnailStepProcessor extends BaseStepProcessor<
       sourceHeight: mediaData.height,
     };
 
+    // Generate output path using FileResolver
+    const fileName = 'thumbnail.jpg';
+    const thumbnailPath = FileResolver.resolveOutputFilePath(
+      upload.WorkspaceRef,
+      input.uploadId,
+      fileName,
+      this.storageService
+    );
+
     // Generate thumbnail
-    const thumbnailPath = `${filePath}_thumbnail.jpg`;
     await this.thumbnailExecutor.execute(
       filePath,
       thumbnailPath,
@@ -68,15 +81,8 @@ export class ThumbnailStepProcessor extends BaseStepProcessor<
       mediaData.duration
     );
 
-    // Get upload for workspace reference
-    const upload = await this.pocketbaseService.getUpload(input.uploadId);
-    if (!upload) {
-      throw new Error(`Upload ${input.uploadId} not found`);
-    }
-
     // Create File record
-    const fileName = path.basename(thumbnailPath);
-    const storageKey = `uploads/${input.uploadId}/${FileType.THUMBNAIL}/${fileName}`;
+    const storageKey = `uploads/${upload.WorkspaceRef}/${input.uploadId}/${FileType.THUMBNAIL}/${fileName}`;
 
     const thumbnailFile = await this.pocketbaseService.createFileWithUpload({
       localFilePath: thumbnailPath,

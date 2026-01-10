@@ -495,6 +495,25 @@ export class StorageService implements OnModuleInit {
   }
 
   /**
+   * Get the base storage path for local storage
+   * Returns the configured local path or './data' as default
+   */
+  getBasePath(): string {
+    const storageType = this.configService.get<string>(
+      'storage.type',
+      'local'
+    ) as StorageBackendType;
+
+    if (storageType === StorageBackendType.LOCAL) {
+      return this.configService.get<string>('storage.localPath', './data');
+    }
+
+    // For S3 or other backends, we still need a local path for temp/working files
+    // Use a temp directory in the current working directory
+    return this.configService.get<string>('storage.localPath', './data');
+  }
+
+  /**
    * Generate storage path for derived files
    *
    * @param params - Parameters for generating the derived path
