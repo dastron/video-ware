@@ -1,8 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { FFmpegProbeExecutor } from './probe.executor';
-import { FFmpegService } from '../../../shared/services/ffmpeg.service';
-import { StorageService } from '../../../shared/services/storage.service';
+import { FFmpegProbeExecutor } from '../executors/ffmpeg/probe.executor';
+import { FFmpegService } from '../../shared/services/ffmpeg.service';
+import { StorageService } from '../../shared/services/storage.service';
 import { StorageBackendType } from '@project/shared';
 import { vi, describe, beforeEach, it, expect, type Mock } from 'vitest';
 

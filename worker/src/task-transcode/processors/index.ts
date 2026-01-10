@@ -19,6 +19,20 @@ export { TranscodeStepProcessor } from './transcode-step.processor';
 
 // Re-export step types for external use
 export type {
+  // New job-prefixed types
+  TaskTranscodeProbeStep,
+  TaskTranscodeProbeStepOutput,
+  TaskTranscodeThumbnailStep,
+  TaskTranscodeThumbnailStepOutput,
+  TaskTranscodeSpriteStep,
+  TaskTranscodeSpriteStepOutput,
+  TaskTranscodeFilmstripStep,
+  TaskTranscodeFilmstripStepOutput,
+  TaskTranscodeTranscodeStep,
+  TaskTranscodeTranscodeStepOutput,
+  TaskTranscodeInput,
+  TaskTranscodeResult,
+  // Legacy type aliases (deprecated)
   ProbeStepInput,
   ProbeStepOutput,
   ThumbnailStepInput,
@@ -29,7 +43,7 @@ export type {
   FilmstripStepOutput,
   TranscodeStepInput,
   TranscodeStepOutput,
-  FinalizeStepInput,
-  FinalizeStepOutput,
-  TranscodeStepResult,
-} from './step-types';
+  TranscodeJobInput,
+  TranscodeJobResult,
+  TranscodeStepType,
+} from '@project/shared/jobs';

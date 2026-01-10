@@ -14,7 +14,10 @@ import type {
 import { StorageService } from '../../shared/services/storage.service';
 import { PocketBaseService } from '../../shared/services/pocketbase.service';
 import { FileResolver } from '../utils/file-resolver';
-import type { TranscodeStepInput, TranscodeStepOutput } from './step-types';
+import type {
+  TaskTranscodeTranscodeStep,
+  TaskTranscodeTranscodeStepOutput,
+} from '@project/shared/jobs';
 import type { StepJobData } from '../../queue/types/job.types';
 import { ProcessingProvider, FileType, FileSource } from '@project/shared';
 
@@ -24,8 +27,8 @@ import { ProcessingProvider, FileType, FileSource } from '@project/shared';
  */
 @Injectable()
 export class TranscodeStepProcessor extends BaseStepProcessor<
-  TranscodeStepInput,
-  TranscodeStepOutput
+  TaskTranscodeTranscodeStep,
+  TaskTranscodeTranscodeStepOutput
 > {
   protected readonly logger = new Logger(TranscodeStepProcessor.name);
 
@@ -40,9 +43,9 @@ export class TranscodeStepProcessor extends BaseStepProcessor<
   }
 
   async process(
-    input: TranscodeStepInput,
+    input: TaskTranscodeTranscodeStep,
     _job: Job<StepJobData>
-  ): Promise<TranscodeStepOutput> {
+  ): Promise<TaskTranscodeTranscodeStepOutput> {
     // Resolve file path
     const filePath = await FileResolver.resolveFilePath(
       input.uploadId,

@@ -12,8 +12,6 @@ export type {
   TranscodeFlowDefinition,
   RenderFlowDefinition,
   LabelsFlowDefinition,
-  BaseJobData,
-  ParentJobData,
   ChildJobOpts,
   ChildJobDependency,
 } from './types';

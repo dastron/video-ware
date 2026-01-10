@@ -3,7 +3,13 @@ import { Job } from 'bullmq';
 import { BaseStepProcessor } from '../../queue/processors/base-step.processor';
 import { StorageService } from '../../shared/services/storage.service';
 import type { StepJobData } from '../../queue/types/job.types';
-import type { ComposeStepInput, ComposeOutput } from '../executors/interfaces';
+import type {
+  TaskRenderComposeStep,
+  TaskRenderComposeStepOutput,
+} from '@project/shared/jobs';
+// Legacy type aliases for backward compatibility
+type ComposeStepInput = TaskRenderComposeStep;
+type ComposeOutput = TaskRenderComposeStepOutput;
 import { FFmpegComposeExecutor } from '../executors';
 import * as path from 'path';
 

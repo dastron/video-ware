@@ -6,7 +6,10 @@ import { FFmpegProbeExecutor } from '../executors';
 import { StorageService } from '../../shared/services/storage.service';
 import { PocketBaseService } from '../../shared/services/pocketbase.service';
 import { FileResolver } from '../utils/file-resolver';
-import type { ProbeStepInput, ProbeStepOutput } from './step-types';
+import type {
+  TaskTranscodeProbeStep,
+  TaskTranscodeProbeStepOutput,
+} from '@project/shared/jobs';
 import type { StepJobData } from '../../queue/types/job.types';
 import { MediaType, type MediaInput, type ProbeOutput } from '@project/shared';
 
@@ -16,8 +19,8 @@ import { MediaType, type MediaInput, type ProbeOutput } from '@project/shared';
  */
 @Injectable()
 export class ProbeStepProcessor extends BaseStepProcessor<
-  ProbeStepInput,
-  ProbeStepOutput
+  TaskTranscodeProbeStep,
+  TaskTranscodeProbeStepOutput
 > {
   protected readonly logger = new Logger(ProbeStepProcessor.name);
 
@@ -30,9 +33,9 @@ export class ProbeStepProcessor extends BaseStepProcessor<
   }
 
   async process(
-    input: ProbeStepInput,
+    input: TaskTranscodeProbeStep,
     _job: Job<StepJobData>
-  ): Promise<ProbeStepOutput> {
+  ): Promise<TaskTranscodeProbeStepOutput> {
     // Resolve file path
     const filePath = await FileResolver.resolveFilePath(
       input.uploadId,

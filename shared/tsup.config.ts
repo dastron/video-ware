@@ -7,6 +7,7 @@ export default defineConfig({
     enums: 'src/enums.ts',
     types: 'src/types.ts',
     mutator: 'src/mutator.ts',
+    jobs: 'src/jobs/index.ts',
     env: 'src/env.ts',
     'utils/time': 'src/utils/time.ts',
     'storage/index': 'src/storage/index.ts',

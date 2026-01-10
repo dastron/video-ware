@@ -9,11 +9,8 @@
  * Requirements: 9.2, 9.4, 9.5
  */
 
-import { Processor } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
-import { Job, Queue } from 'bullmq';
-import { InjectQueue } from '@nestjs/bullmq';
-import { QUEUE_NAMES } from '../../queue/queue.constants';
+import { Job } from 'bullmq';
 import { PocketBaseService } from '../../shared/services/pocketbase.service';
 import {
   BaseSimpleProcessor,
@@ -59,7 +56,6 @@ import { combineScores } from '../strategies/score-combiner';
  * - Recommendations are stored in database, not in job data
  * - Can be safely retried without side effects
  */
-@Processor(QUEUE_NAMES.TIMELINE_RECOMMENDATIONS)
 export class GenerateTimelineRecommendationsProcessor extends BaseSimpleProcessor<
   SimpleJobData,
   GenerateTimelineRecommendationsResult
@@ -78,11 +74,7 @@ export class GenerateTimelineRecommendationsProcessor extends BaseSimpleProcesso
   // Overlap checker
   private readonly overlapChecker: TimelineOverlapChecker;
 
-  constructor(
-    @InjectQueue(QUEUE_NAMES.TIMELINE_RECOMMENDATIONS)
-    private readonly recommendationsQueue: Queue,
-    pocketbaseService: PocketBaseService
-  ) {
+  constructor(pocketbaseService: PocketBaseService) {
     super();
     this.pocketbaseService = pocketbaseService;
 

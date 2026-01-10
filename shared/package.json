@@ -44,6 +44,11 @@
       "import": "./dist/env.js",
       "require": "./dist/env.cjs"
     },
+    "./jobs": {
+      "types": "./dist/jobs.d.ts",
+      "import": "./dist/jobs.js",
+      "require": "./dist/jobs.cjs"
+    },
     "./storage": {
       "types": "./dist/storage/index.d.ts",
       "import": "./dist/storage/index.js",

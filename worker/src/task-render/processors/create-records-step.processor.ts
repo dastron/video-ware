@@ -5,9 +5,12 @@ import { PocketBaseService } from '../../shared/services/pocketbase.service';
 import { StorageService } from '../../shared/services/storage.service';
 import type { StepJobData } from '../../queue/types/job.types';
 import type {
-  CreateRecordsStepInput,
-  CreateRecordsOutput,
-} from '../executors/interfaces';
+  TaskRenderCreateRecordsStep,
+  TaskRenderCreateRecordsStepOutput,
+} from '@project/shared/jobs';
+// Legacy type aliases for backward compatibility
+type CreateRecordsStepInput = TaskRenderCreateRecordsStep;
+type CreateRecordsOutput = TaskRenderCreateRecordsStepOutput;
 import type { File as FileRecord, Media } from '@project/shared';
 import { FileType, FileStatus, MediaType, FileSource } from '@project/shared';
 import * as fs from 'fs/promises';

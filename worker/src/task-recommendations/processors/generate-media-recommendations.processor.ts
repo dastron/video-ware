@@ -8,11 +8,8 @@
  * Requirements: 9.1, 9.3, 9.5
  */
 
-import { Processor } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
-import { Job, Queue } from 'bullmq';
-import { InjectQueue } from '@nestjs/bullmq';
-import { QUEUE_NAMES } from '../../queue/queue.constants';
+import { Job } from 'bullmq';
 import { PocketBaseService } from '../../shared/services/pocketbase.service';
 import {
   BaseSimpleProcessor,
@@ -58,7 +55,6 @@ import {
  * - Recommendations are stored in database, not in job data
  * - Can be safely retried without side effects
  */
-@Processor(QUEUE_NAMES.MEDIA_RECOMMENDATIONS)
 export class GenerateMediaRecommendationsProcessor extends BaseSimpleProcessor<
   SimpleJobData,
   GenerateMediaRecommendationsResult
@@ -74,11 +70,7 @@ export class GenerateMediaRecommendationsProcessor extends BaseSimpleProcessor<
   private readonly temporalNearbyStrategy: TemporalNearbyStrategy;
   private readonly confidenceDurationStrategy: ConfidenceDurationStrategy;
 
-  constructor(
-    @InjectQueue(QUEUE_NAMES.MEDIA_RECOMMENDATIONS)
-    private readonly recommendationsQueue: Queue,
-    pocketbaseService: PocketBaseService
-  ) {
+  constructor(pocketbaseService: PocketBaseService) {
     super();
     this.pocketbaseService = pocketbaseService;
 

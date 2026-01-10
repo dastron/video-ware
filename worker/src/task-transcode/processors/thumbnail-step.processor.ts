@@ -6,7 +6,10 @@ import { FFmpegProbeExecutor, FFmpegThumbnailExecutor } from '../executors';
 import { StorageService } from '../../shared/services/storage.service';
 import { PocketBaseService } from '../../shared/services/pocketbase.service';
 import { FileResolver } from '../utils/file-resolver';
-import type { ThumbnailStepInput, ThumbnailStepOutput } from './step-types';
+import type {
+  TaskTranscodeThumbnailStep,
+  TaskTranscodeThumbnailStepOutput,
+} from '@project/shared/jobs';
 import type { StepJobData } from '../../queue/types/job.types';
 import { FileType, FileSource } from '@project/shared';
 
@@ -16,8 +19,8 @@ import { FileType, FileSource } from '@project/shared';
  */
 @Injectable()
 export class ThumbnailStepProcessor extends BaseStepProcessor<
-  ThumbnailStepInput,
-  ThumbnailStepOutput
+  TaskTranscodeThumbnailStep,
+  TaskTranscodeThumbnailStepOutput
 > {
   protected readonly logger = new Logger(ThumbnailStepProcessor.name);
 
@@ -31,9 +34,9 @@ export class ThumbnailStepProcessor extends BaseStepProcessor<
   }
 
   async process(
-    input: ThumbnailStepInput,
+    input: TaskTranscodeThumbnailStep,
     _job: Job<StepJobData>
-  ): Promise<ThumbnailStepOutput> {
+  ): Promise<TaskTranscodeThumbnailStepOutput> {
     // Resolve file path
     const filePath = await FileResolver.resolveFilePath(
       input.uploadId,
@@ -42,7 +45,12 @@ export class ThumbnailStepProcessor extends BaseStepProcessor<
       this.pocketbaseService
     );
 
-    const mediaData = await this.pocketbaseService.getMedia(input.mediaId);
+    const mediaData = await this.pocketbaseService.findMediaByUpload(
+      input.uploadId
+    );
+    if (!mediaData) {
+      throw new Error(`Media not found for upload ${input.uploadId}`);
+    }
 
     // Create enhanced config with source dimensions
     const enhancedConfig = {

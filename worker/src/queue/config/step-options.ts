@@ -1,5 +1,5 @@
+import { TranscodeStepType } from '@project/shared';
 import {
-  TranscodeStepType,
   RenderStepType,
   DetectLabelsStepType,
   RecommendationStepType,
@@ -14,69 +14,35 @@ export interface StepJobOptions {
   backoff: number; // Initial backoff delay in milliseconds
 }
 
+const DEFAULT_OPTIONS: StepJobOptions = {
+  attempts: 3,
+  backoff: 30000, // 30 seconds
+};
+
 /**
  * Step-specific job options with retry and backoff configuration
  */
 export const STEP_JOB_OPTIONS: Record<string, StepJobOptions> = {
   // Transcode steps
-  [TranscodeStepType.PROBE]: {
-    attempts: 3,
-    backoff: 30000, // 30 seconds
-  },
-  [TranscodeStepType.THUMBNAIL]: {
-    attempts: 3,
-    backoff: 30000, // 30 seconds
-  },
-  [TranscodeStepType.SPRITE]: {
-    attempts: 3,
-    backoff: 30000, // 30 seconds
-  },
-  [TranscodeStepType.FILMSTRIP]: {
-    attempts: 3,
-    backoff: 30000, // 30 seconds
-  },
-  [TranscodeStepType.TRANSCODE]: {
-    attempts: 5,
-    backoff: 60000, // 1 minute
-  },
-  [TranscodeStepType.FINALIZE]: {
-    attempts: 3,
-    backoff: 30000, // 30 seconds
-  },
+  [TranscodeStepType.PROBE]: DEFAULT_OPTIONS,
+  [TranscodeStepType.THUMBNAIL]: DEFAULT_OPTIONS,
+  [TranscodeStepType.SPRITE]: DEFAULT_OPTIONS,
+  [TranscodeStepType.FILMSTRIP]: DEFAULT_OPTIONS,
+  [TranscodeStepType.TRANSCODE]: DEFAULT_OPTIONS,
+  [TranscodeStepType.FINALIZE]: DEFAULT_OPTIONS,
 
   // Render steps
-  [RenderStepType.RESOLVE_CLIPS]: {
-    attempts: 3,
-    backoff: 30000, // 30 seconds
-  },
-  [RenderStepType.COMPOSE]: {
-    attempts: 3,
-    backoff: 60000, // 1 minute
-  },
-  [RenderStepType.UPLOAD]: {
-    attempts: 5,
-    backoff: 60000, // 1 minute
-  },
-  [RenderStepType.CREATE_RECORDS]: {
-    attempts: 3,
-    backoff: 30000, // 30 seconds
-  },
+  [RenderStepType.RESOLVE_CLIPS]: DEFAULT_OPTIONS,
+  [RenderStepType.COMPOSE]: DEFAULT_OPTIONS,
+  [RenderStepType.UPLOAD]: DEFAULT_OPTIONS,
+  [RenderStepType.CREATE_RECORDS]: DEFAULT_OPTIONS,
 
   // Detect Labels steps
-  [DetectLabelsStepType.UPLOAD_TO_GCS]: {
-    attempts: 3,
-    backoff: 60000, // 1 minute
-  },
+  [DetectLabelsStepType.UPLOAD_TO_GCS]: DEFAULT_OPTIONS,
 
   // Recommendation steps
-  [RecommendationStepType.GENERATE_MEDIA_RECOMMENDATIONS]: {
-    attempts: 3,
-    backoff: 30000, // 30 seconds
-  },
-  [RecommendationStepType.GENERATE_TIMELINE_RECOMMENDATIONS]: {
-    attempts: 3,
-    backoff: 30000, // 30 seconds
-  },
+  [RecommendationStepType.GENERATE_MEDIA_RECOMMENDATIONS]: DEFAULT_OPTIONS,
+  [RecommendationStepType.GENERATE_TIMELINE_RECOMMENDATIONS]: DEFAULT_OPTIONS,
 };
 
 /**
@@ -84,10 +50,5 @@ export const STEP_JOB_OPTIONS: Record<string, StepJobOptions> = {
  * Returns default options if step type is not configured
  */
 export function getStepJobOptions(stepType: string): StepJobOptions {
-  return (
-    STEP_JOB_OPTIONS[stepType] || {
-      attempts: 3,
-      backoff: 30000,
-    }
-  );
+  return STEP_JOB_OPTIONS[stepType] || DEFAULT_OPTIONS;
 }

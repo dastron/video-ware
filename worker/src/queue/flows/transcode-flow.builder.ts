@@ -4,7 +4,8 @@
  */
 
 import type { Task, ProcessUploadPayload } from '@project/shared';
-import { TranscodeStepType } from '../types/step.types';
+import { ProcessingProvider } from '@project/shared';
+import { TranscodeStepType } from '@project/shared/jobs';
 import { getStepJobOptions } from '../config/step-options';
 import { QUEUE_NAMES } from '../queue.constants';
 import type { TranscodeFlowDefinition } from './types';
@@ -22,7 +23,6 @@ export class TranscodeFlowBuilder {
     const baseJobData = {
       taskId: task.id,
       workspaceId: task.WorkspaceRef,
-      attemptNumber: 0,
     };
 
     // Create parent job with children
@@ -156,7 +156,7 @@ export class TranscodeFlowBuilder {
             type: 'transcode',
             uploadId,
             filePath: '', // Will be resolved by processor
-            provider: payload.provider || 'ffmpeg',
+            provider: payload.provider || ProcessingProvider.FFMPEG,
             config: payload.transcode,
           },
         },

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { TranscodeStepType, RenderStepType } from '../types/step.types';
-import type { StepType } from '../types/step.types';
+import { TranscodeStepType } from '@project/shared';
+import { RenderStepType, type StepType } from '../types/step.types';
 import * as fc from 'fast-check';
 
 /**

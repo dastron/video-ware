@@ -2,21 +2,7 @@
  * Step type enums for different task processing domains
  */
 
-export enum TranscodeStepType {
-  PROBE = 'transcode:probe',
-  THUMBNAIL = 'transcode:thumbnail',
-  SPRITE = 'transcode:sprite',
-  FILMSTRIP = 'transcode:filmstrip',
-  TRANSCODE = 'transcode:transcode',
-  FINALIZE = 'transcode:finalize',
-}
-
-export enum RenderStepType {
-  RESOLVE_CLIPS = 'render:resolve_clips',
-  COMPOSE = 'render:compose',
-  UPLOAD = 'render:upload',
-  CREATE_RECORDS = 'render:create_records',
-}
+import { TranscodeStepType, RenderStepType } from '@project/shared/jobs';
 
 export enum DetectLabelsStepType {
   UPLOAD_TO_GCS = 'labels:upload_to_gcs',
@@ -42,3 +28,6 @@ export type StepType =
   | RenderStepType
   | DetectLabelsStepType
   | RecommendationStepType;
+
+// Re-export RenderStepType for backward compatibility
+export { RenderStepType };

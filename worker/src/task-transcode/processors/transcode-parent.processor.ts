@@ -3,7 +3,14 @@ import { Logger } from '@nestjs/common';
 import { Job, Queue } from 'bullmq';
 import { InjectQueue } from '@nestjs/bullmq';
 import { QUEUE_NAMES } from '../../queue/queue.constants';
-import { TranscodeStepType } from '../../queue/types/step.types';
+import {
+  TranscodeStepType,
+  type TaskTranscodeProbeStep,
+  type TaskTranscodeThumbnailStep,
+  type TaskTranscodeSpriteStep,
+  type TaskTranscodeFilmstripStep,
+  type TaskTranscodeTranscodeStep,
+} from '@project/shared/jobs';
 import { PocketBaseService } from '../../shared/services/pocketbase.service';
 import { ProbeStepProcessor } from './probe-step.processor';
 import { ThumbnailStepProcessor } from './thumbnail-step.processor';
@@ -15,13 +22,6 @@ import type {
   StepJobData,
   StepResult,
 } from '../../queue/types/job.types';
-import type {
-  ProbeStepInput,
-  ThumbnailStepInput,
-  SpriteStepInput,
-  FilmstripStepInput,
-  TranscodeStepInput,
-} from './step-types';
 import type { ProcessUploadPayload } from '@project/shared';
 import { BaseFlowProcessor } from '@/queue/processors';
 
@@ -125,35 +125,35 @@ export class TranscodeParentProcessor extends BaseFlowProcessor {
       switch (stepType) {
         case TranscodeStepType.PROBE:
           output = await this.probeStepProcessor.process(
-            input as ProbeStepInput,
+            input as TaskTranscodeProbeStep,
             job
           );
           break;
 
         case TranscodeStepType.THUMBNAIL:
           output = await this.thumbnailStepProcessor.process(
-            input as ThumbnailStepInput,
+            input as TaskTranscodeThumbnailStep,
             job
           );
           break;
 
         case TranscodeStepType.SPRITE:
           output = await this.spriteStepProcessor.process(
-            input as SpriteStepInput,
+            input as TaskTranscodeSpriteStep,
             job
           );
           break;
 
         case TranscodeStepType.FILMSTRIP:
           output = await this.filmstripStepProcessor.process(
-            input as FilmstripStepInput,
+            input as TaskTranscodeFilmstripStep,
             job
           );
           break;
 
         case TranscodeStepType.TRANSCODE:
           output = await this.transcodeStepProcessor.process(
-            input as TranscodeStepInput,
+            input as TaskTranscodeTranscodeStep,
             job
           );
           break;

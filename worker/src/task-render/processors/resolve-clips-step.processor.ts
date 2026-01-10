@@ -3,9 +3,12 @@ import { Job } from 'bullmq';
 import { BaseStepProcessor } from '../../queue/processors/base-step.processor';
 import type { StepJobData } from '../../queue/types/job.types';
 import type {
-  ResolveClipsStepInput,
-  ResolveClipsOutput,
-} from '../executors/interfaces';
+  TaskRenderResolveClipsStep,
+  TaskRenderResolveClipsStepOutput,
+} from '@project/shared/jobs';
+// Legacy type aliases for backward compatibility
+type ResolveClipsStepInput = TaskRenderResolveClipsStep;
+type ResolveClipsOutput = TaskRenderResolveClipsStepOutput;
 import { FFmpegResolveClipsExecutor } from '../executors';
 
 /**

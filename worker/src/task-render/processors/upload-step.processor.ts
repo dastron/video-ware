@@ -3,7 +3,13 @@ import { Job } from 'bullmq';
 import { BaseStepProcessor } from '../../queue/processors/base-step.processor';
 import { StorageService } from '../../shared/services/storage.service';
 import type { StepJobData } from '../../queue/types/job.types';
-import type { UploadStepInput, UploadOutput } from '../executors/interfaces';
+import type {
+  TaskRenderUploadStep,
+  TaskRenderUploadStepOutput,
+} from '@project/shared/jobs';
+// Legacy type aliases for backward compatibility
+type UploadStepInput = TaskRenderUploadStep;
+type UploadOutput = TaskRenderUploadStepOutput;
 import { FFmpegUploadExecutor } from '../executors';
 
 /**

@@ -6,7 +6,10 @@ import { FFmpegProbeExecutor, FFmpegSpriteExecutor } from '../executors';
 import { StorageService } from '../../shared/services/storage.service';
 import { PocketBaseService } from '../../shared/services/pocketbase.service';
 import { FileResolver } from '../utils/file-resolver';
-import type { SpriteStepInput, SpriteStepOutput } from './step-types';
+import type {
+  TaskTranscodeSpriteStep,
+  TaskTranscodeSpriteStepOutput,
+} from '@project/shared/jobs';
 import type { StepJobData } from '../../queue/types/job.types';
 import { FileType, FileSource } from '@project/shared';
 
@@ -16,8 +19,8 @@ import { FileType, FileSource } from '@project/shared';
  */
 @Injectable()
 export class SpriteStepProcessor extends BaseStepProcessor<
-  SpriteStepInput,
-  SpriteStepOutput
+  TaskTranscodeSpriteStep,
+  TaskTranscodeSpriteStepOutput
 > {
   protected readonly logger = new Logger(SpriteStepProcessor.name);
 
@@ -31,9 +34,9 @@ export class SpriteStepProcessor extends BaseStepProcessor<
   }
 
   async process(
-    input: SpriteStepInput,
+    input: TaskTranscodeSpriteStep,
     _job: Job<StepJobData>
-  ): Promise<SpriteStepOutput> {
+  ): Promise<TaskTranscodeSpriteStepOutput> {
     // Resolve file path
     const filePath = await FileResolver.resolveFilePath(
       input.uploadId,
@@ -42,7 +45,12 @@ export class SpriteStepProcessor extends BaseStepProcessor<
       this.pocketbaseService
     );
 
-    const mediaData = await this.pocketbaseService.getMedia(input.mediaId);
+    const mediaData = await this.pocketbaseService.findMediaByUpload(
+      input.uploadId
+    );
+    if (!mediaData) {
+      throw new Error(`Media not found for upload ${input.uploadId}`);
+    }
 
     // Use probe output from input
     const duration = mediaData.duration;

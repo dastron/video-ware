@@ -3,30 +3,16 @@
  * Shared across all flow builders
  */
 
-import type { Task } from '@project/shared';
 import type {
-  TranscodeStepType,
   RenderStepType,
   DetectLabelsStepType,
   RecommendationStepType,
 } from '../types/step.types';
-
-/**
- * Base job data shared across all jobs
- */
-export interface BaseJobData {
-  taskId: string;
-  workspaceId: string;
-  attemptNumber: number;
-}
-
-/**
- * Parent job data structure
- */
-export interface ParentJobData extends BaseJobData {
-  task: Task;
-  stepResults: Record<string, any>;
-}
+import type { ParentJobData } from '../types/job.types';
+import type {
+  TaskTranscodeInput,
+  TranscodeStepType,
+} from '@project/shared/jobs';
 
 /**
  * Child job options
@@ -64,10 +50,9 @@ export interface TranscodeChildJobDefinition {
   data: {
     taskId: string;
     workspaceId: string;
-    attemptNumber: number;
     stepType: TranscodeStepType;
     parentJobId: string;
-    input: any;
+    input: TaskTranscodeInput;
   };
   opts?: ChildJobOpts;
   children?: (ChildJobDependency | FlowDefinition)[];
@@ -90,7 +75,6 @@ export interface RenderChildJobDefinition {
   data: {
     taskId: string;
     workspaceId: string;
-    attemptNumber: number;
     stepType: RenderStepType;
     parentJobId: string;
     input: any;
@@ -116,7 +100,6 @@ export interface LabelsChildJobDefinition {
   data: {
     taskId: string;
     workspaceId: string;
-    attemptNumber: number;
     stepType: DetectLabelsStepType | RecommendationStepType;
     parentJobId: string;
     input: any;
@@ -142,7 +125,6 @@ export interface RecommendationsChildJobDefinition {
   data: {
     taskId: string;
     workspaceId: string;
-    attemptNumber: number;
     stepType: RecommendationStepType;
     parentJobId: string;
     input: any;

@@ -10,3 +10,6 @@ export * from './utils/index.js';
 
 // Export mutators
 export * from './mutator.js';
+
+// Export job types
+export * from './jobs/index.js';
