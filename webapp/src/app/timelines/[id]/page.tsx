@@ -1,3 +1,5 @@
+'use client';
+
 import { useAuth } from '@/hooks/use-auth';
 import { useWorkspace } from '@/hooks/use-workspace';
 import { TimelineProvider } from '@/contexts/timeline-context';
