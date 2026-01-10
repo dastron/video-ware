@@ -145,6 +145,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/pb/pb_migrations ./pb/pb_migratio
 RUN mkdir -p ./pb/pb_data && chown -R nextjs:nodejs ./pb/pb_data
 
 # Create worker data directory for temporary processing files
+# This directory is used by all services (worker, FFmpeg, etc.) for:
+# - Uploaded files: ./data/uploads/<workspaceId>/<uploadId>/
+# - Generated files: thumbnails, sprites, proxies, filmstrips
+# Set via WORKER_DATA_DIR and STORAGE_LOCAL_PATH environment variables (default: /app/data)
 RUN mkdir -p ./data && chown -R nextjs:nodejs ./data
 
 # Create cache directories for Node.js and Yarn with proper permissions

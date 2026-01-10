@@ -45,6 +45,7 @@ export interface GenerateDerivedPathParams {
 export class StorageService implements OnModuleInit {
   private readonly logger = new Logger(StorageService.name);
   private backend!: StorageBackend;
+  private resolvedBasePath!: string;
 
   constructor(private readonly configService: ConfigService) {}
 
@@ -70,7 +71,16 @@ export class StorageService implements OnModuleInit {
       config.local = {
         basePath: localPath,
       };
+      // Resolve the base path relative to project root
+      this.resolvedBasePath = this.resolveBasePath(localPath);
     } else if (storageType === StorageBackendType.S3) {
+      // For S3, we still need a local path for temp/working files
+      const localPath = this.configService.get<string>(
+        'storage.localPath',
+        './data'
+      );
+      // Resolve the base path relative to project root
+      this.resolvedBasePath = this.resolveBasePath(localPath);
       const s3Bucket = this.configService.get<string>('storage.s3Bucket');
       const s3Region = this.configService.get<string>('storage.s3Region');
       const s3Endpoint = this.configService.get<string>('storage.s3Endpoint');
@@ -495,22 +505,72 @@ export class StorageService implements OnModuleInit {
   }
 
   /**
+   * Resolve a (possibly relative) basePath to an absolute path.
+   * Ensures paths resolve relative to project root, not the worker subdirectory.
+   * This allows "./data" to resolve to project root's data/ whether running from
+   * project root or worker/ subdirectory.
+   * Prioritizes environment variables for Docker deployments:
+   * 1. STORAGE_LOCAL_PATH (explicit configuration)
+   * 2. WORKER_DATA_DIR (Docker fallback)
+   */
+  private resolveBasePath(basePath: string): string {
+    // Check for STORAGE_LOCAL_PATH environment variable first (most explicit)
+    if (process.env.STORAGE_LOCAL_PATH) {
+      return path.resolve(process.env.STORAGE_LOCAL_PATH);
+    }
+
+    // Check for WORKER_DATA_DIR environment variable (used in Docker)
+    // This ensures we always use the correct directory in containerized environments
+    if (process.env.WORKER_DATA_DIR) {
+      return path.resolve(process.env.WORKER_DATA_DIR);
+    }
+
+    // If path is already absolute, use it as-is
+    if (path.isAbsolute(basePath)) return basePath;
+
+    const cwd = process.cwd();
+    const basename = path.basename(cwd);
+
+    // If running from worker/ subdirectory, resolve relative to parent (project root)
+    if (
+      basename === 'worker' ||
+      cwd.endsWith('/worker') ||
+      cwd.endsWith('\\worker')
+    ) {
+      // Remove "./" prefix if present for cleaner resolution
+      const cleanPath = basePath.startsWith('./')
+        ? basePath.slice(2)
+        : basePath;
+      return path.resolve(path.dirname(cwd), cleanPath);
+    }
+
+    // Otherwise resolve relative to current working directory (project root)
+    return path.resolve(cwd, basePath);
+  }
+
+  /**
    * Get the base storage path for local storage
-   * Returns the configured local path or './data' as default
+   * Returns the resolved path relative to project root
    */
   getBasePath(): string {
+    // If we've already resolved it during initialization, return that
+    if (this.resolvedBasePath) {
+      return this.resolvedBasePath;
+    }
+
+    // Fallback if called before initialization
     const storageType = this.configService.get<string>(
       'storage.type',
       'local'
     ) as StorageBackendType;
 
-    if (storageType === StorageBackendType.LOCAL) {
-      return this.configService.get<string>('storage.localPath', './data');
-    }
+    const localPath = this.configService.get<string>(
+      'storage.localPath',
+      './data'
+    );
 
-    // For S3 or other backends, we still need a local path for temp/working files
-    // Use a temp directory in the current working directory
-    return this.configService.get<string>('storage.localPath', './data');
+    // Resolve the path
+    return this.resolveBasePath(localPath);
   }
 
   /**

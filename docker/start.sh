@@ -18,6 +18,8 @@ export POCKETBASE_ADMIN_PASSWORD="${POCKETBASE_ADMIN_PASSWORD:-your-secure-passw
 
 # Worker Configuration (Requirements 4.2)
 export WORKER_DATA_DIR="${WORKER_DATA_DIR:-/app/data}"
+# Set STORAGE_LOCAL_PATH to match WORKER_DATA_DIR to ensure all services use the same directory
+export STORAGE_LOCAL_PATH="${STORAGE_LOCAL_PATH:-${WORKER_DATA_DIR}}"
 export WORKER_MAX_RETRIES="${WORKER_MAX_RETRIES:-3}"
 export WORKER_PROVIDER="${WORKER_PROVIDER:-ffmpeg}"
 export WORKER_POLL_INTERVAL="${WORKER_POLL_INTERVAL:-5000}"
@@ -92,6 +94,7 @@ if [ "${LOG_LEVEL}" = "debug" ] || [ "${LOG_LEVEL}" = "verbose" ]; then
   echo "  - PB_DATA_DIR: $PB_DATA_DIR"
   echo "  - PB_PUBLIC_DIR: $PB_PUBLIC_DIR"
   echo "  - WORKER_DATA_DIR: $WORKER_DATA_DIR"
+  echo "  - STORAGE_LOCAL_PATH: $STORAGE_LOCAL_PATH"
 fi
 
 # =============================================================================
