@@ -6,6 +6,7 @@ export enum TranscodeStepType {
   PROBE = 'transcode:probe',
   THUMBNAIL = 'transcode:thumbnail',
   SPRITE = 'transcode:sprite',
+  FILMSTRIP = 'transcode:filmstrip',
   TRANSCODE = 'transcode:transcode',
   FINALIZE = 'transcode:finalize',
 }

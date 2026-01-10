@@ -19,9 +19,12 @@ export class FFmpegSpriteExecutor implements ISpriteExecutor {
   async execute(
     filePath: string,
     outputPath: string,
-    config: SpriteConfig
+    config: SpriteConfig,
+    startTime: number = 0
   ): Promise<SpriteResult> {
-    this.logger.debug(`Generating sprite sheet: ${outputPath}`);
+    this.logger.debug(
+      `Generating sprite sheet: ${outputPath} starting at ${startTime}s`
+    );
 
     // Calculate tile height maintaining aspect ratio
     const { tileHeight, rows, fps } = this.calculateSpriteParams(config);
@@ -33,7 +36,8 @@ export class FFmpegSpriteExecutor implements ISpriteExecutor {
       config.cols,
       rows,
       config.tileWidth,
-      tileHeight
+      tileHeight,
+      startTime
     );
 
     return { outputPath };

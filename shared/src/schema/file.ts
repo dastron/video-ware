@@ -32,6 +32,7 @@ export const FileSchema = z
       FileType.SPRITE,
       FileType.LABELS_JSON,
       FileType.RENDER,
+      FileType.FILMSTRIP,
     ]),
     fileSource: SelectField([
       FileSource.S3,

@@ -14,6 +14,7 @@ import {
 
 // Processors
 import {
+  FilmstripStepProcessor,
   TranscodeParentProcessor,
   ProbeStepProcessor,
   ThumbnailStepProcessor,
@@ -40,6 +41,7 @@ import {
     ThumbnailStepProcessor,
     SpriteStepProcessor,
     TranscodeStepProcessor,
+    FilmstripStepProcessor,
   ],
   exports: [TranscodeService],
 })

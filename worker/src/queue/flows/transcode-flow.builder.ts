@@ -115,6 +115,33 @@ export class TranscodeFlowBuilder {
       });
     }
 
+    // FILMSTRIP step (if configured)
+    if (payload.filmstrip) {
+      const filmstripOptions = getStepJobOptions(TranscodeStepType.FILMSTRIP);
+      flow.children.push({
+        name: TranscodeStepType.FILMSTRIP,
+        queueName: QUEUE_NAMES.TRANSCODE,
+        data: {
+          ...baseJobData,
+          stepType: TranscodeStepType.FILMSTRIP,
+          parentJobId: '',
+          input: {
+            type: 'filmstrip',
+            uploadId,
+            filePath: '', // Will be resolved by processor
+            config: payload.filmstrip,
+          },
+        },
+        opts: {
+          attempts: filmstripOptions.attempts,
+          backoff: {
+            type: 'exponential',
+            delay: filmstripOptions.backoff,
+          },
+        },
+      });
+    }
+
     // TRANSCODE step (if enabled)
     if (payload.transcode?.enabled) {
       const transcodeOptions = getStepJobOptions(TranscodeStepType.TRANSCODE);

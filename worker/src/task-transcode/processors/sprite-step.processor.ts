@@ -42,37 +42,31 @@ export class SpriteStepProcessor extends BaseStepProcessor<
       this.pocketbaseService
     );
 
-    // Probe for dimensions and duration
-    const { probeOutput } = await this.probeExecutor.execute(filePath);
+    const mediaData = await this.pocketbaseService.getMedia(input.mediaId);
 
-    // Always use configured fps (1 frame per second), but cap at maxFrames
-    const maxFrames = 2500;
-    const configuredFps = input.config.fps; // Fixed at 1 fps
-    const cols = input.config.cols; // Fixed at 10
+    // Use probe output from input
+    const duration = mediaData.duration;
 
-    // Calculate how many frames we would generate at this interval
-    const potentialFrames = Math.floor(probeOutput.duration * configuredFps);
+    // The user wants a 10x10 spritesheet (100 frames) covering the whole video
+    // Variable fps (1 or less)
+    const cols = 10;
+    const rows = 10;
 
-    // Cap at maxFrames - we simply won't generate frames beyond this limit
-    const actualFrames = Math.min(potentialFrames, maxFrames);
-
-    // Calculate rows needed for the actual number of frames
-    const rows = Math.ceil(actualFrames / cols);
+    // Calculate fps to get 100 frames over the duration, capped at 1 fps
+    const fps = Math.min(1, 100 / duration);
 
     this.logger.log(
-      `Generating ${actualFrames} frames (${cols}x${rows}) at ${configuredFps} fps for ${probeOutput.duration}s video` +
-        (potentialFrames > maxFrames
-          ? ` (capped from ${potentialFrames} frames)`
-          : '')
+      `Generating sprite sheet: ${cols}x${rows} at ${fps.toFixed(4)} fps for ${duration}s video`
     );
 
-    // Create enhanced config with source dimensions and calculated rows
+    // Create enhanced config with source dimensions and calculated grid
     const enhancedConfig = {
       ...input.config,
-      sourceWidth: probeOutput.width,
-      sourceHeight: probeOutput.height,
-      fps: configuredFps, // Always use configured fps
-      rows, // Override rows with calculated value
+      sourceWidth: mediaData.width,
+      sourceHeight: mediaData.height,
+      fps,
+      cols,
+      rows,
     };
 
     // Generate sprite

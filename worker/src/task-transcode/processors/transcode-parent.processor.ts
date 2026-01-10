@@ -8,6 +8,7 @@ import { PocketBaseService } from '../../shared/services/pocketbase.service';
 import { ProbeStepProcessor } from './probe-step.processor';
 import { ThumbnailStepProcessor } from './thumbnail-step.processor';
 import { SpriteStepProcessor } from './sprite-step.processor';
+import { FilmstripStepProcessor } from './filmstrip-step.processor';
 import { TranscodeStepProcessor } from './transcode-step.processor';
 import type {
   ParentJobData,
@@ -18,6 +19,7 @@ import type {
   ProbeStepInput,
   ThumbnailStepInput,
   SpriteStepInput,
+  FilmstripStepInput,
   TranscodeStepInput,
 } from './step-types';
 import type { ProcessUploadPayload } from '@project/shared';
@@ -39,6 +41,7 @@ export class TranscodeParentProcessor extends BaseFlowProcessor {
     private readonly probeStepProcessor: ProbeStepProcessor,
     private readonly thumbnailStepProcessor: ThumbnailStepProcessor,
     private readonly spriteStepProcessor: SpriteStepProcessor,
+    private readonly filmstripStepProcessor: FilmstripStepProcessor,
     private readonly transcodeStepProcessor: TranscodeStepProcessor
   ) {
     super();
@@ -63,6 +66,7 @@ export class TranscodeParentProcessor extends BaseFlowProcessor {
     // Count enabled steps based on payload (same logic as flow builder)
     if (payload.thumbnail) totalSteps++;
     if (payload.sprite) totalSteps++;
+    if (payload.filmstrip) totalSteps++;
     if (payload.transcode?.enabled) totalSteps++;
 
     return totalSteps;
@@ -136,6 +140,13 @@ export class TranscodeParentProcessor extends BaseFlowProcessor {
         case TranscodeStepType.SPRITE:
           output = await this.spriteStepProcessor.process(
             input as SpriteStepInput,
+            job
+          );
+          break;
+
+        case TranscodeStepType.FILMSTRIP:
+          output = await this.filmstripStepProcessor.process(
+            input as FilmstripStepInput,
             job
           );
           break;

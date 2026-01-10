@@ -26,6 +26,20 @@ export interface SpriteConfig {
 }
 
 /**
+ * Configuration for filmstrip generation
+ */
+export interface FilmstripConfig {
+  /** Number of columns in the filmstrip (e.g., 100) */
+  cols: number;
+  /** Number of rows in the filmstrip (e.g., 1) */
+  rows: number;
+  /** Width of each tile in pixels */
+  tileWidth: number;
+  /** Height of each tile in pixels (optional, will be calculated from aspect ratio if not provided) */
+  tileHeight?: number;
+}
+
+/**
  * Configuration for thumbnail generation
  */
 export interface ThumbnailConfig {
@@ -62,15 +76,14 @@ export interface ProcessUploadPayload {
   provider?: ProcessingProvider;
   /** Configuration for sprite sheet generation */
   sprite?: SpriteConfig;
+  /** Configuration for filmstrip generation */
+  filmstrip?: FilmstripConfig;
   /** Configuration for thumbnail generation */
   thumbnail?: ThumbnailConfig;
   /** Optional configuration for transcoding/proxy generation */
   transcode?: TranscodeConfig;
 }
 
-/**
- * Output from media probing (ffprobe or equivalent)
- */
 /**
  * Output from media probing (ffprobe or equivalent)
  */
@@ -165,6 +178,8 @@ export interface ProcessUploadResult {
   thumbnailFileId?: string;
   /** ID of the sprite sheet File record */
   spriteFileId?: string;
+  /** ID of the filmstrip File record */
+  filmstripFileId?: string;
   /** ID of the proxy/transcoded File record (if transcoding was enabled) */
   proxyFileId?: string;
   /** Version identifier of the processor that executed the task (e.g., "ffmpeg:7.0.1") */
@@ -308,6 +323,8 @@ export interface FullIngestPayload {
   transcode?: TranscodeConfig;
   /** Configuration for sprite sheet */
   sprite?: SpriteConfig;
+  /** Configuration for filmstrip */
+  filmstrip?: FilmstripConfig;
   /** Configuration for thumbnail */
   thumbnail?: ThumbnailConfig;
   /** Configuration for label detection */

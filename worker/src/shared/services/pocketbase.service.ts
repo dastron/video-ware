@@ -153,12 +153,10 @@ export class PocketBaseService implements OnModuleInit {
    */
   async getMediaByUpload(uploadId: string) {
     try {
-      const results = await this.mediaMutator.getList(
-        1,
-        1,
+      const results = await this.mediaMutator.getFirstByFilter(
         `UploadRef = "${uploadId}"`
       );
-      return results.items[0] || null;
+      return results || null;
     } catch (error) {
       this.logger.error(
         `Failed to get media for upload ${uploadId}: ${error instanceof Error ? error.message : String(error)}`
@@ -392,14 +390,11 @@ export class PocketBaseService implements OnModuleInit {
    * Get media record by ID
    */
   async getMedia(mediaId: string) {
-    try {
-      return await this.mediaMutator.getById(mediaId);
-    } catch (error) {
-      this.logger.error(
-        `Failed to get media ${mediaId}: ${error instanceof Error ? error.message : String(error)}`
-      );
-      return null;
+    const result = await this.mediaMutator.getById(mediaId);
+    if (!result) {
+      throw new Error(`Media ${mediaId} not found`);
     }
+    return result;
   }
 
   /**

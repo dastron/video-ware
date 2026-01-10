@@ -119,12 +119,14 @@ export interface ISpriteExecutor {
    * @param filePath Path to the source media file
    * @param outputPath Path for the output sprite
    * @param config Sprite configuration
+   * @param startTime Optional start time offset in seconds
    * @returns Sprite result
    */
   execute(
     filePath: string,
     outputPath: string,
-    config: SpriteConfig
+    config: SpriteConfig,
+    startTime?: number
   ): Promise<SpriteResult>;
 }
 

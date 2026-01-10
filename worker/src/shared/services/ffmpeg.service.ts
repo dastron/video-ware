@@ -160,7 +160,8 @@ export class FFmpegService {
     cols: number = 10,
     rows: number = 10,
     tileWidth: number = 160,
-    tileHeight: number = 120
+    tileHeight: number = 120,
+    startTime: number = 0
   ): Promise<void> {
     try {
       // Ensure output directory exists
@@ -170,13 +171,16 @@ export class FFmpegService {
       const command = [
         'ffmpeg',
         '-y', // Overwrite output file
+        startTime > 0 ? `-ss ${startTime}` : '', // Start time
         `-i "${inputPath}"`, // Input file
         `-vf "fps=${fps},scale=${tileWidth}:${tileHeight},tile=${cols}x${rows}"`, // Video filter
         '-frames:v 1', // Tile filter produces a single output frame containing all tiles
         '-update 1', // Update the same file for each frame (required for single file output)
         '-q:v 2', // High quality
         `"${outputPath}"`, // Output file
-      ].join(' ');
+      ]
+        .filter(Boolean)
+        .join(' ');
 
       this.logger.debug(`Generating sprite: ${command}`);
 

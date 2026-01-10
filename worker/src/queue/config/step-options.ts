@@ -31,6 +31,10 @@ export const STEP_JOB_OPTIONS: Record<string, StepJobOptions> = {
     attempts: 3,
     backoff: 30000, // 30 seconds
   },
+  [TranscodeStepType.FILMSTRIP]: {
+    attempts: 3,
+    backoff: 30000, // 30 seconds
+  },
   [TranscodeStepType.TRANSCODE]: {
     attempts: 5,
     backoff: 60000, // 1 minute

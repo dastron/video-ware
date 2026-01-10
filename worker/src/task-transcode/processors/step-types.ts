@@ -7,6 +7,7 @@ import type {
   ProbeOutput,
   ThumbnailConfig,
   SpriteConfig,
+  FilmstripConfig,
   TranscodeConfig,
   ProcessUploadResult,
   ProcessingProvider,
@@ -34,8 +35,8 @@ export interface ThumbnailStepInput {
   filePath: string;
   /** ID of the Upload record being processed */
   uploadId: string;
-  /** Probe output from the PROBE step */
-  probeOutput: ProbeOutput;
+  /** ID of the Media record being processed */
+  mediaId: string;
   /** Thumbnail generation configuration */
   config: ThumbnailConfig;
 }
@@ -50,10 +51,26 @@ export interface SpriteStepInput {
   filePath: string;
   /** ID of the Upload record being processed */
   uploadId: string;
-  /** Probe output from the PROBE step */
-  probeOutput: ProbeOutput;
+  /** ID of the Media record being processed */
+  mediaId: string;
   /** Sprite sheet generation configuration */
   config: SpriteConfig;
+}
+
+/**
+ * Input for the FILMSTRIP step
+ * Generates a filmstrip from the media file
+ */
+export interface FilmstripStepInput {
+  type: 'filmstrip';
+  /** Path to the media file */
+  filePath: string;
+  /** ID of the Upload record being processed */
+  uploadId: string;
+  /** ID of the Media record being processed */
+  mediaId: string;
+  /** Filmstrip generation configuration */
+  config: FilmstripConfig;
 }
 
 /**
@@ -66,8 +83,8 @@ export interface TranscodeStepInput {
   filePath: string;
   /** ID of the Upload record being processed */
   uploadId: string;
-  /** Probe output from the PROBE step */
-  probeOutput: ProbeOutput;
+  /** ID of the Media record being processed */
+  mediaId: string;
   /** Processing provider to use (ffmpeg or google-transcoder) */
   provider: ProcessingProvider;
   /** Transcoding configuration */
@@ -88,6 +105,8 @@ export interface FinalizeStepInput {
   thumbnailPath?: string;
   /** Path to the generated sprite sheet file (optional) */
   spritePath?: string;
+  /** Path to the generated filmstrip file (optional) */
+  filmstripPath?: string;
   /** Path to the transcoded proxy file (optional) */
   proxyPath?: string;
 }
@@ -123,6 +142,18 @@ export interface SpriteStepOutput {
 }
 
 /**
+ * Output from the FILMSTRIP step
+ */
+export interface FilmstripStepOutput {
+  /** Path to the generated filmstrip file */
+  filmstripPath: string;
+  /** ID of the created File record */
+  filmstripFileId: string;
+  /** IDs of all generated filmstrip file records */
+  allFilmstripFileIds?: string[];
+}
+
+/**
  * Output from the TRANSCODE step
  */
 export interface TranscodeStepOutput {
@@ -147,5 +178,6 @@ export type TranscodeStepResult =
   | ProbeStepOutput
   | ThumbnailStepOutput
   | SpriteStepOutput
+  | FilmstripStepOutput
   | TranscodeStepOutput
   | FinalizeStepOutput;

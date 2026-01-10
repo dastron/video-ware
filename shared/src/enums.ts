@@ -61,6 +61,7 @@ export enum FileType {
   PROXY = 'proxy',
   THUMBNAIL = 'thumbnail',
   SPRITE = 'sprite',
+  FILMSTRIP = 'filmstrip',
   LABELS_JSON = 'labels_json',
   RENDER = 'render',
 }
