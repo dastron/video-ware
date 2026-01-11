@@ -32,13 +32,13 @@ export class PrepareRenderStepProcessor extends BaseStepProcessor<
     input: TaskRenderPrepareStep,
     job: Job<StepJobData>
   ): Promise<TaskRenderPrepareStepOutput> {
-    const { timelineId, editList } = input;
+    const { timelineId, tracks } = input;
     this.logger.log(`Preparing media for timeline ${timelineId}`);
 
     // 1. Resolve media clips to local paths (standard logic)
     const { clipMediaMap } = await this.resolveClipsExecutor.execute(
       timelineId,
-      editList
+      tracks
     );
 
     // 2. If using Google Cloud Transcoder, ensure all files are in GCS

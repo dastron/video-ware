@@ -16,7 +16,7 @@ export class RenderFlowBuilder {
    */
   static buildFlow(task: Task): RenderFlowDefinition {
     const payload = task.payload as RenderTimelinePayload;
-    const { timelineId, version, editList, outputSettings } = payload;
+    const { timelineId, version, tracks, outputSettings } = payload;
 
     // Build base job data
     const baseJobData = {
@@ -49,7 +49,7 @@ export class RenderFlowBuilder {
         input: {
           type: 'prepare',
           timelineId,
-          editList,
+          tracks,
         },
       },
       opts: prepareOptions,
@@ -67,7 +67,7 @@ export class RenderFlowBuilder {
         input: {
           type: 'execute',
           timelineId,
-          editList,
+          tracks,
           clipMediaMap: {}, // Populated from PREPARE
           outputSettings,
         },

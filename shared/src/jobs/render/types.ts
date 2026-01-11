@@ -27,8 +27,8 @@ export interface TaskRenderPrepareStep {
   type: 'prepare';
   /** ID of the timeline being rendered */
   timelineId: string;
-  /** Edit list from the render payload */
-  editList: RenderTimelinePayload['editList'];
+  /** Tracks from the render payload */
+  tracks: RenderTimelinePayload['tracks'];
 }
 
 /**
@@ -39,8 +39,8 @@ export interface TaskRenderExecuteStep {
   type: 'execute';
   /** ID of the timeline being rendered */
   timelineId: string;
-  /** Edit list from the render payload */
-  editList: RenderTimelinePayload['editList'];
+  /** Tracks from the render payload */
+  tracks: RenderTimelinePayload['tracks'];
   /** Resolved clip media from PREPARE step */
   clipMediaMap: Record<string, { media: Media; filePath: string }>;
   /** Output settings for the render */

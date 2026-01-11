@@ -201,6 +201,61 @@ export interface RenderTimelineConfig {
 }
 
 /**
+ * Represents a single segment in a timeline track
+ */
+export interface TimelineSegment {
+  /** Unique identifier for the segment */
+  id: string;
+  /** ID of the media asset (required for video/audio/image) */
+  assetId?: string;
+  /** Type of content */
+  type: 'video' | 'audio' | 'text' | 'image';
+  /** Timing information */
+  time: {
+    /** Start time on the timeline in seconds */
+    start: number;
+    /** Duration in seconds */
+    duration: number;
+    /** Start time in the source media in seconds */
+    sourceStart?: number;
+  };
+  /** Video specific properties */
+  video?: {
+    x?: number | string; // pixels or percentage string e.g. "10%"
+    y?: number | string;
+    width?: number | string;
+    height?: number | string;
+    opacity?: number; // 0.0 to 1.0
+  };
+  /** Audio specific properties */
+  audio?: {
+    volume?: number; // 1.0 is 100%
+  };
+  /** Text specific properties */
+  text?: {
+    content: string;
+    fontSize?: number;
+    color?: string; // hex color e.g. #FFFFFF
+    x?: number | string;
+    y?: number | string;
+  };
+}
+
+/**
+ * Represents a track in the timeline containing multiple segments
+ */
+export interface TimelineTrack {
+  /** Unique identifier for the track */
+  id: string;
+  /** Type of track */
+  type: 'video' | 'audio' | 'text' | 'overlay';
+  /** Order/Layer index (lower is background, higher is foreground) */
+  layer?: number;
+  /** List of segments in this track */
+  segments: TimelineSegment[];
+}
+
+/**
  * Payload for render_timeline task
  */
 export interface RenderTimelinePayload {
@@ -208,16 +263,8 @@ export interface RenderTimelinePayload {
   timelineId: string;
   /** Version of the timeline */
   version: number;
-  /** The edit list defining the timeline composition */
-  // We use any here to avoid circular dependency with video-ware.ts, or we can redefine the shape
-  // Given the user payload:
-  // { endTimeOffset: { nanos, seconds }, inputs: string[], key: string, startTimeOffset: { nanos, seconds } }[]
-  editList: Array<{
-    key: string;
-    inputs: string[];
-    startTimeOffset: { seconds: number; nanos: number };
-    endTimeOffset: { seconds: number; nanos: number };
-  }>;
+  /** List of tracks defining the timeline composition */
+  tracks: TimelineTrack[];
   /** Output settings */
   outputSettings: RenderTimelineConfig;
   /** Processing provider */

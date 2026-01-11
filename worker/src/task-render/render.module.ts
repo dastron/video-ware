@@ -12,7 +12,6 @@ import {
 import {
   FFmpegResolveClipsExecutor,
   FFmpegComposeExecutor,
-  GCTranscoderExecutor,
 } from './executors';
 
 @Module({
@@ -27,7 +26,6 @@ import {
     // Executors (strategy implementations)
     FFmpegResolveClipsExecutor,
     FFmpegComposeExecutor,
-    GCTranscoderExecutor,
 
     // Parent processor
     RenderParentProcessor,

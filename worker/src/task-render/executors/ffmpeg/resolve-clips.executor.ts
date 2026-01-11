@@ -19,20 +19,22 @@ export class FFmpegResolveClipsExecutor implements IPrepareExecutor {
 
   async execute(
     timelineId: string,
-    editList: RenderTimelinePayload['editList']
+    tracks: RenderTimelinePayload['tracks']
   ): Promise<ResolveClipsResult> {
     this.logger.log(`Resolving media for timeline ${timelineId} render`);
 
-    // Extract all unique media IDs from the edit list
+    // Extract all unique media IDs from the tracks
     const mediaIds = new Set<string>();
-    for (const segment of editList) {
-      for (const mediaId of segment.inputs) {
-        mediaIds.add(mediaId);
+    for (const track of tracks) {
+      for (const segment of track.segments) {
+        if (segment.assetId) {
+          mediaIds.add(segment.assetId);
+        }
       }
     }
 
     if (mediaIds.size === 0) {
-      throw new Error(`No media found in edit list for timeline ${timelineId}`);
+      throw new Error(`No media found in tracks for timeline ${timelineId}`);
     }
 
     this.logger.debug(`Need to resolve ${mediaIds.size} unique media files`);
