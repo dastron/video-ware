@@ -37,10 +37,9 @@ export const STEP_JOB_OPTIONS: Record<string, StepJobOptions> = {
   [TranscodeStepType.TRANSCODE]: DEFAULT_OPTIONS,
 
   // Render steps
-  [RenderStepType.RESOLVE_CLIPS]: DEFAULT_OPTIONS,
-  [RenderStepType.COMPOSE]: DEFAULT_OPTIONS,
-  [RenderStepType.UPLOAD]: DEFAULT_OPTIONS,
-  [RenderStepType.CREATE_RECORDS]: DEFAULT_OPTIONS,
+  [RenderStepType.PREPARE]: DEFAULT_OPTIONS,
+  [RenderStepType.EXECUTE]: DEFAULT_OPTIONS,
+  [RenderStepType.FINALIZE]: DEFAULT_OPTIONS,
 
   // Detect Labels steps
   [DetectLabelsStepType.UPLOAD_TO_GCS]: DEFAULT_OPTIONS,

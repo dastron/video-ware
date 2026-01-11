@@ -12,7 +12,7 @@ import type { RenderFlowDefinition } from './types';
 export class RenderFlowBuilder {
   /**
    * Build a render flow definition for RENDER_TIMELINE tasks
-   * Builds a parent-child job hierarchy with steps: RESOLVE_CLIPS, COMPOSE, UPLOAD, CREATE_RECORDS
+   * Builds a parent-child job hierarchy with steps: PREPARE, EXECUTE, FINALIZE
    */
   static buildFlow(task: Task): RenderFlowDefinition {
     const payload = task.payload as RenderTimelinePayload;
@@ -22,10 +22,11 @@ export class RenderFlowBuilder {
     const baseJobData = {
       taskId: task.id,
       workspaceId: task.WorkspaceRef,
+      provider: payload.provider, // FFmpeg or Google Cloud
       attemptNumber: 0,
     };
 
-    // Create parent job with children
+    // Create parent job
     const flow: RenderFlowDefinition = {
       name: 'parent',
       queueName: QUEUE_NAMES.RENDER,
@@ -36,105 +37,73 @@ export class RenderFlowBuilder {
       children: [],
     };
 
-    // RESOLVE_CLIPS step (always required, runs first)
-    const resolveClipsOptions = getStepJobOptions(RenderStepType.RESOLVE_CLIPS);
+    // 1. PREPARE step (Resolve clips & ensure GCS availability)
+    const prepareOptions = getStepJobOptions(RenderStepType.PREPARE);
     flow.children.push({
-      name: RenderStepType.RESOLVE_CLIPS,
+      name: RenderStepType.PREPARE,
       queueName: QUEUE_NAMES.RENDER,
       data: {
         ...baseJobData,
-        stepType: RenderStepType.RESOLVE_CLIPS,
-        parentJobId: '', // Will be set by BullMQ
+        stepType: RenderStepType.PREPARE,
+        parentJobId: '',
         input: {
-          type: 'resolve_clips',
+          type: 'prepare',
           timelineId,
           editList,
         },
       },
-      opts: resolveClipsOptions,
+      opts: prepareOptions,
     });
 
-    // COMPOSE step (depends on RESOLVE_CLIPS)
-    const composeOptions = getStepJobOptions(RenderStepType.COMPOSE);
+    // 2. EXECUTE step (Run FFmpeg or GC Transcoder)
+    const executeOptions = getStepJobOptions(RenderStepType.EXECUTE);
     flow.children.push({
-      name: RenderStepType.COMPOSE,
+      name: RenderStepType.EXECUTE,
       queueName: QUEUE_NAMES.RENDER,
       data: {
         ...baseJobData,
-        stepType: RenderStepType.COMPOSE,
+        stepType: RenderStepType.EXECUTE,
         parentJobId: '',
         input: {
-          type: 'compose',
+          type: 'execute',
           timelineId,
           editList,
-          clipMediaMap: {}, // Will be populated from RESOLVE_CLIPS output
+          clipMediaMap: {}, // Populated from PREPARE
           outputSettings,
-          tempDir: '', // Will be created by processor
         },
       },
-      opts: composeOptions,
+      opts: executeOptions,
       children: [
         {
-          name: RenderStepType.RESOLVE_CLIPS,
+          name: RenderStepType.PREPARE,
           queueName: QUEUE_NAMES.RENDER,
         },
       ],
     });
 
-    // UPLOAD step (depends on COMPOSE)
-    const uploadOptions = getStepJobOptions(RenderStepType.UPLOAD);
+    // 3. FINALIZE step (Probe, create records, cleanup)
+    const finalizeOptions = getStepJobOptions(RenderStepType.FINALIZE);
     flow.children.push({
-      name: RenderStepType.UPLOAD,
+      name: RenderStepType.FINALIZE,
       queueName: QUEUE_NAMES.RENDER,
       data: {
         ...baseJobData,
-        stepType: RenderStepType.UPLOAD,
+        stepType: RenderStepType.FINALIZE,
         parentJobId: '',
         input: {
-          type: 'upload',
+          type: 'finalize',
           timelineId,
           workspaceId: task.WorkspaceRef,
-          outputPath: '', // Will be populated from COMPOSE output
-          format: outputSettings.format,
-        },
-      },
-      opts: uploadOptions,
-      children: [
-        {
-          name: RenderStepType.COMPOSE,
-          queueName: QUEUE_NAMES.RENDER,
-        },
-      ],
-    });
-
-    // CREATE_RECORDS step (depends on UPLOAD, runs last)
-    const createRecordsOptions = getStepJobOptions(
-      RenderStepType.CREATE_RECORDS
-    );
-    flow.children.push({
-      name: RenderStepType.CREATE_RECORDS,
-      queueName: QUEUE_NAMES.RENDER,
-      data: {
-        ...baseJobData,
-        stepType: RenderStepType.CREATE_RECORDS,
-        parentJobId: '',
-        input: {
-          type: 'create_records',
-          timelineId,
-          workspaceId: task.WorkspaceRef,
-          timelineName: '', // Will be resolved by processor
           version,
-          outputPath: '', // Will be populated from COMPOSE output
-          storagePath: '', // Will be populated from UPLOAD output
-          probeOutput: {}, // Will be populated from COMPOSE output
+          renderOutput: { path: '', isLocal: true }, // Populated from EXECUTE
+          storagePath: '', // Populated from EXECUTE
           format: outputSettings.format,
-          tempDir: '', // Will be populated from COMPOSE output
         },
       },
-      opts: createRecordsOptions,
+      opts: finalizeOptions,
       children: [
         {
-          name: RenderStepType.UPLOAD,
+          name: RenderStepType.EXECUTE,
           queueName: QUEUE_NAMES.RENDER,
         },
       ],

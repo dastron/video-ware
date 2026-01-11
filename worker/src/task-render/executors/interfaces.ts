@@ -26,29 +26,25 @@ export type {
 // ============================================================================
 
 /**
- * Result from resolving clip media files
+ * Result from resolving clip media files (PREPARE step)
  */
 export interface ResolveClipsResult {
-  /** Map of clip ID to resolved media and file path */
+  /** Map of media ID to resolved media and file path (local or cloud) */
   clipMediaMap: Record<string, { media: Media; filePath: string }>;
 }
 
 /**
- * Result from composing a timeline
+ * Result from executing a render (EXECUTE step)
  */
-export interface ComposeResult {
-  /** Local path to the rendered video file */
+export interface RenderExecutorResult {
+  /** Local path to output file or Cloud URI */
   outputPath: string;
-  /** Probe output of the rendered video */
-  probeOutput: ProbeOutput;
-}
-
-/**
- * Result from uploading a file
- */
-export interface UploadResult {
-  /** Storage path where the file was uploaded */
-  storagePath: string;
+  /** Final storage path if uploaded during execution */
+  storagePath?: string;
+  /** Whether the result is local or cloud */
+  isLocal: boolean;
+  /** Optional probe output of the rendered video */
+  probeOutput?: ProbeOutput;
 }
 
 // ============================================================================
@@ -56,9 +52,9 @@ export interface UploadResult {
 // ============================================================================
 
 /**
- * Executor for resolving clip media files
+ * Executor for resolving and preparing media files for rendering
  */
-export interface IResolveClipsExecutor {
+export interface IPrepareExecutor {
   execute(
     timelineId: string,
     editList: RenderTimelinePayload['editList']
@@ -66,21 +62,24 @@ export interface IResolveClipsExecutor {
 }
 
 /**
- * Executor for composing timeline using FFmpeg
+ * Generic interface for render executors (FFmpeg, Google Cloud Transcoder)
  */
-export interface IComposeExecutor {
+export interface IRenderExecutor {
   execute(
     editList: RenderTimelinePayload['editList'],
     clipMediaMap: Record<string, { media: Media; filePath: string }>,
-    outputPath: string,
+    outputName: string,
     outputSettings: RenderTimelinePayload['outputSettings'],
     onProgress?: (progress: number) => void
-  ): Promise<ComposeResult>;
+  ): Promise<RenderExecutorResult>;
 }
 
 /**
  * Executor for uploading rendered files to storage
  */
 export interface IUploadExecutor {
-  execute(outputPath: string, storagePath: string): Promise<UploadResult>;
+  execute(
+    outputPath: string,
+    storagePath: string
+  ): Promise<{ storagePath: string }>;
 }

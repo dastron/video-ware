@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PocketBaseService } from '../../../shared/services/pocketbase.service';
 import { StorageService } from '../../../shared/services/storage.service';
-import type { IResolveClipsExecutor, ResolveClipsResult } from '../interfaces';
+import type { IPrepareExecutor, ResolveClipsResult } from '../interfaces';
 import type { RenderTimelinePayload, Media } from '@project/shared';
 
 /**
@@ -9,7 +9,7 @@ import type { RenderTimelinePayload, Media } from '@project/shared';
  * Pure operation - resolves file paths for timeline clips
  */
 @Injectable()
-export class FFmpegResolveClipsExecutor implements IResolveClipsExecutor {
+export class FFmpegResolveClipsExecutor implements IPrepareExecutor {
   private readonly logger = new Logger(FFmpegResolveClipsExecutor.name);
 
   constructor(
@@ -21,25 +21,30 @@ export class FFmpegResolveClipsExecutor implements IResolveClipsExecutor {
     timelineId: string,
     editList: RenderTimelinePayload['editList']
   ): Promise<ResolveClipsResult> {
-    this.logger.log(`Resolving clips for timeline ${timelineId}`);
+    this.logger.log(`Resolving media for timeline ${timelineId} render`);
 
-    // Get timeline clips
-    const timelineClips =
-      await this.pocketbaseService.getTimelineClips(timelineId);
-    if (!timelineClips || timelineClips.length === 0) {
-      throw new Error(`No clips found for timeline ${timelineId}`);
+    // Extract all unique media IDs from the edit list
+    const mediaIds = new Set<string>();
+    for (const segment of editList) {
+      for (const mediaId of segment.inputs) {
+        mediaIds.add(mediaId);
+      }
     }
+
+    if (mediaIds.size === 0) {
+      throw new Error(`No media found in edit list for timeline ${timelineId}`);
+    }
+
+    this.logger.debug(`Need to resolve ${mediaIds.size} unique media files`);
 
     const clipMediaMap: Record<string, { media: Media; filePath: string }> = {};
 
-    for (const clip of timelineClips) {
+    for (const mediaId of mediaIds) {
       try {
-        // Get media record for the clip
-        const media = await this.pocketbaseService.getMedia(clip.MediaRef);
+        // Get media record
+        const media = await this.pocketbaseService.getMedia(mediaId);
         if (!media) {
-          throw new Error(
-            `Media ${clip.MediaRef} not found for clip ${clip.id}`
-          );
+          throw new Error(`Media ${mediaId} not found`);
         }
 
         // Get the source file (prefer proxy, fallback to original upload)
@@ -89,19 +94,22 @@ export class FFmpegResolveClipsExecutor implements IResolveClipsExecutor {
           recordId: fileRecord.id,
         });
 
-        clipMediaMap[clip.id] = { media, filePath };
-        this.logger.debug(`Resolved media for clip ${clip.id}: ${filePath}`);
+        // Use mediaId as the key for easier lookup in the compose executor
+        clipMediaMap[mediaId] = { media, filePath };
+        this.logger.debug(`Resolved media ${mediaId}: ${filePath}`);
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
         this.logger.error(
-          `Failed to resolve media for clip ${clip.id}: ${errorMessage}`
+          `Failed to resolve media ${mediaId}: ${errorMessage}`
         );
         throw error;
       }
     }
 
-    this.logger.log(`Resolved ${Object.keys(clipMediaMap).length} clips`);
+    this.logger.log(
+      `Successfully resolved ${Object.keys(clipMediaMap).length} media files`
+    );
     return { clipMediaMap };
   }
 }

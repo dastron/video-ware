@@ -4,17 +4,24 @@ import { Job, Queue } from 'bullmq';
 import { InjectQueue } from '@nestjs/bullmq';
 import { QUEUE_NAMES } from '../../queue/queue.constants';
 import { RenderStepType } from '../../queue/types/step.types';
+import {
+  TaskRenderPrepareStepOutput,
+  TaskRenderExecuteStepOutput,
+  TaskRenderPrepareStep,
+  TaskRenderExecuteStep,
+  TaskRenderFinalizeStep,
+} from '@project/shared/jobs';
 import { PocketBaseService } from '../../shared/services/pocketbase.service';
-import { ResolveClipsStepProcessor } from './resolve-clips-step.processor';
-import { ComposeStepProcessor } from './compose-step.processor';
-import { UploadStepProcessor } from './upload-step.processor';
-import { CreateRecordsStepProcessor } from './create-records-step.processor';
+import { PrepareRenderStepProcessor } from './prepare-step.processor';
+import { ExecuteRenderStepProcessor } from './execute-step.processor';
+import { FinalizeRenderStepProcessor } from './finalize-step.processor';
 import type {
   ParentJobData,
   StepJobData,
   StepResult,
 } from '../../queue/types/job.types';
 import { BaseFlowProcessor } from '@/queue/processors';
+import * as path from 'path';
 
 /**
  * Parent processor for render tasks
@@ -29,10 +36,9 @@ export class RenderParentProcessor extends BaseFlowProcessor {
     @InjectQueue(QUEUE_NAMES.RENDER)
     private readonly renderQueue: Queue,
     pocketbaseService: PocketBaseService,
-    private readonly resolveClipsStepProcessor: ResolveClipsStepProcessor,
-    private readonly composeStepProcessor: ComposeStepProcessor,
-    private readonly uploadStepProcessor: UploadStepProcessor,
-    private readonly createRecordsStepProcessor: CreateRecordsStepProcessor
+    private readonly prepareStepProcessor: PrepareRenderStepProcessor,
+    private readonly executeStepProcessor: ExecuteRenderStepProcessor,
+    private readonly finalizeStepProcessor: FinalizeRenderStepProcessor
   ) {
     super();
     this.pocketbaseService = pocketbaseService;
@@ -53,11 +59,6 @@ export class RenderParentProcessor extends BaseFlowProcessor {
 
     this.logger.log(`Processing parent job for task ${taskId}`);
 
-    // Task status is now managed by the base class event handlers
-    // No need to manually update here as it will be set by onActive event
-
-    // Wait for all children to complete
-    // BullMQ automatically handles this - parent job only completes when all children are done
     const childrenValues = await job.getChildrenValues();
 
     this.logger.log(`All children completed for task ${taskId}`, {
@@ -74,14 +75,12 @@ export class RenderParentProcessor extends BaseFlowProcessor {
     );
 
     if (failedSteps.length > 0) {
-      // Base class will handle the task status update on failure
       this.logger.error(
         `Task ${taskId} has ${failedSteps.length} failed steps`
       );
       throw new Error(`Task failed with ${failedSteps.length} failed steps`);
     }
 
-    // Task succeeded - base class will handle the status update on completion
     this.logger.log(`Task ${taskId} completed successfully`);
   }
 
@@ -89,44 +88,36 @@ export class RenderParentProcessor extends BaseFlowProcessor {
    * Process step job - dispatches to appropriate step processor
    */
   protected async processStepJob(job: Job<StepJobData>): Promise<StepResult> {
-    const { stepType, input } = job.data;
+    const { stepType } = job.data;
     const startedAt = new Date();
 
     this.logger.log(`Processing step ${stepType} for job ${job.id}`);
 
     try {
+      // Resolve input by merging previous step results from parent job
+      const input = await this.resolveStepInput(job);
+
       let output: unknown;
 
       // Dispatch to appropriate step processor based on step type
       switch (stepType) {
-        case RenderStepType.RESOLVE_CLIPS:
-          output = await this.resolveClipsStepProcessor.process(
-            input as Parameters<
-              typeof this.resolveClipsStepProcessor.process
-            >[0],
+        case RenderStepType.PREPARE:
+          output = await this.prepareStepProcessor.process(
+            input as TaskRenderPrepareStep,
             job
           );
           break;
 
-        case RenderStepType.COMPOSE:
-          output = await this.composeStepProcessor.process(
-            input as Parameters<typeof this.composeStepProcessor.process>[0],
+        case RenderStepType.EXECUTE:
+          output = await this.executeStepProcessor.process(
+            input as TaskRenderExecuteStep,
             job
           );
           break;
 
-        case RenderStepType.UPLOAD:
-          output = await this.uploadStepProcessor.process(
-            input as Parameters<typeof this.uploadStepProcessor.process>[0],
-            job
-          );
-          break;
-
-        case RenderStepType.CREATE_RECORDS:
-          output = await this.createRecordsStepProcessor.process(
-            input as Parameters<
-              typeof this.createRecordsStepProcessor.process
-            >[0],
+        case RenderStepType.FINALIZE:
+          output = await this.finalizeStepProcessor.process(
+            input as TaskRenderFinalizeStep,
             job
           );
           break;
@@ -154,9 +145,63 @@ export class RenderParentProcessor extends BaseFlowProcessor {
         error instanceof Error ? error.stack : undefined
       );
 
-      // Re-throw to let BullMQ handle retry logic
-      // Base class will handle creating failed result on job failure
       throw error;
     }
+  }
+
+  /**
+   * Resolve step input by merging results from previous steps
+   */
+  private async resolveStepInput(job: Job<StepJobData>): Promise<unknown> {
+    const { stepType, input, parentJobId } = job.data;
+
+    if (!parentJobId) {
+      return input;
+    }
+
+    const parentJob = await this.renderQueue.getJob(parentJobId);
+    if (!parentJob) {
+      this.logger.warn(
+        `Parent job ${parentJobId} not found for step ${stepType}`
+      );
+      return input;
+    }
+
+    const parentData = parentJob.data as ParentJobData;
+    const stepResults = parentData.stepResults || {};
+
+    // Merge results based on step type
+    switch (stepType) {
+      case RenderStepType.EXECUTE: {
+        const prepareResult = stepResults[RenderStepType.PREPARE];
+        if (prepareResult?.status === 'completed') {
+          const output = prepareResult.output as TaskRenderPrepareStepOutput;
+          return {
+            ...(input as TaskRenderExecuteStep),
+            clipMediaMap: output.clipMediaMap,
+          };
+        }
+        break;
+      }
+
+      case RenderStepType.FINALIZE: {
+        const executeResult = stepResults[RenderStepType.EXECUTE];
+        if (executeResult?.status === 'completed') {
+          const output = executeResult.output as TaskRenderExecuteStepOutput;
+          return {
+            ...(input as TaskRenderFinalizeStep),
+            renderOutput: {
+              path: output.outputPath,
+              isLocal: output.isLocal,
+            },
+            storagePath: output.storagePath,
+            probeOutput: output.probeOutput,
+          };
+        }
+        break;
+      }
+    }
+
+    return input;
   }
 }

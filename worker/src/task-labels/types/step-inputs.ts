@@ -1,19 +1,16 @@
-/**
- * Step Input Types
- *
- * Input types for all five GCVI step processors.
- * These types define the data required to execute each processor step.
- */
+import {
+  TaskDetectLabelsBaseStep,
+  TaskDetectLabelsLabelDetectionStep,
+  TaskDetectLabelsObjectTrackingStep,
+  TaskDetectLabelsFaceDetectionStep,
+  TaskDetectLabelsPersonDetectionStep,
+  TaskDetectLabelsSpeechTranscriptionStep,
+} from '@project/shared/jobs';
 
 /**
  * Base input type shared by all step processors
  */
-export interface BaseStepInput {
-  mediaId: string;
-  workspaceRef: string;
-  taskRef: string;
-  version: number;
-}
+export type BaseStepInput = TaskDetectLabelsBaseStep;
 
 /**
  * Label Detection Step Input
@@ -21,12 +18,7 @@ export interface BaseStepInput {
  * Processes video for label detection and shot change detection.
  * Features: LABEL_DETECTION, SHOT_CHANGE_DETECTION
  */
-export interface LabelDetectionStepInput extends BaseStepInput {
-  config?: {
-    labelDetectionMode?: 'SHOT_MODE' | 'SHOT_AND_FRAME_MODE';
-    videoConfidenceThreshold?: number; // default: 0.2
-  };
-}
+export type LabelDetectionStepInput = TaskDetectLabelsLabelDetectionStep;
 
 /**
  * Object Tracking Step Input
@@ -34,9 +26,7 @@ export interface LabelDetectionStepInput extends BaseStepInput {
  * Processes video for object tracking with keyframe data.
  * Features: OBJECT_TRACKING
  */
-export interface ObjectTrackingStepInput extends BaseStepInput {
-  config?: Record<string, never>; // Uses default model, no additional config required
-}
+export type ObjectTrackingStepInput = TaskDetectLabelsObjectTrackingStep;
 
 /**
  * Face Detection Step Input
@@ -44,12 +34,7 @@ export interface ObjectTrackingStepInput extends BaseStepInput {
  * Processes video for face detection with attributes.
  * Features: FACE_DETECTION
  */
-export interface FaceDetectionStepInput extends BaseStepInput {
-  config?: {
-    includeBoundingBoxes?: boolean; // default: true
-    includeAttributes?: boolean; // default: true
-  };
-}
+export type FaceDetectionStepInput = TaskDetectLabelsFaceDetectionStep;
 
 /**
  * Person Detection Step Input
@@ -57,13 +42,7 @@ export interface FaceDetectionStepInput extends BaseStepInput {
  * Processes video for person detection with landmarks and attributes.
  * Features: PERSON_DETECTION
  */
-export interface PersonDetectionStepInput extends BaseStepInput {
-  config?: {
-    includeBoundingBoxes?: boolean; // default: true
-    includePoseLandmarks?: boolean; // default: true
-    includeAttributes?: boolean; // default: true
-  };
-}
+export type PersonDetectionStepInput = TaskDetectLabelsPersonDetectionStep;
 
 /**
  * Speech Transcription Step Input
@@ -71,9 +50,5 @@ export interface PersonDetectionStepInput extends BaseStepInput {
  * Processes video for speech transcription.
  * Features: SPEECH_TRANSCRIPTION
  */
-export interface SpeechTranscriptionStepInput extends BaseStepInput {
-  config?: {
-    languageCode?: string; // default: 'en-US'
-    enableAutomaticPunctuation?: boolean; // default: true
-  };
-}
+export type SpeechTranscriptionStepInput =
+  TaskDetectLabelsSpeechTranscriptionStep;

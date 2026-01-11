@@ -1,4 +1,8 @@
-import type { RecommendationStrategy, LabelType } from '@project/shared';
+import { RecommendationStrategy, LabelType } from '@project/shared';
+import {
+  TaskRecommendationGenerateMediaStep,
+  TaskRecommendationGenerateMediaResult,
+} from '@project/shared/jobs';
 
 /**
  * Payload for generating media recommendations
@@ -19,25 +23,9 @@ export interface GenerateMediaRecommendationsPayload {
 /**
  * Result of media recommendation generation
  */
-export interface GenerateMediaRecommendationsResult {
-  generated: number;
-  pruned: number;
-  queryHash: string;
-}
+export interface GenerateMediaRecommendationsResult extends TaskRecommendationGenerateMediaResult {}
 
 /**
  * Input for the generate media recommendations step
  */
-export interface GenerateMediaRecommendationsStepInput {
-  type: 'recommendations:generate_media';
-  workspaceId: string;
-  mediaId: string;
-  strategies: RecommendationStrategy[];
-  strategyWeights?: Record<RecommendationStrategy, number>;
-  filterParams?: {
-    labelTypes?: LabelType[];
-    minConfidence?: number;
-    durationRange?: { min: number; max: number };
-  };
-  maxResults?: number;
-}
+export interface GenerateMediaRecommendationsStepInput extends TaskRecommendationGenerateMediaStep {}

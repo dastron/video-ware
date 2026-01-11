@@ -1,90 +1,59 @@
-/**
- * Step Output Types
- *
- * Output types for all five GCVI step processors.
- * These types define the data returned after each processor step completes.
- */
+import {
+  TaskDetectLabelsBaseStepOutput,
+  TaskDetectLabelsEntityCounts,
+  TaskDetectLabelsLabelDetectionStepOutput,
+  TaskDetectLabelsObjectTrackingStepOutput,
+  TaskDetectLabelsFaceDetectionStepOutput,
+  TaskDetectLabelsPersonDetectionStepOutput,
+  TaskDetectLabelsSpeechTranscriptionStepOutput,
+} from '@project/shared/jobs';
 
 /**
  * Base output type shared by all step processors
  */
-export interface BaseStepOutput {
-  success: boolean;
-  cacheHit: boolean;
-  processorVersion: string;
-  processingTimeMs?: number;
-  error?: string;
-}
+export type BaseStepOutput = TaskDetectLabelsBaseStepOutput;
 
 /**
  * Entity counts returned by processors
  */
-export interface EntityCounts {
-  labelEntityCount: number;
-  labelTrackCount: number;
-  labelClipCount: number;
-}
+export type EntityCounts = TaskDetectLabelsEntityCounts;
 
 /**
  * Label Detection Step Output
  *
  * Results from label detection and shot change detection processing.
  */
-export interface LabelDetectionStepOutput extends BaseStepOutput {
-  counts: {
-    segmentLabelCount: number;
-    shotLabelCount: number;
-    shotCount: number;
-  } & EntityCounts;
-}
+export type LabelDetectionStepOutput = TaskDetectLabelsLabelDetectionStepOutput;
 
 /**
  * Object Tracking Step Output
  *
  * Results from object tracking processing.
  */
-export interface ObjectTrackingStepOutput extends BaseStepOutput {
-  counts: {
-    objectCount: number;
-    objectTrackCount: number;
-  } & EntityCounts;
-}
+export type ObjectTrackingStepOutput = TaskDetectLabelsObjectTrackingStepOutput;
 
 /**
  * Face Detection Step Output
  *
  * Results from face detection processing.
  */
-export interface FaceDetectionStepOutput extends BaseStepOutput {
-  counts: {
-    faceCount: number;
-    faceTrackCount: number;
-  } & EntityCounts;
-}
+export type FaceDetectionStepOutput = TaskDetectLabelsFaceDetectionStepOutput;
 
 /**
  * Person Detection Step Output
  *
  * Results from person detection processing.
  */
-export interface PersonDetectionStepOutput extends BaseStepOutput {
-  counts: {
-    personCount: number;
-    personTrackCount: number;
-  } & EntityCounts;
-}
+export type PersonDetectionStepOutput =
+  TaskDetectLabelsPersonDetectionStepOutput;
 
 /**
  * Speech Transcription Step Output
  *
  * Results from speech transcription processing.
  */
-export interface SpeechTranscriptionStepOutput extends BaseStepOutput {
-  counts: {
-    transcriptLength: number;
-    wordCount: number;
-  } & EntityCounts;
-}
+export type SpeechTranscriptionStepOutput =
+  TaskDetectLabelsSpeechTranscriptionStepOutput;
 
 /**
  * Union type for all step outputs

@@ -5,15 +5,14 @@ import { SharedModule } from '../shared/shared.module';
 import { QueueModule } from '../queue/queue.module';
 import {
   RenderParentProcessor,
-  ResolveClipsStepProcessor,
-  ComposeStepProcessor,
-  UploadStepProcessor,
-  CreateRecordsStepProcessor,
+  PrepareRenderStepProcessor,
+  ExecuteRenderStepProcessor,
+  FinalizeRenderStepProcessor,
 } from './processors';
 import {
   FFmpegResolveClipsExecutor,
   FFmpegComposeExecutor,
-  FFmpegUploadExecutor,
+  GCTranscoderExecutor,
 } from './executors';
 
 @Module({
@@ -28,16 +27,15 @@ import {
     // Executors (strategy implementations)
     FFmpegResolveClipsExecutor,
     FFmpegComposeExecutor,
-    FFmpegUploadExecutor,
+    GCTranscoderExecutor,
 
     // Parent processor
     RenderParentProcessor,
 
     // Step processors
-    ResolveClipsStepProcessor,
-    ComposeStepProcessor,
-    UploadStepProcessor,
-    CreateRecordsStepProcessor,
+    PrepareRenderStepProcessor,
+    ExecuteRenderStepProcessor,
+    FinalizeRenderStepProcessor,
   ],
   exports: [RenderService],
 })

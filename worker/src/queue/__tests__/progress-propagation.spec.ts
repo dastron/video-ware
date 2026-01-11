@@ -87,9 +87,9 @@ describe('Property 11: Progress Propagation', () => {
             TranscodeStepType.THUMBNAIL,
             TranscodeStepType.SPRITE,
             TranscodeStepType.TRANSCODE,
-            RenderStepType.RESOLVE_CLIPS,
-            RenderStepType.COMPOSE,
-            RenderStepType.UPLOAD
+            RenderStepType.PREPARE,
+            RenderStepType.EXECUTE,
+            RenderStepType.FINALIZE
           ),
           progress: fc.integer({ min: 0, max: 100 }),
         }),
@@ -275,8 +275,9 @@ describe('Property 11: Progress Propagation', () => {
             TranscodeStepType.PROBE,
             TranscodeStepType.THUMBNAIL,
             TranscodeStepType.SPRITE,
-            RenderStepType.RESOLVE_CLIPS,
-            RenderStepType.COMPOSE
+            RenderStepType.PREPARE,
+            RenderStepType.EXECUTE,
+            RenderStepType.FINALIZE
           ),
           progress: fc.integer({ min: 0, max: 100 }),
         }),
@@ -338,8 +339,8 @@ describe('Property 11: Progress Propagation', () => {
           // Add in-progress steps
           const inProgressStepTypes = [
             TranscodeStepType.TRANSCODE,
-            RenderStepType.COMPOSE,
-            RenderStepType.UPLOAD,
+            RenderStepType.EXECUTE,
+            RenderStepType.FINALIZE,
           ].slice(0, inProgressSteps);
 
           for (const stepType of inProgressStepTypes) {

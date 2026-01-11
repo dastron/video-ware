@@ -153,30 +153,48 @@ export class GoogleCloudService implements OnModuleInit {
   }
 
   /**
-   * Create transcoding job
+   * Get GCS bucket name
    */
-  async createTranscodeJob(
-    inputUri: string,
-    outputUri: string,
-    preset: string = 'preset/web-hd'
-  ): Promise<TranscoderJobResult> {
+  getGcsBucketName(): string | undefined {
+    return this.gcsBucket;
+  }
+
+  /**
+   * Create transcoding job with support for complex configurations (EditLists, multiple inputs)
+   */
+  async createTranscodeJob(config: {
+    inputUri?: string;
+    outputUri: string;
+    preset?: string;
+    jobConfig?: any; // Google Cloud Transcoder JobConfig
+  }): Promise<TranscoderJobResult> {
     if (!this.transcoderClient) {
       throw new Error('Transcoder client not initialized');
     }
 
     try {
-      this.logger.log(`Creating transcode job: ${inputUri} -> ${outputUri}`);
+      const { inputUri, outputUri, preset, jobConfig } = config;
+      this.logger.log(`Creating transcode job for output: ${outputUri}`);
 
-      const parent = `projects/${this.projectId}/locations/us-central1`;
+      const location = this.configService.get<string>(
+        'google.location',
+        'us-central1'
+      );
+      const parent = `projects/${this.projectId}/locations/${location}`;
 
-      const request = {
-        parent: parent,
+      const request: any = {
+        parent,
         job: {
-          inputUri: inputUri,
-          outputUri: outputUri,
-          templateId: preset,
+          outputUri,
         },
       };
+
+      if (jobConfig) {
+        request.job.config = jobConfig;
+      } else {
+        request.job.inputUri = inputUri;
+        request.job.templateId = preset || 'preset/web-hd';
+      }
 
       const [job] = await this.transcoderClient.createJob(request);
 

@@ -6,6 +6,7 @@ import type { StepType } from './step.types';
 export interface BaseJobData {
   taskId: string;
   workspaceId: string;
+  provider?: string;
 }
 
 /**

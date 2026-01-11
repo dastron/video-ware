@@ -11,21 +11,20 @@ import type { Media } from '../../schema/media.js';
 
 /**
  * Render step type enum
- * Defines all possible steps in a render job
+ * Defines the streamlined steps in a render job
  */
 export enum RenderStepType {
-  RESOLVE_CLIPS = 'render:resolve_clips',
-  COMPOSE = 'render:compose',
-  UPLOAD = 'render:upload',
-  CREATE_RECORDS = 'render:create_records',
+  PREPARE = 'render:prepare',
+  EXECUTE = 'render:execute',
+  FINALIZE = 'render:finalize',
 }
 
 /**
- * Input for the RESOLVE_CLIPS step
- * Resolves media files for all timeline clips
+ * Input for the PREPARE step
+ * Resolves media files and ensures they are available in the required location
  */
-export interface TaskRenderResolveClipsStep {
-  type: 'resolve_clips';
+export interface TaskRenderPrepareStep {
+  type: 'prepare';
   /** ID of the timeline being rendered */
   timelineId: string;
   /** Edit list from the render payload */
@@ -33,116 +32,80 @@ export interface TaskRenderResolveClipsStep {
 }
 
 /**
- * Input for the COMPOSE step
- * Builds FFmpeg command and executes timeline composition
+ * Input for the EXECUTE step
+ * Performs the actual rendering (FFmpeg or Google Cloud)
  */
-export interface TaskRenderComposeStep {
-  type: 'compose';
+export interface TaskRenderExecuteStep {
+  type: 'execute';
   /** ID of the timeline being rendered */
   timelineId: string;
   /** Edit list from the render payload */
   editList: RenderTimelinePayload['editList'];
-  /** Resolved clip media from RESOLVE_CLIPS step */
+  /** Resolved clip media from PREPARE step */
   clipMediaMap: Record<string, { media: Media; filePath: string }>;
   /** Output settings for the render */
   outputSettings: RenderTimelinePayload['outputSettings'];
-  /** Temporary directory for output */
-  tempDir: string;
 }
 
 /**
- * Input for the UPLOAD step
- * Uploads rendered video to storage
+ * Input for the FINALIZE step
+ * Probes and creates records for the rendered file
  */
-export interface TaskRenderUploadStep {
-  type: 'upload';
-  /** ID of the timeline being rendered */
-  timelineId: string;
-  /** Workspace ID for storage path generation */
-  workspaceId: string;
-  /** Local path to the rendered video file */
-  outputPath: string;
-  /** Output format (e.g., 'mp4', 'mov') */
-  format: string;
-}
-
-/**
- * Input for the CREATE_RECORDS step
- * Creates File, Media, and TimelineRender records
- */
-export interface TaskRenderCreateRecordsStep {
-  type: 'create_records';
+export interface TaskRenderFinalizeStep {
+  type: 'finalize';
   /** ID of the timeline being rendered */
   timelineId: string;
   /** Workspace ID */
   workspaceId: string;
-  /** Timeline name for record naming */
-  timelineName: string;
-  /** Version number for the render */
+  /** Version number */
   version: number;
-  /** Local path to the rendered video file */
-  outputPath: string;
-  /** Storage path where the file was uploaded */
-  storagePath: string;
-  /** Probe output of the rendered video */
-  probeOutput: ProbeOutput;
-  /** Output format (e.g., 'mp4', 'mov') */
+  /** Local path (for probing) or cloud path */
+  renderOutput: {
+    path: string; // local path or cloud URI
+    isLocal: boolean;
+  };
+  /** Final storage path if different from output */
+  storagePath?: string;
+  /** Output settings format */
   format: string;
-  /** Temporary directory to clean up */
-  tempDir: string;
+  /** Optional probe output if already probed in execute step */
+  probeOutput?: ProbeOutput;
 }
 
 /**
  * Union type of all render step inputs
  */
 export type TaskRenderInput =
-  | TaskRenderResolveClipsStep
-  | TaskRenderComposeStep
-  | TaskRenderUploadStep
-  | TaskRenderCreateRecordsStep;
-
-// Legacy type aliases for backward compatibility during migration
-/** @deprecated Use TaskRenderResolveClipsStep instead */
-export type ResolveClipsStepInput = TaskRenderResolveClipsStep;
-/** @deprecated Use TaskRenderComposeStep instead */
-export type ComposeStepInput = TaskRenderComposeStep;
-/** @deprecated Use TaskRenderUploadStep instead */
-export type UploadStepInput = TaskRenderUploadStep;
-/** @deprecated Use TaskRenderCreateRecordsStep instead */
-export type CreateRecordsStepInput = TaskRenderCreateRecordsStep;
-/** @deprecated Use TaskRenderInput instead */
-export type RenderJobInput = TaskRenderInput;
+  | TaskRenderPrepareStep
+  | TaskRenderExecuteStep
+  | TaskRenderFinalizeStep;
 
 /**
- * Output from the RESOLVE_CLIPS step
+ * Output from the PREPARE step
  */
-export interface TaskRenderResolveClipsStepOutput {
-  /** Map of clip ID to resolved media and file path */
+export interface TaskRenderPrepareStepOutput {
+  /** Map of media ID to resolved media and file path (Local or GCS) */
   clipMediaMap: Record<string, { media: Media; filePath: string }>;
 }
 
 /**
- * Output from the COMPOSE step
+ * Output from the EXECUTE step
  */
-export interface TaskRenderComposeStepOutput {
-  /** Local path to the rendered video file */
+export interface TaskRenderExecuteStepOutput {
+  /** Local path to the rendered file or Cloud URI */
   outputPath: string;
-  /** Probe output of the rendered video */
-  probeOutput: ProbeOutput;
+  /** Storage path where the file was uploaded (if handled during execute) */
+  storagePath?: string;
+  /** Whether the output is local or cloud */
+  isLocal: boolean;
+  /** Optional probe output of the rendered video */
+  probeOutput?: ProbeOutput;
 }
 
 /**
- * Output from the UPLOAD step
+ * Output from the FINALIZE step
  */
-export interface TaskRenderUploadStepOutput {
-  /** Storage path where the file was uploaded */
-  storagePath: string;
-}
-
-/**
- * Output from the CREATE_RECORDS step
- */
-export interface TaskRenderCreateRecordsStepOutput {
+export interface TaskRenderFinalizeStepOutput {
   /** ID of the created File record */
   fileId: string;
   /** ID of the created Media record */
@@ -155,19 +118,17 @@ export interface TaskRenderCreateRecordsStepOutput {
  * Union type of all render step outputs
  */
 export type TaskRenderResult =
-  | TaskRenderResolveClipsStepOutput
-  | TaskRenderComposeStepOutput
-  | TaskRenderUploadStepOutput
-  | TaskRenderCreateRecordsStepOutput;
+  | TaskRenderPrepareStepOutput
+  | TaskRenderExecuteStepOutput
+  | TaskRenderFinalizeStepOutput;
 
-// Legacy type aliases for backward compatibility during migration
-/** @deprecated Use TaskRenderResolveClipsStepOutput instead */
-export type ResolveClipsOutput = TaskRenderResolveClipsStepOutput;
-/** @deprecated Use TaskRenderComposeStepOutput instead */
-export type ComposeOutput = TaskRenderComposeStepOutput;
-/** @deprecated Use TaskRenderUploadStepOutput instead */
-export type UploadOutput = TaskRenderUploadStepOutput;
-/** @deprecated Use TaskRenderCreateRecordsStepOutput instead */
-export type CreateRecordsOutput = TaskRenderCreateRecordsStepOutput;
-/** @deprecated Use TaskRenderResult instead */
-export type RenderJobResult = TaskRenderResult;
+// Legacy type aliases for backward compatibility - will be removed after migration
+export type TaskRenderResolveClipsStep = TaskRenderPrepareStep;
+export type TaskRenderComposeStep = TaskRenderExecuteStep;
+export type TaskRenderUploadStep = TaskRenderExecuteStep;
+export type TaskRenderCreateRecordsStep = TaskRenderFinalizeStep;
+
+export type TaskRenderResolveClipsStepOutput = TaskRenderPrepareStepOutput;
+export type TaskRenderComposeStepOutput = TaskRenderExecuteStepOutput;
+export type TaskRenderUploadStepOutput = { storagePath: string };
+export type TaskRenderCreateRecordsStepOutput = TaskRenderFinalizeStepOutput;

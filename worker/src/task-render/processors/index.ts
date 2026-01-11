@@ -3,7 +3,6 @@
  */
 
 export { RenderParentProcessor } from './render-parent.processor';
-export { ResolveClipsStepProcessor } from './resolve-clips-step.processor';
-export { ComposeStepProcessor } from './compose-step.processor';
-export { UploadStepProcessor } from './upload-step.processor';
-export { CreateRecordsStepProcessor } from './create-records-step.processor';
+export { PrepareRenderStepProcessor } from './prepare-step.processor';
+export { ExecuteRenderStepProcessor } from './execute-step.processor';
+export { FinalizeRenderStepProcessor } from './finalize-step.processor';

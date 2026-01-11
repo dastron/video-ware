@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { FFmpegService } from '../../../shared/services/ffmpeg.service';
-import type { IComposeExecutor, ComposeResult } from '../interfaces';
+import type { IRenderExecutor, RenderExecutorResult } from '../interfaces';
 import type { RenderTimelinePayload, Media } from '@project/shared';
 
 /**
@@ -8,7 +8,7 @@ import type { RenderTimelinePayload, Media } from '@project/shared';
  * Pure operation - builds and executes FFmpeg command
  */
 @Injectable()
-export class FFmpegComposeExecutor implements IComposeExecutor {
+export class FFmpegComposeExecutor implements IRenderExecutor {
   private readonly logger = new Logger(FFmpegComposeExecutor.name);
 
   constructor(private readonly ffmpegService: FFmpegService) {}
@@ -19,7 +19,7 @@ export class FFmpegComposeExecutor implements IComposeExecutor {
     outputPath: string,
     outputSettings: RenderTimelinePayload['outputSettings'],
     onProgress?: (progress: number) => void
-  ): Promise<ComposeResult> {
+  ): Promise<RenderExecutorResult> {
     this.logger.log(`Composing timeline with ${editList.length} segments`);
 
     try {
@@ -72,7 +72,7 @@ export class FFmpegComposeExecutor implements IComposeExecutor {
       };
 
       this.logger.log(`Timeline composition completed: ${outputPath}`);
-      return { outputPath, probeOutput };
+      return { outputPath, probeOutput, isLocal: true };
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);

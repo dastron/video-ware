@@ -66,6 +66,7 @@ export class LabelsFlowBuilder {
         stepType: DetectLabelsStepType.LABEL_DETECTION,
         parentJobId: '',
         input: {
+          type: 'label_detection',
           mediaId,
           workspaceRef: task.WorkspaceRef,
           taskRef: task.id,
@@ -94,6 +95,7 @@ export class LabelsFlowBuilder {
         stepType: DetectLabelsStepType.OBJECT_TRACKING,
         parentJobId: '',
         input: {
+          type: 'object_tracking',
           mediaId,
           workspaceRef: task.WorkspaceRef,
           taskRef: task.id,
@@ -122,6 +124,7 @@ export class LabelsFlowBuilder {
         stepType: DetectLabelsStepType.FACE_DETECTION,
         parentJobId: '',
         input: {
+          type: 'face_detection',
           mediaId,
           workspaceRef: task.WorkspaceRef,
           taskRef: task.id,
@@ -150,6 +153,7 @@ export class LabelsFlowBuilder {
         stepType: DetectLabelsStepType.PERSON_DETECTION,
         parentJobId: '',
         input: {
+          type: 'person_detection',
           mediaId,
           workspaceRef: task.WorkspaceRef,
           taskRef: task.id,
@@ -178,6 +182,7 @@ export class LabelsFlowBuilder {
         stepType: DetectLabelsStepType.SPEECH_TRANSCRIPTION,
         parentJobId: '',
         input: {
+          type: 'speech_transcription',
           mediaId,
           workspaceRef: task.WorkspaceRef,
           taskRef: task.id,

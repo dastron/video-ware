@@ -4,4 +4,3 @@
 
 export { FFmpegResolveClipsExecutor } from './resolve-clips.executor';
 export { FFmpegComposeExecutor } from './compose.executor';
-export { FFmpegUploadExecutor } from './upload.executor';
