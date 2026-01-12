@@ -32,10 +32,10 @@ export const UserCollection = defineCollection({
   collectionName: 'Users',
   schema: UserSchema,
   permissions: {
-    // Users can list their own profile
-    listRule: 'id = @request.auth.id',
-    // Users can view their own profile
-    viewRule: 'id = @request.auth.id',
+    // Users can list profiles
+    listRule: '@request.auth.id != ""',
+    // Users can view profiles
+    viewRule: '@request.auth.id != ""',
     // Anyone can create an account (sign up)
     createRule: '',
     // Users can only update their own profile

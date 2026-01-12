@@ -152,6 +152,70 @@ export class WorkspaceService {
       );
     }
   }
+
+  /**
+   * Get all members of a workspace
+   * @param workspaceId Workspace ID
+   * @returns List of workspace members
+   */
+  async getWorkspaceMembers(
+    workspaceId: string
+  ): Promise<WorkspaceMember[]> {
+    const result = await this.workspaceMemberMutator.getMembersByWorkspace(
+      workspaceId
+    );
+    return result.items;
+  }
+
+  /**
+   * Add a member to a workspace
+   * @param workspaceId Workspace ID
+   * @param userId User ID
+   * @returns The created membership
+   */
+  async addMember(
+    workspaceId: string,
+    userId: string
+  ): Promise<WorkspaceMember> {
+    // Check if already a member
+    const existing = await this.workspaceMemberMutator.getByUserAndWorkspace(
+      userId,
+      workspaceId
+    );
+    if (existing) {
+      return existing;
+    }
+
+    return this.workspaceMemberMutator.create({
+      WorkspaceRef: workspaceId,
+      UserRef: userId,
+    });
+  }
+
+  /**
+   * Remove a member from a workspace
+   * @param workspaceId Workspace ID
+   * @param userId User ID
+   * @returns True if removed successfully
+   */
+  async removeMember(workspaceId: string, userId: string): Promise<boolean> {
+    const membership = await this.workspaceMemberMutator.getByUserAndWorkspace(
+      userId,
+      workspaceId
+    );
+
+    if (!membership) {
+      return false;
+    }
+
+    // Ensure at least one member remains
+    const allMembers = await this.getWorkspaceMembers(workspaceId);
+    if (allMembers.length <= 1) {
+      throw new Error('Cannot remove the last member of a workspace');
+    }
+
+    return this.workspaceMemberMutator.delete(membership.id);
+  }
 }
 
 /**
