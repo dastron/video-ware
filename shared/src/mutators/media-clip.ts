@@ -92,7 +92,12 @@ export class MediaClipMutator extends BaseMutator<MediaClip, MediaClipInput> {
       perPage,
       filters,
       '-created', // Sort by most recent first
-      ['MediaRef', 'MediaRef.UploadRef', 'MediaRef.thumbnailFileRef']
+      [
+        'MediaRef',
+        'MediaRef.UploadRef',
+        'MediaRef.thumbnailFileRef',
+        'MediaRef.spriteFileRef',
+      ]
     );
   }
 

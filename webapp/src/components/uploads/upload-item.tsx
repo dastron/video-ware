@@ -11,8 +11,6 @@
  * - Thumbnail preview for images/videos
  */
 
-import { useEffect, useState } from 'react';
-import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -51,59 +49,6 @@ export function UploadItem({
   className,
   chunkProgress,
 }: UploadItemProps) {
-  const [thumbnail, setThumbnail] = useState<string | null>(
-    item.thumbnail || null
-  );
-
-  // Generate thumbnail for images and videos
-  useEffect(() => {
-    if (thumbnail || !item.file) return;
-
-    const fileType = item.fileType;
-
-    // Generate thumbnail for images
-    if (fileType.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        if (e.target?.result) {
-          setThumbnail(e.target.result as string);
-        }
-      };
-      reader.readAsDataURL(item.file);
-    }
-
-    // Generate thumbnail for videos
-    else if (fileType.startsWith('video/')) {
-      const video = document.createElement('video');
-      video.preload = 'metadata';
-      video.muted = true;
-
-      video.onloadeddata = () => {
-        // Seek to 1 second or 10% of duration, whichever is smaller
-        const seekTime = Math.min(1, video.duration * 0.1);
-        video.currentTime = seekTime;
-      };
-
-      video.onseeked = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-          setThumbnail(dataUrl);
-        }
-
-        // Clean up
-        URL.revokeObjectURL(video.src);
-      };
-
-      video.src = URL.createObjectURL(item.file);
-    }
-  }, [item.file, item.fileType, thumbnail]);
-
   // Get appropriate icon based on file type
   const getFileIcon = () => {
     if (item.fileType.startsWith('video/')) {
@@ -163,23 +108,11 @@ export function UploadItem({
         className
       )}
     >
-      {/* Thumbnail or icon */}
+      {/* File icon (Thumbnails removed for memory efficiency) */}
       <div className="flex-shrink-0">
-        {thumbnail ? (
-          <div className="w-10 h-10 rounded overflow-hidden bg-gray-100 relative">
-            <Image
-              src={thumbnail}
-              alt={item.fileName}
-              fill
-              className="object-cover"
-              unoptimized
-            />
-          </div>
-        ) : (
-          <div className="w-10 h-10 rounded bg-gray-100 flex items-center justify-center text-gray-400">
-            {getFileIcon()}
-          </div>
-        )}
+        <div className="w-10 h-10 rounded bg-gray-100 flex items-center justify-center text-gray-400">
+          {getFileIcon()}
+        </div>
       </div>
 
       {/* Upload info */}

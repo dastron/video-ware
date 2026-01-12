@@ -56,10 +56,7 @@ export function MediaRecommendationsPanel({
       <div className={cn('flex flex-col gap-4', className)}>
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-semibold">Recommended Segments</h2>
-          </div>
+          <div className="flex items-center gap-2"></div>
         </div>
 
         {/* Loading skeleton */}
@@ -81,12 +78,7 @@ export function MediaRecommendationsPanel({
       <div className={cn('flex flex-col h-full', className)}>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b">
-          <div className="flex items-center gap-2">
-            <div className="bg-primary/10 p-2 rounded-lg">
-              <Sparkles className="h-4 w-4 text-primary" />
-            </div>
-            <h2 className="text-sm font-bold tracking-tight">AI SUGGESTIONS</h2>
-          </div>
+          <div className="flex items-center gap-2"></div>
           {onRefresh && (
             <Button
               variant="ghost"

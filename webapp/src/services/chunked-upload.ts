@@ -42,9 +42,9 @@ export interface ChunkedUploadConfig {
  * Default configuration
  */
 const DEFAULT_CONFIG: Required<ChunkedUploadConfig> = {
-  chunkSize: 50 * 1024 * 1024, // 50MB (more stable for various network conditions)
+  chunkSize: 100 * 1024 * 1024, // 100MB (more stable for various network conditions)
   maxRetries: 3,
-  timeout: 5 * 60 * 1000, // 5 minutes
+  timeout: 10 * 60 * 1000, // 10 minutes
 };
 
 /**
@@ -162,7 +162,7 @@ export class ChunkedUploadService {
     try {
       let totalBytesUploaded = 0;
       let lastProgressUpdate = 0;
-      const PROGRESS_UPDATE_INTERVAL = 500; // ms
+      const PROGRESS_UPDATE_INTERVAL = 1000; // ms
 
       // Upload each chunk sequentially
       for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {

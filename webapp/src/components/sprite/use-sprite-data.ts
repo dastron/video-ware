@@ -10,9 +10,9 @@ export interface SpriteConfig {
   tileHeight?: number; // Dynamic based on aspect ratio
 }
 
-export function useSpriteData(media: Media) {
+export function useSpriteData(media: Media, initialSpriteFile?: File) {
   const [spriteFile, setSpriteFile] = useState<File | null>(
-    media.expand?.spriteFileRef || null
+    initialSpriteFile || (media.expand as any)?.spriteFileRef || null
   );
   const [isLoading, setIsLoading] = useState(
     !spriteFile && !!media.spriteFileRef
@@ -20,7 +20,11 @@ export function useSpriteData(media: Media) {
 
   useEffect(() => {
     async function fetchSpriteFile() {
-      if (!media.spriteFileRef || spriteFile) return;
+      // If we already have the sprite file from expand, don't fetch it again
+      if (spriteFile || !media.spriteFileRef) {
+        if (isLoading) setIsLoading(false);
+        return;
+      }
 
       setIsLoading(true);
       try {
@@ -36,7 +40,7 @@ export function useSpriteData(media: Media) {
     }
 
     fetchSpriteFile();
-  }, [media.spriteFileRef, spriteFile]);
+  }, [media.spriteFileRef, spriteFile, isLoading]);
 
   const config: SpriteConfig = spriteFile?.meta?.spriteConfig ||
     media.mediaData?.spriteConfig || {

@@ -1,4 +1,4 @@
-import type { Media } from '@project/shared';
+import type { Media, File } from '@project/shared';
 import { useSpriteData } from './use-sprite-data';
 import { useSpriteAnimation } from './use-sprite-animation';
 import { SpritePreview } from './sprite-preview';
@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 
 interface SpriteAnimatorProps {
   media: Media;
+  spriteFile?: File;
   start?: number;
   end?: number;
   isHovering: boolean;
@@ -16,13 +17,14 @@ interface SpriteAnimatorProps {
 
 export function SpriteAnimator({
   media,
+  spriteFile,
   start,
   end,
   isHovering,
   className,
   fallbackIcon = <PlayCircle className="h-8 w-8" strokeWidth={1.5} />,
 }: SpriteAnimatorProps) {
-  const { url, config, isLoading } = useSpriteData(media);
+  const { url, config, isLoading } = useSpriteData(media, spriteFile);
   const { frameIndex } = useSpriteAnimation({
     start,
     end,

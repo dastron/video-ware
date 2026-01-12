@@ -18,7 +18,14 @@ export class TimelineClipMutator extends BaseMutator<
 
   protected setDefaults(): MutatorOptions {
     return {
-      expand: ['TimelineRef', 'MediaRef', 'MediaClipRef'],
+      expand: [
+        'TimelineRef',
+        'MediaRef',
+        'MediaRef.UploadRef',
+        'MediaRef.thumbnailFileRef',
+        'MediaRef.spriteFileRef',
+        'MediaClipRef',
+      ],
       filter: [],
       sort: ['order'], // Sort by order position by default
     };
