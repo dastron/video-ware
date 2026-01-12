@@ -208,9 +208,9 @@ export interface TaskTranscodeTranscodeStepOutput {
  */
 export interface TaskTranscodeAudioStepOutput {
   /** Path to the extracted audio file */
-  audioPath: string;
+  audioPath?: string;
   /** ID of the created File record */
-  audioFileId: string;
+  audioFileId?: string;
 }
 
 /**

@@ -49,6 +49,21 @@ export class AudioStepProcessor extends BaseStepProcessor<
       this.pocketbaseService
     );
 
+    // Get media to check for audio streams
+    // We fetch it early to check if extraction is needed
+    const media = await this.pocketbaseService.findMediaByUpload(
+      input.uploadId
+    );
+    const probeData = media?.mediaData as any; // ProbeOutput
+
+    // Skip if no audio stream is detected
+    if (media && probeData && !probeData.audio) {
+      this.logger.log(
+        `Skipping audio extraction for upload ${input.uploadId}: No audio stream detected`
+      );
+      return {} as TaskTranscodeAudioStepOutput;
+    }
+
     // Determine output format and extension
     const format = input.format || 'mp3';
     const extension = format === 'aac' ? 'm4a' : format;
@@ -85,9 +100,6 @@ export class AudioStepProcessor extends BaseStepProcessor<
     });
 
     // Update Media record
-    const media = await this.pocketbaseService.findMediaByUpload(
-      input.uploadId
-    );
     if (media) {
       await this.pocketbaseService.updateMedia(media.id, {
         audioFileRef: audioFile.id,
