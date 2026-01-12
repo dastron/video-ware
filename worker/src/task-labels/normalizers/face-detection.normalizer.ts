@@ -6,6 +6,7 @@ import type {
   NormalizerInput,
   NormalizerOutput,
   LabelEntityData,
+  LabelFaceData,
   LabelTrackData,
   LabelClipData,
   LabelMediaData,
@@ -17,6 +18,7 @@ import type {
  *
  * Transforms GCVI Face Detection API responses into database entities:
  * - LabelEntity: Single "Face" entity (or per-person if identity available)
+ * - LabelFace: Specific face instance data
  * - LabelTrack: Tracked faces with keyframe data (bounding boxes and attributes)
  * - LabelClip: Significant face appearances
  * - LabelMedia: Aggregated face counts
@@ -58,6 +60,7 @@ export class FaceDetectionNormalizer {
     );
 
     const labelEntities: LabelEntityData[] = [];
+    const labelFaces: LabelFaceData[] = [];
     const labelTracks: LabelTrackData[] = [];
     const labelClips: LabelClipData[] = [];
     const seenLabels = new Set<string>();
@@ -87,19 +90,26 @@ export class FaceDetectionNormalizer {
 
     // Process each tracked face
     for (const face of response.faces) {
-      // Skip faces with invalid trackId or no frames
-      if (!face.trackId || face.trackId.trim().length === 0) {
+      if (!face.frames || face.frames.length === 0) {
         this.logger.debug(
-          `Skipping face with empty trackId for media ${mediaId}`
+          `Skipping face with no frames for media ${mediaId}`
         );
         continue;
       }
 
-      if (!face.frames || face.frames.length === 0) {
-        this.logger.debug(
-          `Skipping face with no frames (trackId: ${face.trackId}) for media ${mediaId}`
+      let trackId = face.trackId;
+
+      // Handle empty trackId by generating a deterministic one based on first frame
+      if (!trackId || trackId.trim().length === 0) {
+        const firstFrame = face.frames[0];
+        trackId = this.generateDeterministicTrackId(
+            mediaId,
+            firstFrame.timeOffset,
+            firstFrame.boundingBox
         );
-        continue;
+        this.logger.debug(
+          `Generated deterministic trackId ${trackId} for face`
+        );
       }
 
       // Extract keyframes from frames with attributes
@@ -137,17 +147,33 @@ export class FaceDetectionNormalizer {
       // Generate track hash
       const trackHash = this.generateTrackHash(
         mediaId,
-        face.trackId,
+        trackId,
         version,
         processorVersion
       );
+
+      // Create LabelFace
+      const faceHash = this.generateFaceHash(mediaId, trackId, version, processorVersion);
+      labelFaces.push({
+        WorkspaceRef: workspaceRef,
+        MediaRef: mediaId,
+        trackId: trackId,
+        faceId: undefined, // Not provided in raw data usually
+        startTime: start,
+        endTime: end,
+        duration,
+        avgConfidence,
+        headwearLikelihood: attributesSummary.headwear as string,
+        // Other likelihoods not extracted in this pass but could be if available in raw data
+        faceHash
+      });
 
       // Create LabelTrack with keyframes and attributes
       labelTracks.push({
         WorkspaceRef: workspaceRef,
         MediaRef: mediaId,
         TaskRef: taskRef,
-        trackId: face.trackId,
+        trackId: trackId,
         start,
         end,
         duration,
@@ -195,7 +221,7 @@ export class FaceDetectionNormalizer {
           provider: ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
           labelData: {
             entity: 'Face',
-            trackId: face.trackId,
+            trackId: trackId,
             frameCount: face.frames.length,
             attributes: attributesSummary,
           },
@@ -242,6 +268,7 @@ export class FaceDetectionNormalizer {
 
     return {
       labelEntities,
+      labelFaces,
       labelTracks: validTracks,
       labelClips: validClips,
       labelMediaUpdate,
@@ -349,6 +376,19 @@ export class FaceDetectionNormalizer {
   }
 
   /**
+   * Generate face hash for deduplication
+   */
+  private generateFaceHash(
+    mediaId: string,
+    trackId: string,
+    version: number,
+    processor: string
+  ): string {
+    const hashInput = `${mediaId}:${trackId}:${version}:${processor}:face`;
+    return createHash('sha256').update(hashInput).digest('hex');
+  }
+
+  /**
    * Generate clip hash for deduplication
    *
    * Hash format: mediaId:start:end:labelType
@@ -368,6 +408,18 @@ export class FaceDetectionNormalizer {
   ): string {
     const hashInput = `${mediaId}:${start.toFixed(3)}:${end.toFixed(3)}:${labelType}`;
     return createHash('sha256').update(hashInput).digest('hex');
+  }
+
+  /**
+   * Generate deterministic track ID
+   */
+  private generateDeterministicTrackId(
+      mediaId: string,
+      startTime: number,
+      bbox: { left?: number; top?: number; right?: number; bottom?: number }
+  ): string {
+      const hashInput = `${mediaId}:${startTime}:${bbox.left}:${bbox.top}:${bbox.right}:${bbox.bottom}`;
+      return createHash('sha256').update(hashInput).digest('hex').substring(0, 16);
   }
 
   /**

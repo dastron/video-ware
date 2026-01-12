@@ -6,6 +6,7 @@ import type {
   NormalizerInput,
   NormalizerOutput,
   LabelEntityData,
+  LabelSpeechData,
   LabelClipData,
   LabelMediaData,
 } from '../types';
@@ -15,6 +16,7 @@ import type {
  *
  * Transforms GCVI Speech Transcription API responses into database entities:
  * - LabelEntity: Significant words/phrases from the transcript
+ * - LabelSpeech: Detailed speech segments with timing and speaker info
  * - LabelClip: Speech segments (sentences or time-bounded chunks)
  * - LabelMedia: Full transcript and word counts
  *
@@ -48,7 +50,7 @@ export class SpeechTranscriptionNormalizer {
       workspaceRef,
       taskRef,
       version,
-      processor,
+      processor: _processor,
       processorVersion,
     } = input;
 
@@ -57,8 +59,67 @@ export class SpeechTranscriptionNormalizer {
     );
 
     const labelEntities: LabelEntityData[] = [];
+    const labelSpeech: LabelSpeechData[] = [];
     const labelClips: LabelClipData[] = [];
     const seenLabels = new Set<string>();
+
+    // Create speech segments (time-bounded chunks)
+    const segments = this.createSpeechSegments(response.words);
+    this.logger.debug(`Created ${segments.length} segments`);
+
+    for (const segment of segments) {
+       const speechHash = this.generateSpeechHash(mediaId, segment.start, segment.end, processorVersion);
+
+       labelSpeech.push({
+         WorkspaceRef: workspaceRef,
+         MediaRef: mediaId,
+         transcript: segment.text,
+         startTime: segment.start,
+         endTime: segment.end,
+         duration: segment.end - segment.start,
+         confidence: segment.confidence,
+         words: segment.words.map((w, idx) => ({
+           word: w,
+           startTime: segment.wordTimings[idx].start,
+           endTime: segment.wordTimings[idx].end,
+           confidence: segment.wordTimings[idx].confidence
+         })),
+         speakerTag: segment.speakerTag,
+         speechHash,
+       });
+
+      const clipHash = this.generateClipHash(
+        mediaId,
+        segment.start,
+        segment.end,
+        LabelType.SPEECH
+      );
+
+      labelClips.push({
+        WorkspaceRef: workspaceRef,
+        MediaRef: mediaId,
+        TaskRef: taskRef,
+        labelHash: clipHash,
+        labelType: LabelType.SPEECH,
+        type: 'Speech', // Deprecated field
+        start: segment.start,
+        end: segment.end,
+        duration: segment.end - segment.start,
+        confidence: segment.confidence,
+        version,
+        processor: processorVersion,
+        provider: ProcessingProvider.GOOGLE_SPEECH,
+        labelData: {
+          entity: 'Speech',
+          text: segment.text,
+          wordCount: segment.wordCount,
+          languageCode: response.languageCode,
+          speakerTag: segment.speakerTag,
+        },
+        // LabelEntityRef will be set by step processor (for "Speech" entity)
+        // LabelTrackRef is null for speech (no spatial tracking)
+      });
+    }
 
     // Extract significant words/phrases for LabelEntity
     const significantWords = this.extractSignificantWords(response.words);
@@ -87,42 +148,6 @@ export class SpeechTranscriptionNormalizer {
       }
     }
 
-    // Create speech segments (time-bounded chunks)
-    const segments = this.createSpeechSegments(response.words);
-
-    for (const segment of segments) {
-      const clipHash = this.generateClipHash(
-        mediaId,
-        segment.start,
-        segment.end,
-        LabelType.SPEECH
-      );
-
-      labelClips.push({
-        WorkspaceRef: workspaceRef,
-        MediaRef: mediaId,
-        TaskRef: taskRef,
-        labelHash: clipHash,
-        labelType: LabelType.SPEECH,
-        type: 'Speech', // Deprecated field
-        start: segment.start,
-        end: segment.end,
-        duration: segment.end - segment.start,
-        confidence: segment.confidence,
-        version,
-        processor: processorVersion,
-        provider: ProcessingProvider.GOOGLE_SPEECH,
-        labelData: {
-          entity: 'Speech',
-          text: segment.text,
-          wordCount: segment.wordCount,
-          languageCode: response.languageCode,
-        },
-        // LabelEntityRef will be set by step processor (for "Speech" entity)
-        // LabelTrackRef is null for speech (no spatial tracking)
-      });
-    }
-
     // Create LabelMedia update with full transcript and counts
     const labelMediaUpdate: Partial<LabelMediaData> = {
       speechTranscriptionProcessedAt: new Date().toISOString(),
@@ -140,6 +165,7 @@ export class SpeechTranscriptionNormalizer {
 
     return {
       labelEntities,
+      labelSpeech,
       labelTracks: [], // No tracks for speech transcription
       labelClips,
       labelMediaUpdate,
@@ -244,7 +270,7 @@ export class SpeechTranscriptionNormalizer {
   /**
    * Create speech segments from words
    *
-   * Groups words into time-bounded segments with maximum duration.
+   * Groups words into time-bounded segments with maximum duration or speaker change.
    * Each segment represents a continuous speech chunk.
    *
    * @param words Array of transcribed words with timing
@@ -256,6 +282,7 @@ export class SpeechTranscriptionNormalizer {
       startTime: number;
       endTime: number;
       confidence: number;
+      speakerTag?: number;
     }>
   ): Array<{
     start: number;
@@ -263,6 +290,9 @@ export class SpeechTranscriptionNormalizer {
     text: string;
     confidence: number;
     wordCount: number;
+    words: string[];
+    wordTimings: Array<{start: number, end: number, confidence: number}>;
+    speakerTag?: number;
   }> {
     if (words.length === 0) {
       return [];
@@ -274,6 +304,9 @@ export class SpeechTranscriptionNormalizer {
       text: string;
       confidence: number;
       wordCount: number;
+      words: string[];
+      wordTimings: Array<{start: number, end: number, confidence: number}>;
+      speakerTag?: number;
     }> = [];
 
     let currentSegment: {
@@ -281,19 +314,24 @@ export class SpeechTranscriptionNormalizer {
       end: number;
       words: string[];
       confidences: number[];
+      wordTimings: Array<{start: number, end: number, confidence: number}>;
+      speakerTag?: number;
     } = {
       start: words[0].startTime,
       end: words[0].endTime,
       words: [words[0].word],
       confidences: [words[0].confidence],
+      wordTimings: [{start: words[0].startTime, end: words[0].endTime, confidence: words[0].confidence}],
+      speakerTag: words[0].speakerTag
     };
 
     for (let i = 1; i < words.length; i++) {
       const word = words[i];
       const segmentDuration = word.endTime - currentSegment.start;
+      const speakerChanged = word.speakerTag !== currentSegment.speakerTag;
 
-      // Check if we should start a new segment
-      if (segmentDuration > this.MAX_SEGMENT_DURATION) {
+      // Check if we should start a new segment (duration or speaker change)
+      if (segmentDuration > this.MAX_SEGMENT_DURATION || speakerChanged) {
         // Finalize current segment
         segments.push({
           start: currentSegment.start,
@@ -303,6 +341,9 @@ export class SpeechTranscriptionNormalizer {
             currentSegment.confidences.reduce((sum, c) => sum + c, 0) /
             currentSegment.confidences.length,
           wordCount: currentSegment.words.length,
+          words: currentSegment.words,
+          wordTimings: currentSegment.wordTimings,
+          speakerTag: currentSegment.speakerTag
         });
 
         // Start new segment
@@ -311,12 +352,15 @@ export class SpeechTranscriptionNormalizer {
           end: word.endTime,
           words: [word.word],
           confidences: [word.confidence],
+          wordTimings: [{start: word.startTime, end: word.endTime, confidence: word.confidence}],
+          speakerTag: word.speakerTag
         };
       } else {
         // Add word to current segment
         currentSegment.end = word.endTime;
         currentSegment.words.push(word.word);
         currentSegment.confidences.push(word.confidence);
+        currentSegment.wordTimings.push({start: word.startTime, end: word.endTime, confidence: word.confidence});
       }
     }
 
@@ -330,10 +374,26 @@ export class SpeechTranscriptionNormalizer {
           currentSegment.confidences.reduce((sum, c) => sum + c, 0) /
           currentSegment.confidences.length,
         wordCount: currentSegment.words.length,
+        words: currentSegment.words,
+        wordTimings: currentSegment.wordTimings,
+        speakerTag: currentSegment.speakerTag
       });
     }
 
     return segments;
+  }
+
+  /**
+   * Generate speech hash for deduplication
+   */
+  private generateSpeechHash(
+    mediaId: string,
+    start: number,
+    end: number,
+    processor: string
+  ): string {
+    const hashInput = `${mediaId}:${start.toFixed(3)}:${end.toFixed(3)}:${processor}:speech`;
+    return createHash('sha256').update(hashInput).digest('hex');
   }
 
   /**
