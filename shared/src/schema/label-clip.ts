@@ -24,6 +24,7 @@ export const LabelClipSchema = z
       LabelType.SHOT,
       LabelType.PERSON,
       LabelType.SPEECH,
+      LabelType.FACE,
     ]),
     type: TextField(), // DEPRECATED: Use LabelEntityRef instead (kept for backward compatibility)
     start: NumberField({ min: 0 }), // seconds (float)
@@ -53,6 +54,7 @@ export const LabelClipInputSchema = z.object({
     LabelType.SHOT,
     LabelType.PERSON,
     LabelType.SPEECH,
+    LabelType.FACE,
   ]),
   type: z.string().min(1, 'Type is required'), // DEPRECATED: Use LabelEntityRef instead
   start: z.number().min(0),

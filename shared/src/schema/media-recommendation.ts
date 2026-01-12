@@ -46,7 +46,13 @@ export const MediaRecommendationSchema = z
       RecommendationStrategy.CONFIDENCE_DURATION,
     ]),
     labelType: SelectField(
-      [LabelType.OBJECT, LabelType.SHOT, LabelType.PERSON, LabelType.SPEECH],
+      [
+        LabelType.OBJECT,
+        LabelType.SHOT,
+        LabelType.PERSON,
+        LabelType.FACE,
+        LabelType.SPEECH,
+      ],
       { maxSelect: 1 }
     ),
 
@@ -82,6 +88,7 @@ export const MediaRecommendationInputSchema = z.object({
     LabelType.OBJECT,
     LabelType.SHOT,
     LabelType.PERSON,
+    LabelType.FACE,
     LabelType.SPEECH,
   ]),
   queryHash: z.string().min(1, 'Query hash is required'),

@@ -18,6 +18,7 @@ export const LabelEntitySchema = z
       LabelType.SHOT,
       LabelType.PERSON,
       LabelType.SPEECH,
+      LabelType.FACE,
     ]),
     canonicalName: TextField({ min: 1 }), // e.g., "Car", "Person", "Interview"
     provider: SelectField([
@@ -38,6 +39,7 @@ export const LabelEntityInputSchema = z.object({
     LabelType.SHOT,
     LabelType.PERSON,
     LabelType.SPEECH,
+    LabelType.FACE,
   ]),
   canonicalName: z.string().min(1, 'Canonical name is required'),
   provider: z.enum([

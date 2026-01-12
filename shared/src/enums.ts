@@ -86,6 +86,7 @@ export enum ClipType {
   SHOT = 'shot',
   OBJECT = 'object',
   PERSON = 'person',
+  FACE = 'face',
   SPEECH = 'speech',
   RECOMMENDATION = 'recommendation',
 }
@@ -95,6 +96,7 @@ export enum LabelType {
   SHOT = 'shot',
   PERSON = 'person',
   SPEECH = 'speech',
+  FACE = 'face',
 }
 
 export enum RecommendationStrategy {

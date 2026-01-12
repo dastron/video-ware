@@ -137,6 +137,7 @@ export class MediaClipMutator extends BaseMutator<MediaClip, MediaClipInput> {
       [LabelType.SHOT]: ClipType.SHOT,
       [LabelType.PERSON]: ClipType.PERSON,
       [LabelType.SPEECH]: ClipType.SPEECH,
+      [LabelType.FACE]: ClipType.PERSON,
     };
 
     const clipType = typeMapping[labelClip.labelType as LabelType];

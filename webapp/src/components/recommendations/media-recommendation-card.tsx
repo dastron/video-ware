@@ -59,6 +59,7 @@ export function MediaRecommendationCard({
       [LabelType.SHOT]: 'Shot',
       [LabelType.PERSON]: 'Person',
       [LabelType.SPEECH]: 'Speech',
+      [LabelType.FACE]: 'Face',
     };
     return displayMap[type] || type;
   };
@@ -72,6 +73,7 @@ export function MediaRecommendationCard({
       [LabelType.SHOT]: 'secondary',
       [LabelType.PERSON]: 'outline',
       [LabelType.SPEECH]: 'outline',
+      [LabelType.FACE]: 'outline',
     };
     return variantMap[type] || 'outline';
   };
