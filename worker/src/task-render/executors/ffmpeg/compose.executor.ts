@@ -53,7 +53,7 @@ export class FFmpegComposeExecutor implements IRenderExecutor {
       // Execute FFmpeg with progress tracking
       await this.ffmpegService.executeWithProgress(
         ffmpegArgs,
-        onProgress || (() => { })
+        onProgress || (() => {})
       );
 
       // Probe the rendered video to get metadata

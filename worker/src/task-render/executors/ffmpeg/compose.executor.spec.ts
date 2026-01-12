@@ -259,9 +259,7 @@ describe('FFmpegComposeExecutor', () => {
         media: {
           id: 'asset-no-audio',
           mediaData: {
-            streams: [
-              { codec_type: 'video', width: 1920, height: 1080 },
-            ],
+            streams: [{ codec_type: 'video', width: 1920, height: 1080 }],
           },
         },
         filePath: '/tmp/no-audio.mp4',
