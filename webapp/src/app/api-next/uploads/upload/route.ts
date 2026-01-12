@@ -12,13 +12,9 @@ import {
   generateStoragePath,
 } from '@project/shared/storage';
 import { loadStorageConfig } from '@project/shared/config';
-import {
-  UploadStatus,
-  ProcessingProvider,
-  StorageBackendType,
-  type ProcessUploadPayload,
-} from '@project/shared';
-import { UploadMutator, TaskMutator } from '@project/shared/mutator';
+import { UploadStatus, StorageBackendType } from '@project/shared';
+import { UploadMutator } from '@project/shared/mutator';
+import { UploadService } from '@/services';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -99,7 +95,6 @@ export async function PUT(req: Request) {
     }
 
     uploadMutator = new UploadMutator(pb);
-    const taskMutator = new TaskMutator(pb);
 
     const upload = await uploadMutator.getById(uploadId);
     if (!upload) {
@@ -190,42 +185,9 @@ export async function PUT(req: Request) {
         name: fileName,
       });
 
-      // Best-effort enqueue processing task
       try {
-        const payload: ProcessUploadPayload = {
-          uploadId,
-          provider: ProcessingProvider.FFMPEG,
-          sprite: {
-            fps: 1,
-            cols: 10,
-            rows: 10,
-            tileWidth: 320,
-            tileHeight: 180,
-          },
-          thumbnail: {
-            timestamp: 'midpoint',
-            width: 640,
-            height: 360,
-          },
-          filmstrip: {
-            cols: 100,
-            rows: 1,
-            tileWidth: 160,
-            tileHeight: 180,
-          },
-          transcode: {
-            enabled: true,
-            codec: 'h265',
-            resolution: '720p',
-          },
-        };
-
-        await taskMutator.createProcessUploadTask(
-          workspaceId,
-          userId,
-          uploadId,
-          payload
-        );
+        const uploadService = new UploadService(pb);
+        await uploadService.processUpload(workspaceId, uploadId, userId);
 
         console.log(`Processing task created for upload ${uploadId}`);
       } catch (taskError) {

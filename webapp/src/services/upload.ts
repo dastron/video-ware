@@ -369,6 +369,14 @@ export class UploadService {
     );
   }
 
+  async processUpload(
+    workspaceId: string,
+    uploadId: string,
+    userId: string
+  ): Promise<Task> {
+    return await this.enqueueProcessingTask(workspaceId, uploadId, userId);
+  }
+
   /**
    * Retry a failed upload by creating a new processing task
    * @param uploadId The upload ID to retry
