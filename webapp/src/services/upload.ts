@@ -8,6 +8,7 @@ import {
   UploadStatus,
   ProcessingProvider,
   type ProcessUploadPayload,
+  type TranscodeFlowConfig,
 } from '@project/shared';
 import type { Upload, Task, UploadInput } from '@project/shared';
 import type { UploadProgress } from '@/types/upload-manager';
@@ -311,18 +312,19 @@ export class UploadService {
    * @param workspaceId The workspace ID
    * @param uploadId The upload ID
    * @param userId The user ID
+   * @param config Optional custom processing configuration
    * @returns The created task
    */
   private async enqueueProcessingTask(
     workspaceId: string,
     uploadId: string,
-    userId: string
+    userId: string,
+    config?: TranscodeFlowConfig
   ): Promise<Task> {
     // Default processing configuration
-    // Sprite: 100 steps (frames) total, fps: 1 for videos ≤100s, variable fps for longer videos
+    // Sprite: 100 steps (frames) total, fps: 1 for videos <=100s, variable fps for longer videos
     // Filmstrip: 100 steps always at 1 fps
-    const payload: ProcessUploadPayload = {
-      uploadId,
+    const defaultPayload: TranscodeFlowConfig = {
       provider: this.config.defaultProvider,
       sprite: {
         fps: 1,
@@ -347,6 +349,16 @@ export class UploadService {
         codec: 'h265',
         resolution: '720p',
       },
+      audio: {
+        enabled: true,
+        bitrate: '128k',
+      },
+    };
+
+    const payload: ProcessUploadPayload = {
+      uploadId,
+      ...defaultPayload,
+      ...config,
     };
 
     return this.taskMutator.createProcessUploadTask(

@@ -1,5 +1,5 @@
-
 import { Test, TestingModule } from '@nestjs/testing';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { FFmpegComposeExecutor } from './compose.executor';
 import { FFmpegService } from '../../../shared/services/ffmpeg.service';
 import type { TimelineTrack } from '@project/shared';
@@ -11,19 +11,24 @@ describe('FFmpegComposeExecutor', () => {
   beforeEach(async () => {
     // Manually create mock object
     const mockFFmpegService = {
-       executeWithProgress: vi.fn(),
-       probe: vi.fn().mockResolvedValue({
-         format: { duration: '10.0', bit_rate: '1000', size: '1000', format_name: 'mp4' },
-         streams: [
-           {
-             codec_type: 'video',
-             width: 1920,
-             height: 1080,
-             codec_name: 'h264',
-             r_frame_rate: '30/1',
-           },
-         ],
-       }),
+      executeWithProgress: vi.fn(),
+      probe: vi.fn().mockResolvedValue({
+        format: {
+          duration: '10.0',
+          bit_rate: '1000',
+          size: '1000',
+          format_name: 'mp4',
+        },
+        streams: [
+          {
+            codec_type: 'video',
+            width: 1920,
+            height: 1080,
+            codec_name: 'h264',
+            r_frame_rate: '30/1',
+          },
+        ],
+      }),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -41,14 +46,14 @@ describe('FFmpegComposeExecutor', () => {
   });
 
   it('should be defined', () => {
-      expect(executor).toBeDefined();
-      expect(ffmpegService).toBeDefined();
-      // Check if service is injected
-      // With private property, we can't check directly easily in TS without casting, but the fact that execute throws suggests it is undefined.
-      // But module.get returns the instance which should have dependencies injected.
-      // The issue is likely that 'private readonly' property is not being populated?
-      // This is standard NestJS.
-      // Maybe the mock needs to be a class instance?
+    expect(executor).toBeDefined();
+    expect(ffmpegService).toBeDefined();
+    // Check if service is injected
+    // With private property, we can't check directly easily in TS without casting, but the fact that execute throws suggests it is undefined.
+    // But module.get returns the instance which should have dependencies injected.
+    // The issue is likely that 'private readonly' property is not being populated?
+    // This is standard NestJS.
+    // Maybe the mock needs to be a class instance?
   });
 
   it('should build correct FFmpeg command for single video track', async () => {
@@ -85,7 +90,12 @@ describe('FFmpegComposeExecutor', () => {
       resolution: '1920x1080',
     };
 
-    await executor.execute(tracks, clipMediaMap, '/tmp/output.mp4', outputSettings);
+    await executor.execute(
+      tracks,
+      clipMediaMap,
+      '/tmp/output.mp4',
+      outputSettings
+    );
 
     const executeSpy = vi.spyOn(ffmpegService, 'executeWithProgress');
     const args = executeSpy.mock.calls[0][0] as string[];
@@ -100,8 +110,8 @@ describe('FFmpegComposeExecutor', () => {
     const filterComplex = args[filterComplexIndex + 1];
 
     expect(filterComplex).toContain('color=c=black');
-    expect(filterComplex).toContain('overlay=x=0:y=0:enable=\'between(t,0,5)\'');
-    expect(filterComplex).toContain('overlay=x=0:y=0:enable=\'between(t,5,10)\'');
+    expect(filterComplex).toContain("overlay=x=0:y=0:enable='between(t,0,5)'");
+    expect(filterComplex).toContain("overlay=x=0:y=0:enable='between(t,5,10)'");
   });
 
   it('should handle PIP overlay', async () => {
@@ -146,7 +156,12 @@ describe('FFmpegComposeExecutor', () => {
       resolution: '1920x1080',
     };
 
-    await executor.execute(tracks, clipMediaMap, '/tmp/output.mp4', outputSettings);
+    await executor.execute(
+      tracks,
+      clipMediaMap,
+      '/tmp/output.mp4',
+      outputSettings
+    );
 
     const executeSpy = vi.spyOn(ffmpegService, 'executeWithProgress');
     const args = executeSpy.mock.calls[0][0] as string[];
@@ -155,11 +170,11 @@ describe('FFmpegComposeExecutor', () => {
     // Check for PIP scaling and overlay
     expect(filterComplex).toContain('scale=320:180');
     expect(filterComplex).toContain('overlay=x=100:y=100');
-    expect(filterComplex).toContain('enable=\'between(t,2,7)\'');
+    expect(filterComplex).toContain("enable='between(t,2,7)'");
   });
 
   it('should handle text overlay', async () => {
-     const tracks: TimelineTrack[] = [
+    const tracks: TimelineTrack[] = [
       {
         id: 'track1',
         type: 'video',
@@ -182,7 +197,13 @@ describe('FFmpegComposeExecutor', () => {
             id: 'txt1',
             type: 'text',
             time: { start: 1, duration: 2, sourceStart: 0 },
-            text: { content: 'Hello World', fontSize: 50, color: '#FFFFFF', x: 10, y: 10 },
+            text: {
+              content: 'Hello World',
+              fontSize: 50,
+              color: '#FFFFFF',
+              x: 10,
+              y: 10,
+            },
           },
         ],
       },
@@ -198,7 +219,12 @@ describe('FFmpegComposeExecutor', () => {
       resolution: '1920x1080',
     };
 
-    await executor.execute(tracks, clipMediaMap, '/tmp/output.mp4', outputSettings);
+    await executor.execute(
+      tracks,
+      clipMediaMap,
+      '/tmp/output.mp4',
+      outputSettings
+    );
 
     const executeSpy = vi.spyOn(ffmpegService, 'executeWithProgress');
     const args = executeSpy.mock.calls[0][0] as string[];

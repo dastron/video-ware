@@ -56,6 +56,7 @@ export class RenderFlowBuilder {
     });
 
     // 2. EXECUTE step (Run FFmpeg or GC Transcoder)
+    // Fetches clipMediaMap independently - doesn't need data from PREPARE
     const executeOptions = getStepJobOptions(RenderStepType.EXECUTE);
     flow.children.push({
       name: RenderStepType.EXECUTE,
@@ -68,7 +69,6 @@ export class RenderFlowBuilder {
           type: 'execute',
           timelineId,
           tracks,
-          clipMediaMap: {}, // Populated from PREPARE
           outputSettings,
         },
       },
@@ -81,7 +81,9 @@ export class RenderFlowBuilder {
       ],
     });
 
-    // 3. FINALIZE step (Probe, create records, cleanup)
+    // 3. FINALIZE step (Probe, create records)
+    // Uses deterministic path: ./data/renders/<taskId>/output.<format>
+    // Doesn't need data from EXECUTE - path is computed from taskId
     const finalizeOptions = getStepJobOptions(RenderStepType.FINALIZE);
     flow.children.push({
       name: RenderStepType.FINALIZE,
@@ -95,8 +97,6 @@ export class RenderFlowBuilder {
           timelineId,
           workspaceId: task.WorkspaceRef,
           version,
-          renderOutput: { path: '', isLocal: true }, // Populated from EXECUTE
-          storagePath: '', // Populated from EXECUTE
           format: outputSettings.format,
         },
       },

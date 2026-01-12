@@ -54,149 +54,162 @@ export class LabelsFlowBuilder {
     });
 
     // LABEL_DETECTION step (depends on UPLOAD_TO_GCS)
-    const labelDetectionOptions = getStepJobOptions(
-      DetectLabelsStepType.LABEL_DETECTION
-    );
+    if (payload.config?.detectLabels !== false) {
+      const labelDetectionOptions = getStepJobOptions(
+        DetectLabelsStepType.LABEL_DETECTION
+      );
 
-    flow.children.push({
-      name: DetectLabelsStepType.LABEL_DETECTION,
-      queueName: QUEUE_NAMES.LABELS,
-      data: {
-        ...baseJobData,
-        stepType: DetectLabelsStepType.LABEL_DETECTION,
-        parentJobId: '',
-        input: {
-          type: 'label_detection',
-          mediaId,
-          workspaceRef: task.WorkspaceRef,
-          taskRef: task.id,
-          version,
+      flow.children.push({
+        name: DetectLabelsStepType.LABEL_DETECTION,
+        queueName: QUEUE_NAMES.LABELS,
+        data: {
+          ...baseJobData,
+          stepType: DetectLabelsStepType.LABEL_DETECTION,
+          parentJobId: '',
+          input: {
+            type: 'label_detection',
+            mediaId,
+            workspaceRef: task.WorkspaceRef,
+            taskRef: task.id,
+            version,
+            config: {
+              videoConfidenceThreshold: payload.config?.confidenceThreshold,
+            },
+          },
         },
-      },
-      opts: labelDetectionOptions,
-      children: [
-        {
-          name: DetectLabelsStepType.UPLOAD_TO_GCS,
-          queueName: QUEUE_NAMES.LABELS,
-        },
-      ],
-    });
+        opts: labelDetectionOptions,
+        children: [
+          {
+            name: DetectLabelsStepType.UPLOAD_TO_GCS,
+            queueName: QUEUE_NAMES.LABELS,
+          },
+        ],
+      });
+    }
 
     // OBJECT_TRACKING step (depends on UPLOAD_TO_GCS)
-    const objectTrackingOptions = getStepJobOptions(
-      DetectLabelsStepType.OBJECT_TRACKING
-    );
+    if (payload.config?.detectObjects !== false) {
+      const objectTrackingOptions = getStepJobOptions(
+        DetectLabelsStepType.OBJECT_TRACKING
+      );
 
-    flow.children.push({
-      name: DetectLabelsStepType.OBJECT_TRACKING,
-      queueName: QUEUE_NAMES.LABELS,
-      data: {
-        ...baseJobData,
-        stepType: DetectLabelsStepType.OBJECT_TRACKING,
-        parentJobId: '',
-        input: {
-          type: 'object_tracking',
-          mediaId,
-          workspaceRef: task.WorkspaceRef,
-          taskRef: task.id,
-          version,
+      flow.children.push({
+        name: DetectLabelsStepType.OBJECT_TRACKING,
+        queueName: QUEUE_NAMES.LABELS,
+        data: {
+          ...baseJobData,
+          stepType: DetectLabelsStepType.OBJECT_TRACKING,
+          parentJobId: '',
+          input: {
+            type: 'object_tracking',
+            mediaId,
+            workspaceRef: task.WorkspaceRef,
+            taskRef: task.id,
+            version,
+          },
         },
-      },
-      opts: objectTrackingOptions,
-      children: [
-        {
-          name: DetectLabelsStepType.UPLOAD_TO_GCS,
-          queueName: QUEUE_NAMES.LABELS,
-        },
-      ],
-    });
+        opts: objectTrackingOptions,
+        children: [
+          {
+            name: DetectLabelsStepType.UPLOAD_TO_GCS,
+            queueName: QUEUE_NAMES.LABELS,
+          },
+        ],
+      });
+    }
 
     // FACE_DETECTION step (depends on UPLOAD_TO_GCS)
-    const faceDetectionOptions = getStepJobOptions(
-      DetectLabelsStepType.FACE_DETECTION
-    );
+    if (payload.config?.detectFaces) {
+      const faceDetectionOptions = getStepJobOptions(
+        DetectLabelsStepType.FACE_DETECTION
+      );
 
-    flow.children.push({
-      name: DetectLabelsStepType.FACE_DETECTION,
-      queueName: QUEUE_NAMES.LABELS,
-      data: {
-        ...baseJobData,
-        stepType: DetectLabelsStepType.FACE_DETECTION,
-        parentJobId: '',
-        input: {
-          type: 'face_detection',
-          mediaId,
-          workspaceRef: task.WorkspaceRef,
-          taskRef: task.id,
-          version,
+      flow.children.push({
+        name: DetectLabelsStepType.FACE_DETECTION,
+        queueName: QUEUE_NAMES.LABELS,
+        data: {
+          ...baseJobData,
+          stepType: DetectLabelsStepType.FACE_DETECTION,
+          parentJobId: '',
+          input: {
+            type: 'face_detection',
+            mediaId,
+            workspaceRef: task.WorkspaceRef,
+            taskRef: task.id,
+            version,
+          },
         },
-      },
-      opts: faceDetectionOptions,
-      children: [
-        {
-          name: DetectLabelsStepType.UPLOAD_TO_GCS,
-          queueName: QUEUE_NAMES.LABELS,
-        },
-      ],
-    });
+        opts: faceDetectionOptions,
+        children: [
+          {
+            name: DetectLabelsStepType.UPLOAD_TO_GCS,
+            queueName: QUEUE_NAMES.LABELS,
+          },
+        ],
+      });
+    }
 
     // PERSON_DETECTION step (depends on UPLOAD_TO_GCS)
-    const personDetectionOptions = getStepJobOptions(
-      DetectLabelsStepType.PERSON_DETECTION
-    );
+    if (payload.config?.detectPersons) {
+      const personDetectionOptions = getStepJobOptions(
+        DetectLabelsStepType.PERSON_DETECTION
+      );
 
-    flow.children.push({
-      name: DetectLabelsStepType.PERSON_DETECTION,
-      queueName: QUEUE_NAMES.LABELS,
-      data: {
-        ...baseJobData,
-        stepType: DetectLabelsStepType.PERSON_DETECTION,
-        parentJobId: '',
-        input: {
-          type: 'person_detection',
-          mediaId,
-          workspaceRef: task.WorkspaceRef,
-          taskRef: task.id,
-          version,
+      flow.children.push({
+        name: DetectLabelsStepType.PERSON_DETECTION,
+        queueName: QUEUE_NAMES.LABELS,
+        data: {
+          ...baseJobData,
+          stepType: DetectLabelsStepType.PERSON_DETECTION,
+          parentJobId: '',
+          input: {
+            type: 'person_detection',
+            mediaId,
+            workspaceRef: task.WorkspaceRef,
+            taskRef: task.id,
+            version,
+          },
         },
-      },
-      opts: personDetectionOptions,
-      children: [
-        {
-          name: DetectLabelsStepType.UPLOAD_TO_GCS,
-          queueName: QUEUE_NAMES.LABELS,
-        },
-      ],
-    });
+        opts: personDetectionOptions,
+        children: [
+          {
+            name: DetectLabelsStepType.UPLOAD_TO_GCS,
+            queueName: QUEUE_NAMES.LABELS,
+          },
+        ],
+      });
+    }
 
     // SPEECH_TRANSCRIPTION step (depends on UPLOAD_TO_GCS)
-    const speechTranscriptionOptions = getStepJobOptions(
-      DetectLabelsStepType.SPEECH_TRANSCRIPTION
-    );
+    if (payload.config?.detectSpeech) {
+      const speechTranscriptionOptions = getStepJobOptions(
+        DetectLabelsStepType.SPEECH_TRANSCRIPTION
+      );
 
-    flow.children.push({
-      name: DetectLabelsStepType.SPEECH_TRANSCRIPTION,
-      queueName: QUEUE_NAMES.LABELS,
-      data: {
-        ...baseJobData,
-        stepType: DetectLabelsStepType.SPEECH_TRANSCRIPTION,
-        parentJobId: '',
-        input: {
-          type: 'speech_transcription',
-          mediaId,
-          workspaceRef: task.WorkspaceRef,
-          taskRef: task.id,
-          version,
+      flow.children.push({
+        name: DetectLabelsStepType.SPEECH_TRANSCRIPTION,
+        queueName: QUEUE_NAMES.LABELS,
+        data: {
+          ...baseJobData,
+          stepType: DetectLabelsStepType.SPEECH_TRANSCRIPTION,
+          parentJobId: '',
+          input: {
+            type: 'speech_transcription',
+            mediaId,
+            workspaceRef: task.WorkspaceRef,
+            taskRef: task.id,
+            version,
+          },
         },
-      },
-      opts: speechTranscriptionOptions,
-      children: [
-        {
-          name: DetectLabelsStepType.UPLOAD_TO_GCS,
-          queueName: QUEUE_NAMES.LABELS,
-        },
-      ],
-    });
+        opts: speechTranscriptionOptions,
+        children: [
+          {
+            name: DetectLabelsStepType.UPLOAD_TO_GCS,
+            queueName: QUEUE_NAMES.LABELS,
+          },
+        ],
+      });
+    }
     return flow;
   }
 }

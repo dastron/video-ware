@@ -13,7 +13,7 @@ import type { TranscodeFlowDefinition } from './types';
 export class TranscodeFlowBuilder {
   /**
    * Build a transcode flow definition for PROCESS_UPLOAD tasks
-   * Builds a parent-child job hierarchy with steps: PROBE, THUMBNAIL, SPRITE, FILMSTRIP, TRANSCODE
+   * Builds a parent-child job hierarchy with steps: PROBE, THUMBNAIL, SPRITE, FILMSTRIP, TRANSCODE, AUDIO
    */
   static buildFlow(task: Task): TranscodeFlowDefinition {
     const payload = task.payload as ProcessUploadPayload;
@@ -136,6 +136,30 @@ export class TranscodeFlowBuilder {
           },
         },
         opts: transcodeOptions,
+      });
+    }
+
+    // AUDIO step (if enabled)
+    if (payload.audio?.enabled) {
+      const audioOptions = getStepJobOptions(TranscodeStepType.AUDIO);
+      flow.children.push({
+        name: TranscodeStepType.AUDIO,
+        queueName: QUEUE_NAMES.TRANSCODE,
+        data: {
+          ...baseJobData,
+          stepType: TranscodeStepType.AUDIO,
+          parentJobId: '',
+          input: {
+            type: 'audio',
+            uploadId,
+            filePath: '', // Will be resolved by processor
+            format: payload.audio.format,
+            bitrate: payload.audio.bitrate,
+            channels: payload.audio.channels,
+            sampleRate: payload.audio.sampleRate,
+          },
+        },
+        opts: audioOptions,
       });
     }
 

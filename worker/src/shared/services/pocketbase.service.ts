@@ -287,16 +287,17 @@ export class PocketBaseService implements OnModuleInit {
   }
 
   /**
-   * Create file record with upload
+   * Upload a file to PocketBase and create a File record
    */
-  async createFileWithUpload(params: {
+  async uploadFile(params: {
     localFilePath: string;
     fileName: string;
     fileType: FileType;
     fileSource: FileSource;
-    storageKey: string;
+    storageKey?: string;
     workspaceRef: string;
-    uploadRef: string;
+    uploadRef?: string;
+    mediaRef?: string;
     mimeType: string;
     meta?: Record<string, any>;
   }): Promise<File> {
@@ -308,6 +309,7 @@ export class PocketBaseService implements OnModuleInit {
       storageKey,
       workspaceRef,
       uploadRef,
+      mediaRef,
       mimeType,
       meta = {},
     } = params;
@@ -330,9 +332,16 @@ export class PocketBaseService implements OnModuleInit {
       formData.append('fileStatus', FileStatus.AVAILABLE);
       formData.append('fileType', fileType);
       formData.append('fileSource', fileSource);
-      formData.append('s3Key', storageKey);
+      if (storageKey) {
+        formData.append('s3Key', storageKey);
+      }
       formData.append('WorkspaceRef', workspaceRef);
-      formData.append('UploadRef', uploadRef);
+      if (uploadRef) {
+        formData.append('UploadRef', uploadRef);
+      }
+      if (mediaRef) {
+        formData.append('MediaRef', mediaRef);
+      }
       formData.append('meta', JSON.stringify({ mimeType, ...meta }));
 
       // Append the actual file
@@ -347,7 +356,7 @@ export class PocketBaseService implements OnModuleInit {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       this.logger.error(
-        `Failed to create file record with upload: ${errorMessage}`
+        `Failed to upload file and create record: ${errorMessage}`
       );
       throw error;
     }
@@ -405,7 +414,7 @@ export class PocketBaseService implements OnModuleInit {
       const results = await this.uploadMutator.getList(
         1,
         1,
-        `MediaRef = "${mediaId}"`
+        `Media_via_UploadRef.id = "${mediaId}"`
       );
       return results.items[0] || null;
     } catch (error) {

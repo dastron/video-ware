@@ -1,4 +1,3 @@
-
 import { Injectable, Logger, Inject } from '@nestjs/common';
 import { FFmpegService } from '../../../shared/services/ffmpeg.service';
 import type { IRenderExecutor, RenderExecutorResult } from '../interfaces';
@@ -18,7 +17,7 @@ export class FFmpegComposeExecutor implements IRenderExecutor {
   private readonly logger = new Logger(FFmpegComposeExecutor.name);
 
   constructor(
-      @Inject(FFmpegService) private readonly ffmpegService: FFmpegService
+    @Inject(FFmpegService) private readonly ffmpegService: FFmpegService
   ) {
     if (!this.ffmpegService) {
       this.logger.error('FFmpegService is undefined in constructor!');
@@ -37,7 +36,9 @@ export class FFmpegComposeExecutor implements IRenderExecutor {
     this.logger.log(`Composing timeline with ${tracks.length} tracks`);
 
     if (!this.ffmpegService) {
-        throw new Error('FFmpegService is not available (this.ffmpegService is undefined)');
+      throw new Error(
+        'FFmpegService is not available (this.ffmpegService is undefined)'
+      );
     }
 
     try {
@@ -108,7 +109,8 @@ export class FFmpegComposeExecutor implements IRenderExecutor {
     outputPath: string,
     outputSettings: RenderTimelinePayload['outputSettings']
   ): string[] {
-    const args: string[] = [];
+    // Start with -y to overwrite output without prompting
+    const args: string[] = ['-y'];
     const filterComplex: string[] = [];
     const inputFileMap = new Map<string, number>();
     let inputCounter = 0;
@@ -133,11 +135,11 @@ export class FFmpegComposeExecutor implements IRenderExecutor {
 
     // Helper to format color
     const formatColor = (hex: string | undefined) => {
-        if (!hex) return 'white';
-        // Ensure hex starts with 0x for FFmpeg if it's #RRGGBB
-        if (hex.startsWith('#')) return hex.replace('#', '0x') + 'FF'; // Adding alpha
-        return hex;
-    }
+      if (!hex) return 'white';
+      // Ensure hex starts with 0x for FFmpeg if it's #RRGGBB
+      if (hex.startsWith('#')) return hex.replace('#', '0x') + 'FF'; // Adding alpha
+      return hex;
+    };
 
     // Sort tracks by layer
     const sortedTracks = [...tracks].sort(
@@ -145,19 +147,21 @@ export class FFmpegComposeExecutor implements IRenderExecutor {
     );
 
     let lastVideoLabel = '[base]';
-    let hasBaseVideo = false;
-    let audioInputs: string[] = [];
+    const hasBaseVideo = false;
+    const audioInputs: string[] = [];
 
     // Create a base black background
     // Calculate total duration
     let totalDuration = 0;
     for (const track of sortedTracks) {
-        for (const seg of track.segments) {
-            const end = seg.time.start + seg.time.duration;
-            if (end > totalDuration) totalDuration = end;
-        }
+      for (const seg of track.segments) {
+        const end = seg.time.start + seg.time.duration;
+        if (end > totalDuration) totalDuration = end;
+      }
     }
-    filterComplex.push(`color=c=black:s=${targetWidth}x${targetHeight}:d=${totalDuration || 1}[base]`);
+    filterComplex.push(
+      `color=c=black:s=${targetWidth}x${targetHeight}:d=${totalDuration || 1}[base]`
+    );
 
     // Process Video/Image/Text Tracks
     for (const track of sortedTracks) {
@@ -188,30 +192,31 @@ export class FFmpegComposeExecutor implements IRenderExecutor {
 
       // Visual Tracks (Video, Image, Text)
       for (const seg of track.segments) {
-
         if (seg.type === 'text') {
-            // Use drawtext on top of the current video chain
-            const content = seg.text?.content || '';
-            const fontSize = seg.text?.fontSize || 24;
-            const fontColor = formatColor(seg.text?.color);
-            const x = seg.text?.x || '(w-text_w)/2';
-            const y = seg.text?.y || '(h-text_h)/2';
+          // Use drawtext on top of the current video chain
+          const content = seg.text?.content || '';
+          const fontSize = seg.text?.fontSize || 24;
+          const fontColor = formatColor(seg.text?.color);
+          const x = seg.text?.x || '(w-text_w)/2';
+          const y = seg.text?.y || '(h-text_h)/2';
 
-            const start = seg.time.start;
-            const end = start + seg.time.duration;
-            const enable = `between(t,${start},${end})`;
+          const start = seg.time.start;
+          const end = start + seg.time.duration;
+          const enable = `between(t,${start},${end})`;
 
-            const nextLabel = `[v_txt_${seg.id}]`;
+          const nextLabel = `[v_txt_${seg.id}]`;
 
-            // Escape text for FFmpeg
-            const escapedContent = content.replace(/:/g, '\\:').replace(/'/g, "\\'");
+          // Escape text for FFmpeg
+          const escapedContent = content
+            .replace(/:/g, '\\:')
+            .replace(/'/g, "\\'");
 
-            filterComplex.push(
-                `${lastVideoLabel}drawtext=text='${escapedContent}':fontsize=${fontSize}:fontcolor=${fontColor}:x=${x}:y=${y}:enable='${enable}'${nextLabel}`
-            );
+          filterComplex.push(
+            `${lastVideoLabel}drawtext=text='${escapedContent}':fontsize=${fontSize}:fontcolor=${fontColor}:x=${x}:y=${y}:enable='${enable}'${nextLabel}`
+          );
 
-            lastVideoLabel = nextLabel;
-            continue;
+          lastVideoLabel = nextLabel;
+          continue;
         }
 
         // For Video/Image
@@ -225,13 +230,13 @@ export class FFmpegComposeExecutor implements IRenderExecutor {
         // Prepare the segment: trim -> scale -> setpts
         // Scale logic
         let scaleFilter = '';
-        let targetW = seg.video?.width;
-        let targetH = seg.video?.height;
+        const targetW = seg.video?.width;
+        const targetH = seg.video?.height;
 
         if (targetW || targetH) {
-             scaleFilter = `,scale=${targetW || -1}:${targetH || -1}`;
+          scaleFilter = `,scale=${targetW || -1}:${targetH || -1}`;
         } else if (seg.type === 'video') {
-             scaleFilter = `,scale=${targetWidth}:${targetHeight}:force_original_aspect_ratio=decrease,pad=${targetWidth}:${targetHeight}:(ow-iw)/2:(oh-ih)/2`;
+          scaleFilter = `,scale=${targetWidth}:${targetHeight}:force_original_aspect_ratio=decrease,pad=${targetWidth}:${targetHeight}:(ow-iw)/2:(oh-ih)/2`;
         }
 
         // Trim filter
@@ -247,7 +252,7 @@ export class FFmpegComposeExecutor implements IRenderExecutor {
         // `setpts=PTS-STARTPTS+${start}/TB`
 
         filterComplex.push(
-            `[${idx}:v]${trim}setpts=PTS-STARTPTS+${start}/TB${scaleFilter}[v_seg_${seg.id}]`
+          `[${idx}:v]${trim}setpts=PTS-STARTPTS+${start}/TB${scaleFilter}[v_seg_${seg.id}]`
         );
 
         // Overlay
@@ -257,7 +262,7 @@ export class FFmpegComposeExecutor implements IRenderExecutor {
         const enable = `between(t,${start},${start + duration})`;
 
         filterComplex.push(
-            `${lastVideoLabel}[v_seg_${seg.id}]overlay=x=${xPos}:y=${yPos}:enable='${enable}':eof_action=pass${overlayLabel}`
+          `${lastVideoLabel}[v_seg_${seg.id}]overlay=x=${xPos}:y=${yPos}:enable='${enable}':eof_action=pass${overlayLabel}`
         );
         lastVideoLabel = overlayLabel;
       }
@@ -269,7 +274,9 @@ export class FFmpegComposeExecutor implements IRenderExecutor {
         `${audioInputs.join('')}amix=inputs=${audioInputs.length}:duration=longest[outa]`
       );
     } else {
-      filterComplex.push(`anullsrc=channel_layout=stereo:sample_rate=44100:d=${totalDuration || 1}[outa]`);
+      filterComplex.push(
+        `anullsrc=channel_layout=stereo:sample_rate=44100:d=${totalDuration || 1}[outa]`
+      );
     }
 
     // Map Final Video
@@ -285,8 +292,19 @@ export class FFmpegComposeExecutor implements IRenderExecutor {
     // Add output settings
     args.push('-c:v', outputSettings.codec);
 
+    // Add quality settings based on codec
+    this.addQualitySettings(
+      args,
+      outputSettings.codec,
+      targetWidth,
+      targetHeight
+    );
+
     // Use calculated dimensions
     args.push('-s', `${targetWidth}x${targetHeight}`);
+
+    // Add audio codec with high quality settings (higher bitrate = larger files, better quality)
+    args.push('-c:a', 'aac', '-b:a', '320k', '-ar', '48000');
 
     // Add output format
     args.push('-f', outputSettings.format);
@@ -296,5 +314,71 @@ export class FFmpegComposeExecutor implements IRenderExecutor {
 
     this.logger.debug(`FFmpeg command: ffmpeg ${args.join(' ')}`);
     return args;
+  }
+
+  /**
+   * Add quality settings to FFmpeg args based on video codec
+   */
+  private addQualitySettings(
+    args: string[],
+    codec: string,
+    width: number,
+    height: number
+  ): void {
+    const codecLower = codec.toLowerCase();
+
+    // Common quality settings for all codecs
+    // Use veryslow preset for maximum quality (slower encoding, best compression/quality)
+    args.push('-preset', 'veryslow');
+
+    // Pixel format for compatibility (yuv420p works everywhere)
+    args.push('-pix_fmt', 'yuv420p');
+
+    if (codecLower === 'libx264' || codecLower === 'h264') {
+      // H.264 quality settings
+      // CRF 18: High quality (visually lossless, produces larger files)
+      // Lower CRF = higher quality and larger file size
+      args.push('-crf', '18');
+      // Use high profile for better quality and compatibility
+      args.push('-profile:v', 'high');
+      // Set level based on resolution for compatibility
+      if (width * height > 1920 * 1080) {
+        args.push('-level', '4.2'); // 4K support
+      } else {
+        args.push('-level', '4.0'); // 1080p support
+      }
+      // Enable B-frames for better compression
+      args.push('-bf', '2');
+    } else if (
+      codecLower === 'libx265' ||
+      codecLower === 'h265' ||
+      codecLower === 'hevc'
+    ) {
+      // H.265 quality settings
+      // CRF 18: High quality (produces larger, higher quality files)
+      // Lower CRF = higher quality and larger file size
+      args.push('-crf', '18');
+      // Use main profile
+      args.push('-profile:v', 'main');
+      // Set level based on resolution (use x265-params for level in libx265)
+      if (width * height > 1920 * 1080) {
+        args.push('-x265-params', 'level-idc=153:aq-mode=2:aq-strength=1.0'); // Level 5.1 for 4K
+      } else {
+        args.push('-x265-params', 'level-idc=120:aq-mode=2:aq-strength=1.0'); // Level 4.0 for 1080p
+      }
+    } else if (codecLower === 'libvpx-vp9' || codecLower === 'vp9') {
+      // VP9 quality settings
+      // VP9 uses -crf with range 0-63 (lower = better quality, larger files)
+      // CRF 20: High quality setting for larger, higher quality output
+      args.push('-crf', '20');
+      // Set quality/speed tradeoff (0-9, lower = slower/better)
+      args.push('-b:v', '0'); // Required for CRF mode in VP9
+      args.push('-cpu-used', '1'); // 0-5, lower = better quality (1 for high quality)
+    } else {
+      // Fallback for unknown codecs - use CRF if codec supports it
+      this.logger.warn(
+        `Unknown codec "${codec}", using basic quality settings. Consider adding codec-specific optimizations.`
+      );
+    }
   }
 }

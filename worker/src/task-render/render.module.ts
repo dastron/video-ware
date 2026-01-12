@@ -9,10 +9,7 @@ import {
   ExecuteRenderStepProcessor,
   FinalizeRenderStepProcessor,
 } from './processors';
-import {
-  FFmpegResolveClipsExecutor,
-  FFmpegComposeExecutor,
-} from './executors';
+import { FFmpegResolveClipsExecutor, FFmpegComposeExecutor } from './executors';
 
 @Module({
   imports: [SharedModule, QueueModule],

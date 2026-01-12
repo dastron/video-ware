@@ -5,8 +5,6 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { QUEUE_NAMES } from '../../queue/queue.constants';
 import { RenderStepType } from '../../queue/types/step.types';
 import {
-  TaskRenderPrepareStepOutput,
-  TaskRenderExecuteStepOutput,
   TaskRenderPrepareStep,
   TaskRenderExecuteStep,
   TaskRenderFinalizeStep,
@@ -21,7 +19,6 @@ import type {
   StepResult,
 } from '../../queue/types/job.types';
 import { BaseFlowProcessor } from '@/queue/processors';
-import * as path from 'path';
 
 /**
  * Parent processor for render tasks
@@ -88,18 +85,16 @@ export class RenderParentProcessor extends BaseFlowProcessor {
    * Process step job - dispatches to appropriate step processor
    */
   protected async processStepJob(job: Job<StepJobData>): Promise<StepResult> {
-    const { stepType } = job.data;
+    const { stepType, input } = job.data;
     const startedAt = new Date();
 
     this.logger.log(`Processing step ${stepType} for job ${job.id}`);
 
     try {
-      // Resolve input by merging previous step results from parent job
-      const input = await this.resolveStepInput(job);
-
       let output: unknown;
 
       // Dispatch to appropriate step processor based on step type
+      // Each step processor fetches its own data independently
       switch (stepType) {
         case RenderStepType.PREPARE:
           output = await this.prepareStepProcessor.process(
@@ -147,61 +142,5 @@ export class RenderParentProcessor extends BaseFlowProcessor {
 
       throw error;
     }
-  }
-
-  /**
-   * Resolve step input by merging results from previous steps
-   */
-  private async resolveStepInput(job: Job<StepJobData>): Promise<unknown> {
-    const { stepType, input, parentJobId } = job.data;
-
-    if (!parentJobId) {
-      return input;
-    }
-
-    const parentJob = await this.renderQueue.getJob(parentJobId);
-    if (!parentJob) {
-      this.logger.warn(
-        `Parent job ${parentJobId} not found for step ${stepType}`
-      );
-      return input;
-    }
-
-    const parentData = parentJob.data as ParentJobData;
-    const stepResults = parentData.stepResults || {};
-
-    // Merge results based on step type
-    switch (stepType) {
-      case RenderStepType.EXECUTE: {
-        const prepareResult = stepResults[RenderStepType.PREPARE];
-        if (prepareResult?.status === 'completed') {
-          const output = prepareResult.output as TaskRenderPrepareStepOutput;
-          return {
-            ...(input as TaskRenderExecuteStep),
-            clipMediaMap: output.clipMediaMap,
-          };
-        }
-        break;
-      }
-
-      case RenderStepType.FINALIZE: {
-        const executeResult = stepResults[RenderStepType.EXECUTE];
-        if (executeResult?.status === 'completed') {
-          const output = executeResult.output as TaskRenderExecuteStepOutput;
-          return {
-            ...(input as TaskRenderFinalizeStep),
-            renderOutput: {
-              path: output.outputPath,
-              isLocal: output.isLocal,
-            },
-            storagePath: output.storagePath,
-            probeOutput: output.probeOutput,
-          };
-        }
-        break;
-      }
-    }
-
-    return input;
   }
 }

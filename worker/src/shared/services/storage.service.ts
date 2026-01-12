@@ -498,6 +498,66 @@ export class StorageService implements OnModuleInit {
   }
 
   /**
+   * Create a deterministic render output directory in ./data/renders/<taskId>/
+   * Returns the directory path - caller should use consistent filename within
+   */
+  async createRenderDir(taskId: string): Promise<string> {
+    try {
+      const renderDir = path.join(this.resolvedBasePath, 'renders', taskId);
+      await fs.promises.mkdir(renderDir, { recursive: true });
+      this.logger.debug(`Created render directory: ${renderDir}`);
+      return renderDir;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `Failed to create render directory for ${taskId}: ${errorMessage}`
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Get the deterministic render directory for a task
+   * Path: ./data/renders/<taskId>/
+   */
+  getRenderDir(taskId: string): string {
+    return path.join(this.resolvedBasePath, 'renders', taskId);
+  }
+
+  /**
+   * Get the deterministic render inputs directory for a task
+   * Path: ./data/renders/<taskId>/inputs/
+   */
+  getRenderInputsDir(taskId: string): string {
+    return path.join(this.getRenderDir(taskId), 'inputs');
+  }
+
+  /**
+   * Get the deterministic path for a specific input media file in a task
+   * Path: ./data/renders/<taskId>/inputs/<mediaId>.<extension>
+   */
+  getRenderInputPath(
+    taskId: string,
+    mediaId: string,
+    extension: string
+  ): string {
+    // Ensure extension doesn't have a leading dot
+    const cleanExt = extension.startsWith('.') ? extension.slice(1) : extension;
+    return path.join(this.getRenderInputsDir(taskId), `${mediaId}.${cleanExt}`);
+  }
+
+  /**
+   * Get the deterministic render output path for a task
+   * Path: ./data/renders/<taskId>/output.<format>
+   */
+  getRenderOutputPath(taskId: string, format: string): string {
+    // Ensure format doesn't have a leading dot
+    const cleanFormat = format.startsWith('.') ? format.slice(1) : format;
+    return path.join(this.getRenderDir(taskId), `output.${cleanFormat}`);
+  }
+
+  /**
    * Get the storage backend instance
    */
   getBackend(): StorageBackend {

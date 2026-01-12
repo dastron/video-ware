@@ -82,6 +82,24 @@ export interface ProcessUploadPayload {
   thumbnail?: ThumbnailConfig;
   /** Optional configuration for transcoding/proxy generation */
   transcode?: TranscodeConfig;
+  /** Optional configuration for audio extraction */
+  audio?: AudioConfig;
+}
+
+/**
+ * Configuration for audio extraction
+ */
+export interface AudioConfig {
+  /** Whether audio extraction is enabled */
+  enabled: boolean;
+  /** Audio format (mp3, aac, wav) */
+  format?: 'mp3' | 'aac' | 'wav';
+  /** Audio bitrate (e.g., '192k', '256k') */
+  bitrate?: string;
+  /** Number of audio channels (1 for mono, 2 for stereo) */
+  channels?: number;
+  /** Audio sample rate (e.g., 44100, 48000) */
+  sampleRate?: number;
 }
 
 /**
@@ -136,6 +154,12 @@ export interface DetectLabelsConfig {
   detectObjects?: boolean;
   /** Whether to detect labels (shot/segment level) */
   detectLabels?: boolean;
+  /** Whether to detect faces */
+  detectFaces?: boolean;
+  /** Whether to detect persons */
+  detectPersons?: boolean;
+  /** Whether to detect speech */
+  detectSpeech?: boolean;
 }
 
 /**

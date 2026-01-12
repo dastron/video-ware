@@ -9,9 +9,7 @@ import {
   TaskRenderFinalizeStep,
   TaskRenderFinalizeStepOutput,
 } from '@project/shared/jobs';
-import { FileType, FileStatus, MediaType, FileSource } from '@project/shared';
-import * as fs from 'fs/promises';
-import * as path from 'path';
+import { FileType, FileSource } from '@project/shared';
 
 /**
  * Processor for the FINALIZE step in rendering
@@ -36,65 +34,40 @@ export class FinalizeRenderStepProcessor extends BaseStepProcessor<
     input: TaskRenderFinalizeStep,
     job: Job<StepJobData>
   ): Promise<TaskRenderFinalizeStepOutput> {
-    const {
-      timelineId,
-      workspaceId,
-      version,
-      renderOutput,
-      storagePath,
-      format,
-    } = input;
+    const { timelineId, workspaceId, version, format } = input;
+    const taskId = job.data.taskId;
+
     this.logger.log(`Finalizing render for timeline ${timelineId}`);
 
-    let localPath = renderOutput.path;
-    let tempDir: string | undefined;
+    // Use deterministic path - same as execute step
+    // Path: ./data/renders/<taskId>/output.<format>
+    const localPath = this.storageService.getRenderOutputPath(taskId, format);
+    const storagePath = `renders/${taskId}/output.${format}`;
 
-    // 1. Ensure file is local for probing
-    if (!renderOutput.isLocal) {
-      this.logger.log(
-        `Downloading cloud render for probing: ${renderOutput.path}`
-      );
-      tempDir = await this.storageService.createTempDir(job.data.taskId);
-      localPath = await this.storageService.resolveFilePath({
-        storagePath: renderOutput.path,
-        recordId: job.data.taskId,
-      });
-    }
+    this.logger.log(`Probing rendered file at ${localPath}`);
 
-    // 2. Probe the video (unless already provided)
-    // In our new flow, EXECUTE might already provide probeOutput
-    let probeOutput = input.probeOutput;
-    if (!probeOutput) {
-      this.logger.log(`Probing rendered file at ${localPath}`);
-      const probeResult = await this.ffmpegService.probe(localPath);
-      probeOutput = this.mapProbeResult(probeResult);
-    }
+    // Probe the video
+    const probeResult = await this.ffmpegService.probe(localPath);
+    const probeOutput = this.mapProbeResult(probeResult);
 
     // 3. Resolve timeline name
     const timeline =
       await this.pocketbaseService.timelineMutator.getById(timelineId);
     const timelineName = timeline?.name || 'Untitled';
 
-    // 4. Create File record
-    // Note: We use the existing storagePath or generate a new one if not provided
-    const finalStoragePath =
-      storagePath ||
-      `renders/${workspaceId}/${timelineId}_${Date.now()}.${format}`;
-
-    const fileRecord = await this.createFileRecord({
-      workspaceId,
-      timelineName,
-      format,
-      storagePath: finalStoragePath,
-      localPath,
-    });
-
-    // 5. Create Media record
-    const mediaRecord = await this.createMediaRecord({
-      workspaceId,
-      timelineName,
-      fileRecordId: fileRecord.id,
-      probeOutput,
+    // 4. Create File record and upload to PocketBase
+    const fileName = `${timelineName}_render.${format}`;
+    const fileRecord = await this.pocketbaseService.uploadFile({
+      localFilePath: localPath,
+      fileName,
+      fileType: FileType.RENDER,
+      fileSource: FileSource.POCKETBASE, // Use POCKETBASE source as requested
+      storageKey: storagePath,
+      workspaceRef: workspaceId,
+      mimeType: this.getMimeType(format),
+      meta: {
+        ...probeOutput,
+      },
     });
 
     // 6. Create TimelineRender record
@@ -105,19 +78,15 @@ export class FinalizeRenderStepProcessor extends BaseStepProcessor<
         FileRef: fileRecord.id,
       });
 
-    // 7. Cleanup
-    if (tempDir) {
-      await fs.rm(tempDir, { recursive: true, force: true });
-    } else if (renderOutput.isLocal) {
-      // If it was local and we are done, clean up the original temp file
-      await fs.rm(path.dirname(localPath), { recursive: true, force: true });
-    }
+    // 7. Render file stays in ./data/renders/<taskId>/ - no cleanup needed
+    // The file is now the permanent storage location
 
-    this.logger.log(`Successfully finalized render: ${mediaRecord.id}`);
+    this.logger.log(
+      `Successfully finalized render: ${timelineRenderRecord.id}`
+    );
 
     return {
       fileId: fileRecord.id,
-      mediaId: mediaRecord.id,
       timelineRenderId: timelineRenderRecord.id,
     };
   }
@@ -143,66 +112,6 @@ export class FinalizeRenderStepProcessor extends BaseStepProcessor<
       format: probeResult.format.format_name || 'unknown',
       size: parseInt(String(probeResult.format.size)) || undefined,
     };
-  }
-
-  private async createFileRecord(data: {
-    workspaceId: string;
-    timelineName: string;
-    format: string;
-    storagePath: string;
-    localPath: string;
-  }): Promise<any> {
-    const { workspaceId, timelineName, format, storagePath, localPath } = data;
-    const stats = await fs.stat(localPath);
-    const mimeType = this.getMimeType(format);
-
-    // Create File record in PocketBase
-    // We use the same FormData logic as before for consistency
-    const formData = new FormData();
-    formData.append('name', `${timelineName}_render.${format}`);
-    formData.append('size', String(stats.size));
-    formData.append('fileStatus', FileStatus.AVAILABLE);
-    formData.append('fileType', FileType.RENDER);
-    formData.append('fileSource', FileSource.S3); // Assuming S3 for now or Local
-    formData.append('s3Key', storagePath);
-    formData.append('WorkspaceRef', workspaceId);
-    formData.append('meta', JSON.stringify({ mimeType }));
-
-    // Note: We don't upload the file body to PocketBase if it's already in S3
-    // but the original code did it. If it's already in S3, we just point to it.
-    // However, PocketBase might expect the file if it's not strictly an S3-only collection.
-
-    // I'll skip the body upload if s3Key is present and we want to be efficient
-    // but current system seems to use PB as a proxy for files too.
-
-    const pb = this.pocketbaseService.getClient();
-    return await pb.collection('Files').create(formData);
-  }
-
-  private async createMediaRecord(data: {
-    workspaceId: string;
-    timelineName: string;
-    fileRecordId: string;
-    probeOutput: any;
-  }): Promise<any> {
-    const { workspaceId, timelineName, fileRecordId, probeOutput } = data;
-
-    return await this.pocketbaseService.createMedia({
-      WorkspaceRef: workspaceId,
-      UploadRef: fileRecordId,
-      mediaType: MediaType.VIDEO,
-      duration: probeOutput.duration,
-      mediaData: {
-        name: `${timelineName} (Rendered)`,
-        width: probeOutput.width,
-        height: probeOutput.height,
-        fps: probeOutput.fps,
-        codec: probeOutput.codec,
-        probeOutput,
-      },
-      proxyFileRef: fileRecordId,
-      version: 1,
-    });
   }
 
   private getMimeType(format: string): string {

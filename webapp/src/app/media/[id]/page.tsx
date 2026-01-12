@@ -27,22 +27,14 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import type {
-  MediaClip,
-  DetectLabelsPayload,
-  MediaRecommendation,
-} from '@project/shared';
-import {
-  ClipType,
-  TaskType,
-  TaskStatus,
-  ProcessingProvider,
-} from '@project/shared/enums';
+import type { MediaClip, MediaRecommendation } from '@project/shared';
+import { ClipType } from '@project/shared/enums';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { TaskMutator, MediaClipMutator } from '@project/shared/mutator';
+import { MediaClipMutator } from '@project/shared/mutator';
 import pb from '@/lib/pocketbase-client';
 import { toast } from 'sonner';
 import { useWorkspace } from '@/hooks/use-workspace';
+import { MediaService } from '@/services';
 
 function MediaDetailsPageContentWithRecommendations() {
   const params = useParams();
@@ -172,38 +164,10 @@ function MediaDetailsPageContentWithRecommendations() {
     if (!media) return;
 
     setIsDetectingLabels(true);
+
     try {
-      const taskMutator = new TaskMutator(pb);
-
-      // Get the upload to retrieve the file reference
-      const upload = media.expand?.UploadRef;
-      if (!upload?.externalPath) {
-        throw new Error('Upload file reference not found');
-      }
-
-      // Create detect_labels task payload
-      const payload: DetectLabelsPayload = {
-        mediaId: media.id,
-        fileRef: upload.externalPath,
-        provider: ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
-        config: {
-          detectLabels: true,
-          detectObjects: true,
-          confidenceThreshold: 0.5,
-        },
-      };
-
-      const task = await taskMutator.create({
-        sourceType: 'media',
-        sourceId: media.id,
-        type: TaskType.DETECT_LABELS,
-        status: TaskStatus.QUEUED,
-        progress: 1,
-        attempts: 1,
-        payload: payload as unknown as Record<string, unknown>,
-        WorkspaceRef: media.WorkspaceRef,
-        UserRef: pb.authStore.model?.id || '',
-      });
+      const mediaService = new MediaService(pb);
+      const task = await mediaService.createTaskForLabel(media.id);
 
       toast.success('Label Detection Started', {
         description: `Task ${task.id} has been queued. Labels will be detected automatically.`,

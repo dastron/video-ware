@@ -39,84 +39,80 @@ export interface ValidationError {
  * @returns Array of TimelineTrack objects
  */
 export function generateTracks(timelineClips: TimelineClip[]): TimelineTrack[] {
-  // For now, we assume all clips are sequential video segments on one track.
-  // In the future, we can look at clip.type or other metadata to distribute to multiple tracks.
+  // We assume all clips are sequential segments.
+  // We generate one video track (Layer 0) and one audio track (Layer 0).
 
   const videoSegments: TimelineSegment[] = timelineClips.map((clip) => ({
     id: clip.id,
     assetId: clip.MediaRef,
-    type: 'video', // Defaulting to video for standard clips
+    type: 'video',
     time: {
-      start: clip.start, // Absolute timeline start time
+      start: 0, // Placeholder, will be set below
       duration: clip.end - clip.start,
-      sourceStart: 0, // Assuming we use the start of the source asset for now, or clip.start if it represents trimmed source.
-                      // IMPORTANT: In the current simple model, 'start' usually means timeline position.
-                      // If clips are sequential, 'start' is the cumulative duration.
-                      // If the frontend stores 'start' and 'end' as timeline positions, we use them directly.
-                      // If 'start' and 'end' meant source trimming, we'd need a different mapping.
-                      // Based on context (validateTimeRange checked against media duration), 'start' and 'end' in `addClipToTimeline`
-                      // seem to refer to Source Trimming if it's "offset" based, or Timeline Position?
-                      // Looking at `addClipToTimeline`: checks `validateTimeRange(start, end, media.duration)`.
-                      // This implies `start` and `end` are SOURCE timestamps.
+      sourceStart: clip.start,
+    },
+  }));
 
-                      // However, `timeline.clips` usually implies placement on timeline.
-                      // `TimelineService.addClipToTimeline` sets `start` and `end`.
-                      // `validateTimeRange` checks against media duration.
-                      // So `start` and `end` are definitely Source Trimming times.
-
-                      // But where is the timeline position stored?
-                      // `order` is stored. Sequential playback implies timeline position is calculated from previous clip durations.
-                      //
-                      // The current `TimelineService` uses `order` to sort.
-                      // `duration` calculation sums (end - start).
-                      // This confirms they are played sequentially.
-
-                      // So:
-                      // Segment Duration = clip.end - clip.start
-                      // Segment Source Start = clip.start
-                      // Segment Timeline Start = Sum of previous segments' durations
+  const audioSegments: TimelineSegment[] = timelineClips.map((clip) => ({
+    id: `${clip.id}-audio`,
+    assetId: clip.MediaRef,
+    type: 'audio',
+    time: {
+      start: 0, // Placeholder, will be set below
+      duration: clip.end - clip.start,
+      sourceStart: clip.start,
+    },
+    audio: {
+      volume: 1.0,
     },
   }));
 
   // Calculate timeline start times for sequential playback
   let currentTimelineTime = 0;
-  const positionedSegments = videoSegments.map(seg => {
-      const duration = seg.time.duration;
-      const positionedSeg = {
-          ...seg,
-          time: {
-              ...seg.time,
-              start: currentTimelineTime,
-              sourceStart: seg.time.start // Map the original 'start' to sourceStart
-          }
-      };
-      currentTimelineTime += duration;
-      return positionedSeg;
+  const positionedVideoSegments = videoSegments.map((seg) => {
+    const duration = seg.time.duration;
+    const positionedSeg = {
+      ...seg,
+      time: {
+        ...seg.time,
+        start: currentTimelineTime,
+      },
+    };
+    currentTimelineTime += duration;
+    return positionedSeg;
   });
 
-  const mainTrack: TimelineTrack = {
+  // Reset for audio track to ensure same positioning
+  currentTimelineTime = 0;
+  const positionedAudioSegments = audioSegments.map((seg) => {
+    const duration = seg.time.duration;
+    const positionedSeg = {
+      ...seg,
+      time: {
+        ...seg.time,
+        start: currentTimelineTime,
+      },
+    };
+    currentTimelineTime += duration;
+    return positionedSeg;
+  });
+
+  const videoTrack: TimelineTrack = {
     id: 'main-video-track',
     type: 'video',
     layer: 0,
-    segments: positionedSegments,
+    segments: positionedVideoSegments,
   };
 
-  return [mainTrack];
-}
+  const audioTrack: TimelineTrack = {
+    id: 'main-audio-track',
+    type: 'audio',
+    layer: 0,
+    segments: positionedAudioSegments,
+  };
 
-/**
- * Legacy EditList function for backward compatibility until refactor is complete
- * @deprecated Use generateTracks instead
- */
-export function generateEditList(timelineClips: TimelineClip[]): any[] {
-    // This function acts as a placeholder or bridge if needed,
-    // but we are migrating away from EditList type.
-    // We return an empty array or throw to signal deprecation if called.
-    return [];
+  return [videoTrack, audioTrack];
 }
-
-// We no longer strictly need validateEditList if we validate tracks differently,
-// but we might keep `validateTracks` in future.
 
 /**
  * Validate a TimeOffset object
@@ -126,7 +122,7 @@ export function generateEditList(timelineClips: TimelineClip[]): any[] {
  * @param field - Field name for error messages
  * @returns Array of validation errors (empty if valid)
  */
-function validateTimeOffset(
+export function validateTimeOffset(
   offset: unknown,
   context: string,
   field: string

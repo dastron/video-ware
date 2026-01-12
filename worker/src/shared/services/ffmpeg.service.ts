@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { exec } from 'child_process';
+import { exec, spawn } from 'child_process';
 import { promisify } from 'util';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -407,13 +407,12 @@ export class FFmpegService {
 
   /**
    * Execute FFmpeg command with arguments array and progress tracking
+   * Uses spawn with args array to avoid shell interpretation issues
    */
   async executeWithProgress(
     args: string[],
     onProgress?: (progress: number) => void
   ): Promise<void> {
-    const command = `ffmpeg ${args.join(' ')}`;
-
     // Try to estimate total duration from input files for progress tracking
     let totalDuration = 0;
     const inputIndex = args.findIndex((arg) => arg === '-i');
@@ -429,7 +428,57 @@ export class FFmpegService {
       }
     }
 
-    return this.executeWithProgressInner(command, totalDuration, onProgress);
+    return this.executeWithSpawn(args, totalDuration, onProgress);
+  }
+
+  /**
+   * Execute FFmpeg using spawn with args array (avoids shell interpretation issues)
+   */
+  private async executeWithSpawn(
+    args: string[],
+    totalDuration: number,
+    onProgress?: (progress: number) => void
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.logger.debug(`FFmpeg spawn: ffmpeg ${args.join(' ')}`);
+
+      const process = spawn('ffmpeg', args);
+      let stderr = '';
+
+      process.stderr?.on('data', (data: Buffer) => {
+        const dataStr = data.toString();
+        stderr += dataStr;
+
+        // Parse progress from FFmpeg stderr
+        if (onProgress && totalDuration > 0) {
+          const timeMatch = dataStr.match(
+            /time=(\d{2}):(\d{2}):(\d{2}\.\d{2})/
+          );
+          if (timeMatch) {
+            const hours = parseInt(timeMatch[1]);
+            const minutes = parseInt(timeMatch[2]);
+            const seconds = parseFloat(timeMatch[3]);
+            const currentTime = hours * 3600 + minutes * 60 + seconds;
+            const progress = Math.min(100, (currentTime / totalDuration) * 100);
+            onProgress(progress);
+          }
+        }
+      });
+
+      process.on('close', (code) => {
+        if (code === 0) {
+          resolve();
+        } else {
+          reject(
+            new Error(`FFmpeg exited with code ${code}. stderr: ${stderr}`)
+          );
+        }
+      });
+
+      process.on('error', (error) => {
+        reject(error);
+      });
+    });
   }
 
   /**

@@ -89,7 +89,7 @@ export class TranscodeStepProcessor extends BaseStepProcessor<
     // Create File record
     const storageKey = `uploads/${upload.WorkspaceRef}/${input.uploadId}/${FileType.PROXY}/${fileName}`;
 
-    const proxyFile = await this.pocketbaseService.createFileWithUpload({
+    const proxyFile = await this.pocketbaseService.uploadFile({
       localFilePath: proxyPath,
       fileName,
       fileType: FileType.PROXY,

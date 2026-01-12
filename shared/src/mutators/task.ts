@@ -1,7 +1,11 @@
 import { RecordService } from 'pocketbase';
 import type { ListResult } from 'pocketbase';
 import { TaskInputSchema, type Task, type TaskInput } from '../schema';
-import { type ProcessUploadPayload } from '../types';
+import {
+  type ProcessUploadPayload,
+  type RenderTimelinePayload,
+  type DetectLabelsPayload,
+} from '../types';
 import { TaskStatus, TaskType } from '../enums';
 import type { TypedPocketBase } from '../types';
 import { BaseMutator, type MutatorOptions } from './base';
@@ -45,6 +49,60 @@ export class TaskMutator extends BaseMutator<Task, TaskInput> {
       sourceType: 'upload',
       sourceId: uploadId,
       type: TaskType.PROCESS_UPLOAD,
+      status: TaskStatus.QUEUED,
+      progress: 1,
+      attempts: 1,
+      payload: payload as unknown as Record<string, unknown>,
+      WorkspaceRef: workspaceId,
+      UserRef: userId,
+    });
+  }
+
+  /**
+   * Create a render timeline task
+   * @param workspaceId The workspace ID
+   * @param userId The user ID
+   * @param timelineId The timeline ID
+   * @param payload The task payload
+   * @returns The created task
+   */
+  async createRenderTimelineTask(
+    workspaceId: string,
+    userId: string,
+    timelineId: string,
+    payload: RenderTimelinePayload
+  ): Promise<Task> {
+    return this.create({
+      sourceType: 'Timeline',
+      sourceId: timelineId,
+      type: TaskType.RENDER_TIMELINE,
+      status: TaskStatus.QUEUED,
+      progress: 1,
+      attempts: 1,
+      payload: payload as unknown as Record<string, unknown>,
+      WorkspaceRef: workspaceId,
+      UserRef: userId,
+    });
+  }
+
+  /**
+   * Create a detect labels task
+   * @param workspaceId The workspace ID
+   * @param userId The user ID
+   * @param mediaId The media ID
+   * @param payload The task payload
+   * @returns The created task
+   */
+  async createDetectLabelsTask(
+    workspaceId: string,
+    userId: string,
+    mediaId: string,
+    payload: DetectLabelsPayload
+  ): Promise<Task> {
+    return this.create({
+      sourceType: 'Media',
+      sourceId: mediaId,
+      type: TaskType.DETECT_LABELS,
       status: TaskStatus.QUEUED,
       progress: 1,
       attempts: 1,

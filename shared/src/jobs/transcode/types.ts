@@ -22,6 +22,7 @@ export enum TranscodeStepType {
   SPRITE = 'transcode:sprite',
   FILMSTRIP = 'transcode:filmstrip',
   TRANSCODE = 'transcode:transcode',
+  AUDIO = 'transcode:audio',
   FINALIZE = 'transcode:finalize',
 }
 
@@ -104,6 +105,28 @@ export interface TaskTranscodeTranscodeStep {
 }
 
 /**
+ * Input for the AUDIO step
+ * Extracts audio-only track from the media file
+ */
+export interface TaskTranscodeAudioStep {
+  type: 'audio';
+  /** Path to the media file */
+  filePath: string;
+  /** ID of the Upload record being processed */
+  uploadId: string;
+  /** ID of the Media record being processed (optional, will be resolved by processor if not provided) */
+  mediaId?: string;
+  /** Audio format (default: 'mp3') */
+  format?: 'mp3' | 'aac' | 'wav';
+  /** Audio bitrate (default: '192k') */
+  bitrate?: string;
+  /** Number of audio channels (default: 2 for stereo) */
+  channels?: number;
+  /** Audio sample rate (default: 48000) */
+  sampleRate?: number;
+}
+
+/**
  * Union type of all transcode step inputs
  */
 export type TaskTranscodeInput =
@@ -111,7 +134,8 @@ export type TaskTranscodeInput =
   | TaskTranscodeThumbnailStep
   | TaskTranscodeSpriteStep
   | TaskTranscodeFilmstripStep
-  | TaskTranscodeTranscodeStep;
+  | TaskTranscodeTranscodeStep
+  | TaskTranscodeAudioStep;
 
 // Legacy type aliases for backward compatibility during migration
 /** @deprecated Use TaskTranscodeProbeStep instead */
@@ -180,6 +204,16 @@ export interface TaskTranscodeTranscodeStepOutput {
 }
 
 /**
+ * Output from the AUDIO step
+ */
+export interface TaskTranscodeAudioStepOutput {
+  /** Path to the extracted audio file */
+  audioPath: string;
+  /** ID of the created File record */
+  audioFileId: string;
+}
+
+/**
  * Union type of all transcode step outputs
  */
 export type TaskTranscodeResult =
@@ -187,7 +221,8 @@ export type TaskTranscodeResult =
   | TaskTranscodeThumbnailStepOutput
   | TaskTranscodeSpriteStepOutput
   | TaskTranscodeFilmstripStepOutput
-  | TaskTranscodeTranscodeStepOutput;
+  | TaskTranscodeTranscodeStepOutput
+  | TaskTranscodeAudioStepOutput;
 
 // Legacy type aliases for backward compatibility during migration
 /** @deprecated Use TaskTranscodeProbeStepOutput instead */
