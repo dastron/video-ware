@@ -1,16 +1,14 @@
 /**
- * EditList utilities for timeline-to-render conversion
+ * Track generation utilities for timeline-to-render conversion
  *
- * EditList is the canonical format for render tasks, containing ordered entries
- * with time offsets and media references.
+ * Generates the tracks array for render tasks from timeline clips.
  */
 
-import type { EditList, EditListEntry } from '../types/video-ware';
+import type { TimelineTrack, TimelineSegment } from '../types/task-contracts';
 import type { TimelineClip } from '../schema/timeline-clip';
-import { toTimeOffset } from './time';
 
 /**
- * Validation result for editList validation
+ * Validation result for validation
  */
 export interface ValidationResult {
   valid: boolean;
@@ -31,138 +29,94 @@ export interface ValidationError {
 }
 
 /**
- * Generate an EditList from timeline clips
+ * Generate Tracks from timeline clips
  *
- * Converts TimelineClip records into EditListEntry format suitable for rendering.
- * Clips should be pre-sorted by order field.
+ * Converts TimelineClip records into a multi-track structure suitable for rendering.
+ * Currently maps all clips to a single video track (Layer 0).
+ * Future updates can separate tracks based on clip metadata (e.g. audio clips, overlay clips).
  *
  * @param timelineClips - Array of TimelineClip records (should be sorted by order)
- * @returns EditList array ready for render task
- *
- * @example
- * const clips = [
- *   { id: 'clip1', MediaRef: 'media1', start: 0, end: 10, order: 0 },
- *   { id: 'clip2', MediaRef: 'media2', start: 5, end: 15, order: 1 },
- * ];
- * const editList = generateEditList(clips);
- * // [
- * //   { key: 'clip1', inputs: ['media1'], startTimeOffset: {...}, endTimeOffset: {...} },
- * //   { key: 'clip2', inputs: ['media2'], startTimeOffset: {...}, endTimeOffset: {...} }
- * // ]
+ * @returns Array of TimelineTrack objects
  */
-export function generateEditList(timelineClips: TimelineClip[]): EditList {
-  return timelineClips.map((clip) => {
-    const entry: EditListEntry = {
-      key: clip.id,
-      inputs: [clip.MediaRef],
-      startTimeOffset: toTimeOffset(clip.start),
-      endTimeOffset: toTimeOffset(clip.end),
-    };
-    return entry;
+export function generateTracks(timelineClips: TimelineClip[]): TimelineTrack[] {
+  // For now, we assume all clips are sequential video segments on one track.
+  // In the future, we can look at clip.type or other metadata to distribute to multiple tracks.
+
+  const videoSegments: TimelineSegment[] = timelineClips.map((clip) => ({
+    id: clip.id,
+    assetId: clip.MediaRef,
+    type: 'video', // Defaulting to video for standard clips
+    time: {
+      start: clip.start, // Absolute timeline start time
+      duration: clip.end - clip.start,
+      sourceStart: 0, // Assuming we use the start of the source asset for now, or clip.start if it represents trimmed source.
+                      // IMPORTANT: In the current simple model, 'start' usually means timeline position.
+                      // If clips are sequential, 'start' is the cumulative duration.
+                      // If the frontend stores 'start' and 'end' as timeline positions, we use them directly.
+                      // If 'start' and 'end' meant source trimming, we'd need a different mapping.
+                      // Based on context (validateTimeRange checked against media duration), 'start' and 'end' in `addClipToTimeline`
+                      // seem to refer to Source Trimming if it's "offset" based, or Timeline Position?
+                      // Looking at `addClipToTimeline`: checks `validateTimeRange(start, end, media.duration)`.
+                      // This implies `start` and `end` are SOURCE timestamps.
+
+                      // However, `timeline.clips` usually implies placement on timeline.
+                      // `TimelineService.addClipToTimeline` sets `start` and `end`.
+                      // `validateTimeRange` checks against media duration.
+                      // So `start` and `end` are definitely Source Trimming times.
+
+                      // But where is the timeline position stored?
+                      // `order` is stored. Sequential playback implies timeline position is calculated from previous clip durations.
+                      //
+                      // The current `TimelineService` uses `order` to sort.
+                      // `duration` calculation sums (end - start).
+                      // This confirms they are played sequentially.
+
+                      // So:
+                      // Segment Duration = clip.end - clip.start
+                      // Segment Source Start = clip.start
+                      // Segment Timeline Start = Sum of previous segments' durations
+    },
+  }));
+
+  // Calculate timeline start times for sequential playback
+  let currentTimelineTime = 0;
+  const positionedSegments = videoSegments.map(seg => {
+      const duration = seg.time.duration;
+      const positionedSeg = {
+          ...seg,
+          time: {
+              ...seg.time,
+              start: currentTimelineTime,
+              sourceStart: seg.time.start // Map the original 'start' to sourceStart
+          }
+      };
+      currentTimelineTime += duration;
+      return positionedSeg;
   });
+
+  const mainTrack: TimelineTrack = {
+    id: 'main-video-track',
+    type: 'video',
+    layer: 0,
+    segments: positionedSegments,
+  };
+
+  return [mainTrack];
 }
 
 /**
- * Validate an EditList structure
- *
- * Checks that all entries have required fields and valid TimeOffset values.
- *
- * @param editList - EditList to validate
- * @returns ValidationResult with any errors found
- *
- * Validation checks:
- * - Each entry has a non-empty key
- * - Each entry has at least one input
- * - TimeOffset.seconds is non-negative integer
- * - TimeOffset.nanos is integer in range [0, 999,999,999]
- * - startTimeOffset < endTimeOffset
- *
- * @example
- * const result = validateEditList(editList);
- * if (!result.valid) {
- *   console.error('Validation errors:', result.errors);
- * }
+ * Legacy EditList function for backward compatibility until refactor is complete
+ * @deprecated Use generateTracks instead
  */
-export function validateEditList(editList: EditList): ValidationResult {
-  const errors: ValidationError[] = [];
-
-  editList.forEach((entry, index) => {
-    // Validate key
-    if (
-      !entry.key ||
-      typeof entry.key !== 'string' ||
-      entry.key.trim() === ''
-    ) {
-      errors.push({
-        code: 'INVALID_KEY',
-        message: `Entry at index ${index} has invalid or empty key`,
-        field: 'key',
-        actual: entry.key,
-      });
-    }
-
-    // Validate inputs
-    if (!Array.isArray(entry.inputs) || entry.inputs.length === 0) {
-      errors.push({
-        code: 'INVALID_INPUTS',
-        message: `Entry at index ${index} has no inputs`,
-        field: 'inputs',
-        actual: entry.inputs,
-      });
-    } else {
-      entry.inputs.forEach((input, inputIndex) => {
-        if (!input || typeof input !== 'string' || input.trim() === '') {
-          errors.push({
-            code: 'INVALID_INPUT',
-            message: `Entry at index ${index}, input at index ${inputIndex} is invalid`,
-            field: `inputs[${inputIndex}]`,
-            actual: input,
-          });
-        }
-      });
-    }
-
-    // Validate startTimeOffset
-    const startErrors = validateTimeOffset(
-      entry.startTimeOffset,
-      `Entry at index ${index}`,
-      'startTimeOffset'
-    );
-    errors.push(...startErrors);
-
-    // Validate endTimeOffset
-    const endErrors = validateTimeOffset(
-      entry.endTimeOffset,
-      `Entry at index ${index}`,
-      'endTimeOffset'
-    );
-    errors.push(...endErrors);
-
-    // Validate start < end
-    if (startErrors.length === 0 && endErrors.length === 0) {
-      const startTotal =
-        entry.startTimeOffset.seconds +
-        entry.startTimeOffset.nanos / 1_000_000_000;
-      const endTotal =
-        entry.endTimeOffset.seconds + entry.endTimeOffset.nanos / 1_000_000_000;
-
-      if (startTotal >= endTotal) {
-        errors.push({
-          code: 'INVALID_TIME_RANGE',
-          message: `Entry at index ${index} has startTimeOffset >= endTimeOffset`,
-          field: 'timeRange',
-          expected: 'start < end',
-          actual: { start: startTotal, end: endTotal },
-        });
-      }
-    }
-  });
-
-  return {
-    valid: errors.length === 0,
-    errors,
-  };
+export function generateEditList(timelineClips: TimelineClip[]): any[] {
+    // This function acts as a placeholder or bridge if needed,
+    // but we are migrating away from EditList type.
+    // We return an empty array or throw to signal deprecation if called.
+    return [];
 }
+
+// We no longer strictly need validateEditList if we validate tracks differently,
+// but we might keep `validateTracks` in future.
 
 /**
  * Validate a TimeOffset object

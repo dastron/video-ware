@@ -16,13 +16,14 @@ import type {
   EditList,
 } from '@project/shared';
 import {
-  generateEditList,
+  generateTracks,
   validateTimeRange,
   calculateDuration as calcDuration,
   type ValidationResult,
   type ValidationError,
   TaskType,
   TaskStatus,
+  type TimelineTrack,
 } from '@project/shared';
 
 /**
@@ -274,7 +275,7 @@ export class TimelineService {
   // ============================================================================
 
   /**
-   * Save timeline (increment version and generate editList)
+   * Save timeline (increment version and generate tracks)
    * @param timelineId Timeline ID
    * @returns The updated timeline
    */
@@ -282,8 +283,8 @@ export class TimelineService {
     // Get timeline clips
     const clips = await this.timelineClipMutator.getByTimeline(timelineId);
 
-    // Generate editList
-    const editList = generateEditList(clips);
+    // Generate tracks
+    const tracks = generateTracks(clips);
 
     // Calculate duration
     const duration = clips.reduce(
@@ -294,9 +295,9 @@ export class TimelineService {
     // Increment version
     const timeline = await this.timelineMutator.incrementVersion(timelineId);
 
-    // Update with editList and duration
+    // Update with tracks and duration
     return this.timelineMutator.update(timelineId, {
-      editList,
+      tracks,
       duration,
       version: timeline.version,
     });
@@ -316,13 +317,13 @@ export class TimelineService {
   }
 
   /**
-   * Generate editList for a timeline
+   * Generate tracks for a timeline
    * @param timelineId Timeline ID
-   * @returns EditList array
+   * @returns TimelineTrack array
    */
-  async generateEditList(timelineId: string): Promise<EditList> {
+  async generateTracks(timelineId: string): Promise<TimelineTrack[]> {
     const clips = await this.timelineClipMutator.getByTimeline(timelineId);
-    return generateEditList(clips);
+    return generateTracks(clips);
   }
 
   // ============================================================================
@@ -454,8 +455,8 @@ export class TimelineService {
       throw new Error(`Timeline not found: ${timelineId}`);
     }
 
-    // Generate editList
-    const editList = await this.generateEditList(timelineId);
+    // Generate tracks
+    const tracks = await this.generateTracks(timelineId);
 
     // Get current user ID - use provided userId or fall back to authStore
     const currentUserId =
@@ -468,7 +469,7 @@ export class TimelineService {
     const payload = {
       timelineId,
       version: timeline.version,
-      editList,
+      tracks,
       outputSettings,
     };
 

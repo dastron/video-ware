@@ -152,7 +152,7 @@ export type TimelineRecord = {
   name: string;
   duration?: number;
   version?: number;
-  editList?: EditList;
+  tracks?: unknown[]; // Using unknown[] for tracks to avoid circular dependency or complex types here
   renderTaskRef?: string;
   createdBy?: string;
   created: string;
