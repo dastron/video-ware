@@ -35,7 +35,7 @@ export default function RootLayout({
       >
         <AuthProvider>
           <WorkspaceProvider>
-            <UploadQueueProvider maxConcurrent={3}>
+            <UploadQueueProvider>
               <NavigationBar />
               <main className="min-h-screen pt-6">{children}</main>
               <Toaster />
