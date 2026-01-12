@@ -33,6 +33,7 @@ export { FFmpegProbeExecutor } from './ffmpeg/probe.executor';
 export { FFmpegThumbnailExecutor } from './ffmpeg/thumbnail.executor';
 export { FFmpegSpriteExecutor } from './ffmpeg/sprite.executor';
 export { FFmpegTranscodeExecutor } from './ffmpeg/transcode.executor';
+export { FFmpegAudioExecutor } from './ffmpeg/audio.executor';
 
 // Google Cloud implementations
 export { GoogleTranscodeExecutor } from './google/transcode.executor';

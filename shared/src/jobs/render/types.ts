@@ -27,8 +27,8 @@ export interface TaskRenderPrepareStep {
   type: 'prepare';
   /** ID of the timeline being rendered */
   timelineId: string;
-  /** Edit list from the render payload */
-  editList: RenderTimelinePayload['editList'];
+  /** Tracks from the render payload */
+  tracks: RenderTimelinePayload['tracks'];
 }
 
 /**
@@ -39,10 +39,8 @@ export interface TaskRenderExecuteStep {
   type: 'execute';
   /** ID of the timeline being rendered */
   timelineId: string;
-  /** Edit list from the render payload */
-  editList: RenderTimelinePayload['editList'];
-  /** Resolved clip media from PREPARE step */
-  clipMediaMap: Record<string, { media: Media; filePath: string }>;
+  /** Tracks from the render payload */
+  tracks: RenderTimelinePayload['tracks'];
   /** Output settings for the render */
   outputSettings: RenderTimelinePayload['outputSettings'];
 }
@@ -50,6 +48,7 @@ export interface TaskRenderExecuteStep {
 /**
  * Input for the FINALIZE step
  * Probes and creates records for the rendered file
+ * Uses deterministic path: ./data/renders/<taskId>/output.<format>
  */
 export interface TaskRenderFinalizeStep {
   type: 'finalize';
@@ -59,17 +58,8 @@ export interface TaskRenderFinalizeStep {
   workspaceId: string;
   /** Version number */
   version: number;
-  /** Local path (for probing) or cloud path */
-  renderOutput: {
-    path: string; // local path or cloud URI
-    isLocal: boolean;
-  };
-  /** Final storage path if different from output */
-  storagePath?: string;
-  /** Output settings format */
+  /** Output format (e.g., 'mp4') - used to determine file path */
   format: string;
-  /** Optional probe output if already probed in execute step */
-  probeOutput?: ProbeOutput;
 }
 
 /**
@@ -108,8 +98,6 @@ export interface TaskRenderExecuteStepOutput {
 export interface TaskRenderFinalizeStepOutput {
   /** ID of the created File record */
   fileId: string;
-  /** ID of the created Media record */
-  mediaId: string;
   /** ID of the created TimelineRender record */
   timelineRenderId: string;
 }

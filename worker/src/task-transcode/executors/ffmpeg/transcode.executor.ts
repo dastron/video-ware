@@ -92,7 +92,7 @@ export class FFmpegTranscodeExecutor implements ITranscodeExecutor {
   }
 
   private resolveBitrate(bitrate?: number): string {
-    if (!bitrate) return '2M';
+    if (!bitrate) return '6M';
     return `${Math.round(bitrate / 1000000)}M`;
   }
 }

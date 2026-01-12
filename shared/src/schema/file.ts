@@ -28,6 +28,7 @@ export const FileSchema = z
     fileType: SelectField([
       FileType.ORIGINAL,
       FileType.PROXY,
+      FileType.AUDIO,
       FileType.THUMBNAIL,
       FileType.SPRITE,
       FileType.LABELS_JSON,
@@ -63,6 +64,7 @@ export const FileInputSchema = z.object({
   fileType: z.enum([
     FileType.ORIGINAL,
     FileType.PROXY,
+    FileType.AUDIO,
     FileType.THUMBNAIL,
     FileType.SPRITE,
     FileType.LABELS_JSON,

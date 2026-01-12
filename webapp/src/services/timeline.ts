@@ -12,17 +12,15 @@ import type {
   TimelineClip,
   TimelineClipInput,
   Task,
-  TaskInput,
-  EditList,
 } from '@project/shared';
 import {
-  generateEditList,
+  generateTracks,
   validateTimeRange,
   calculateDuration as calcDuration,
   type ValidationResult,
   type ValidationError,
-  TaskType,
-  TaskStatus,
+  type TimelineTrack,
+  type RenderFlowConfig,
 } from '@project/shared';
 
 /**
@@ -34,13 +32,9 @@ export interface TimelineWithClips extends Timeline {
 
 /**
  * Output settings for render tasks
+ * @deprecated Use RenderFlowConfig instead
  */
-export interface OutputSettings {
-  format?: string;
-  resolution?: string;
-  codec?: string;
-  [key: string]: unknown;
-}
+export type OutputSettings = RenderFlowConfig;
 
 /**
  * Timeline service that provides high-level timeline operations
@@ -274,7 +268,7 @@ export class TimelineService {
   // ============================================================================
 
   /**
-   * Save timeline (increment version and generate editList)
+   * Save timeline (increment version and generate tracks)
    * @param timelineId Timeline ID
    * @returns The updated timeline
    */
@@ -282,8 +276,8 @@ export class TimelineService {
     // Get timeline clips
     const clips = await this.timelineClipMutator.getByTimeline(timelineId);
 
-    // Generate editList
-    const editList = generateEditList(clips);
+    // Generate tracks
+    const tracks = generateTracks(clips);
 
     // Calculate duration
     const duration = clips.reduce(
@@ -294,9 +288,9 @@ export class TimelineService {
     // Increment version
     const timeline = await this.timelineMutator.incrementVersion(timelineId);
 
-    // Update with editList and duration
+    // Update with tracks and duration
     return this.timelineMutator.update(timelineId, {
-      editList,
+      timelineData: { trackList: tracks },
       duration,
       version: timeline.version,
     });
@@ -316,13 +310,13 @@ export class TimelineService {
   }
 
   /**
-   * Generate editList for a timeline
+   * Generate tracks for a timeline
    * @param timelineId Timeline ID
-   * @returns EditList array
+   * @returns TimelineTrack array
    */
-  async generateEditList(timelineId: string): Promise<EditList> {
+  async generateTracks(timelineId: string): Promise<TimelineTrack[]> {
     const clips = await this.timelineClipMutator.getByTimeline(timelineId);
-    return generateEditList(clips);
+    return generateTracks(clips);
   }
 
   // ============================================================================
@@ -430,13 +424,13 @@ export class TimelineService {
   /**
    * Create a render task for a timeline
    * @param timelineId Timeline ID
-   * @param outputSettings Output settings for the render
+   * @param config Output settings for the render
    * @param userId Optional user ID (defaults to authenticated user from pb.authStore)
    * @returns The created task
    */
   async createRenderTask(
     timelineId: string,
-    outputSettings: OutputSettings,
+    config: RenderFlowConfig,
     userId?: string
   ): Promise<Task> {
     // Validate timeline
@@ -454,8 +448,8 @@ export class TimelineService {
       throw new Error(`Timeline not found: ${timelineId}`);
     }
 
-    // Generate editList
-    const editList = await this.generateEditList(timelineId);
+    // Generate tracks
+    const tracks = await this.generateTracks(timelineId);
 
     // Get current user ID - use provided userId or fall back to authStore
     const currentUserId =
@@ -467,27 +461,18 @@ export class TimelineService {
     // Create task payload
     const payload = {
       timelineId,
-      version: timeline.version,
-      editList,
-      outputSettings,
+      version: timeline.version || 0,
+      tracks,
+      outputSettings: config,
     };
 
     // Create task
-    const taskInput: TaskInput = {
-      sourceId: timelineId,
-      sourceType: 'Timelines',
-      WorkspaceRef: timeline.WorkspaceRef,
-      type: TaskType.RENDER_TIMELINE,
-      status: TaskStatus.QUEUED,
-      UserRef: currentUserId,
-      progress: 1,
-      attempts: 1,
-      payload,
-    };
-
-    const task = await this.taskMutator.create(taskInput);
-
-    return task;
+    return this.taskMutator.createRenderTimelineTask(
+      timeline.WorkspaceRef,
+      currentUserId,
+      timelineId,
+      payload
+    );
   }
 }
 

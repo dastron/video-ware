@@ -9,11 +9,7 @@ import {
   ExecuteRenderStepProcessor,
   FinalizeRenderStepProcessor,
 } from './processors';
-import {
-  FFmpegResolveClipsExecutor,
-  FFmpegComposeExecutor,
-  GCTranscoderExecutor,
-} from './executors';
+import { FFmpegResolveClipsExecutor, FFmpegComposeExecutor } from './executors';
 
 @Module({
   imports: [SharedModule, QueueModule],
@@ -27,7 +23,6 @@ import {
     // Executors (strategy implementations)
     FFmpegResolveClipsExecutor,
     FFmpegComposeExecutor,
-    GCTranscoderExecutor,
 
     // Parent processor
     RenderParentProcessor,

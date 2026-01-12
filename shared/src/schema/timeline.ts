@@ -14,20 +14,13 @@ export const TimeOffsetSchema = z.object({
   nanos: z.number().int().min(0).max(999999999),
 });
 
-export const EditListEntrySchema = z.object({
-  key: z.string(),
-  inputs: z.array(z.string()),
-  startTimeOffset: TimeOffsetSchema,
-  endTimeOffset: TimeOffsetSchema,
-});
-
 // Define the Zod schema
 export const TimelineSchema = z
   .object({
     name: TextField().min(1).max(200),
     WorkspaceRef: RelationField({ collection: 'Workspaces' }),
     duration: NumberField({ min: 0 }).default(0), // computed total duration in seconds
-    editList: JSONField().optional(), // EditList snapshot for rendering
+    timelineData: JSONField().optional(),
     UserRef: RelationField({ collection: 'Users' }).optional(),
     version: NumberField().default(1).optional(),
     processor: TextField().optional(),
@@ -39,7 +32,7 @@ export const TimelineInputSchema = z.object({
   name: z.string().min(1).max(200),
   WorkspaceRef: z.string().min(1, 'Workspace is required'),
   duration: z.number().min(0).default(0),
-  editList: z.array(EditListEntrySchema).optional(),
+  timelineData: z.array(z.any()).optional(), // Using any for tracks structure to simplify input schema
   UserRef: z.string().optional(),
   version: z.number().default(1).optional(),
   processor: z.string().optional(),

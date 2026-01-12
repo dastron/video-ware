@@ -1,16 +1,14 @@
 /**
- * EditList utilities for timeline-to-render conversion
+ * Track generation utilities for timeline-to-render conversion
  *
- * EditList is the canonical format for render tasks, containing ordered entries
- * with time offsets and media references.
+ * Generates the tracks array for render tasks from timeline clips.
  */
 
-import type { EditList, EditListEntry } from '../types/video-ware';
+import type { TimelineTrack, TimelineSegment } from '../types/task-contracts';
 import type { TimelineClip } from '../schema/timeline-clip';
-import { toTimeOffset } from './time';
 
 /**
- * Validation result for editList validation
+ * Validation result for validation
  */
 export interface ValidationResult {
   valid: boolean;
@@ -31,137 +29,89 @@ export interface ValidationError {
 }
 
 /**
- * Generate an EditList from timeline clips
+ * Generate Tracks from timeline clips
  *
- * Converts TimelineClip records into EditListEntry format suitable for rendering.
- * Clips should be pre-sorted by order field.
+ * Converts TimelineClip records into a multi-track structure suitable for rendering.
+ * Currently maps all clips to a single video track (Layer 0).
+ * Future updates can separate tracks based on clip metadata (e.g. audio clips, overlay clips).
  *
  * @param timelineClips - Array of TimelineClip records (should be sorted by order)
- * @returns EditList array ready for render task
- *
- * @example
- * const clips = [
- *   { id: 'clip1', MediaRef: 'media1', start: 0, end: 10, order: 0 },
- *   { id: 'clip2', MediaRef: 'media2', start: 5, end: 15, order: 1 },
- * ];
- * const editList = generateEditList(clips);
- * // [
- * //   { key: 'clip1', inputs: ['media1'], startTimeOffset: {...}, endTimeOffset: {...} },
- * //   { key: 'clip2', inputs: ['media2'], startTimeOffset: {...}, endTimeOffset: {...} }
- * // ]
+ * @returns Array of TimelineTrack objects
  */
-export function generateEditList(timelineClips: TimelineClip[]): EditList {
-  return timelineClips.map((clip) => {
-    const entry: EditListEntry = {
-      key: clip.id,
-      inputs: [clip.MediaRef],
-      startTimeOffset: toTimeOffset(clip.start),
-      endTimeOffset: toTimeOffset(clip.end),
+export function generateTracks(timelineClips: TimelineClip[]): TimelineTrack[] {
+  // We assume all clips are sequential segments.
+  // We generate one video track (Layer 0) and one audio track (Layer 0).
+
+  const videoSegments: TimelineSegment[] = timelineClips.map((clip) => ({
+    id: clip.id,
+    assetId: clip.MediaRef,
+    type: 'video',
+    time: {
+      start: 0, // Placeholder, will be set below
+      duration: clip.end - clip.start,
+      sourceStart: clip.start,
+    },
+  }));
+
+  const audioSegments: TimelineSegment[] = timelineClips.map((clip) => ({
+    id: `${clip.id}-audio`,
+    assetId: clip.MediaRef,
+    type: 'audio',
+    time: {
+      start: 0, // Placeholder, will be set below
+      duration: clip.end - clip.start,
+      sourceStart: clip.start,
+    },
+    audio: {
+      volume: 1.0,
+    },
+  }));
+
+  // Calculate timeline start times for sequential playback
+  let currentTimelineTime = 0;
+  const positionedVideoSegments = videoSegments.map((seg) => {
+    const duration = seg.time.duration;
+    const positionedSeg = {
+      ...seg,
+      time: {
+        ...seg.time,
+        start: currentTimelineTime,
+      },
     };
-    return entry;
-  });
-}
-
-/**
- * Validate an EditList structure
- *
- * Checks that all entries have required fields and valid TimeOffset values.
- *
- * @param editList - EditList to validate
- * @returns ValidationResult with any errors found
- *
- * Validation checks:
- * - Each entry has a non-empty key
- * - Each entry has at least one input
- * - TimeOffset.seconds is non-negative integer
- * - TimeOffset.nanos is integer in range [0, 999,999,999]
- * - startTimeOffset < endTimeOffset
- *
- * @example
- * const result = validateEditList(editList);
- * if (!result.valid) {
- *   console.error('Validation errors:', result.errors);
- * }
- */
-export function validateEditList(editList: EditList): ValidationResult {
-  const errors: ValidationError[] = [];
-
-  editList.forEach((entry, index) => {
-    // Validate key
-    if (
-      !entry.key ||
-      typeof entry.key !== 'string' ||
-      entry.key.trim() === ''
-    ) {
-      errors.push({
-        code: 'INVALID_KEY',
-        message: `Entry at index ${index} has invalid or empty key`,
-        field: 'key',
-        actual: entry.key,
-      });
-    }
-
-    // Validate inputs
-    if (!Array.isArray(entry.inputs) || entry.inputs.length === 0) {
-      errors.push({
-        code: 'INVALID_INPUTS',
-        message: `Entry at index ${index} has no inputs`,
-        field: 'inputs',
-        actual: entry.inputs,
-      });
-    } else {
-      entry.inputs.forEach((input, inputIndex) => {
-        if (!input || typeof input !== 'string' || input.trim() === '') {
-          errors.push({
-            code: 'INVALID_INPUT',
-            message: `Entry at index ${index}, input at index ${inputIndex} is invalid`,
-            field: `inputs[${inputIndex}]`,
-            actual: input,
-          });
-        }
-      });
-    }
-
-    // Validate startTimeOffset
-    const startErrors = validateTimeOffset(
-      entry.startTimeOffset,
-      `Entry at index ${index}`,
-      'startTimeOffset'
-    );
-    errors.push(...startErrors);
-
-    // Validate endTimeOffset
-    const endErrors = validateTimeOffset(
-      entry.endTimeOffset,
-      `Entry at index ${index}`,
-      'endTimeOffset'
-    );
-    errors.push(...endErrors);
-
-    // Validate start < end
-    if (startErrors.length === 0 && endErrors.length === 0) {
-      const startTotal =
-        entry.startTimeOffset.seconds +
-        entry.startTimeOffset.nanos / 1_000_000_000;
-      const endTotal =
-        entry.endTimeOffset.seconds + entry.endTimeOffset.nanos / 1_000_000_000;
-
-      if (startTotal >= endTotal) {
-        errors.push({
-          code: 'INVALID_TIME_RANGE',
-          message: `Entry at index ${index} has startTimeOffset >= endTimeOffset`,
-          field: 'timeRange',
-          expected: 'start < end',
-          actual: { start: startTotal, end: endTotal },
-        });
-      }
-    }
+    currentTimelineTime += duration;
+    return positionedSeg;
   });
 
-  return {
-    valid: errors.length === 0,
-    errors,
+  // Reset for audio track to ensure same positioning
+  currentTimelineTime = 0;
+  const positionedAudioSegments = audioSegments.map((seg) => {
+    const duration = seg.time.duration;
+    const positionedSeg = {
+      ...seg,
+      time: {
+        ...seg.time,
+        start: currentTimelineTime,
+      },
+    };
+    currentTimelineTime += duration;
+    return positionedSeg;
+  });
+
+  const videoTrack: TimelineTrack = {
+    id: 'main-video-track',
+    type: 'video',
+    layer: 0,
+    segments: positionedVideoSegments,
   };
+
+  const audioTrack: TimelineTrack = {
+    id: 'main-audio-track',
+    type: 'audio',
+    layer: 0,
+    segments: positionedAudioSegments,
+  };
+
+  return [videoTrack, audioTrack];
 }
 
 /**
@@ -172,7 +122,7 @@ export function validateEditList(editList: EditList): ValidationResult {
  * @param field - Field name for error messages
  * @returns Array of validation errors (empty if valid)
  */
-function validateTimeOffset(
+export function validateTimeOffset(
   offset: unknown,
   context: string,
   field: string

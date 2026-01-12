@@ -83,7 +83,7 @@ export function TimelineEditorLayout() {
                 toast.promise(
                   saveTimeline().then(() =>
                     createRenderTask({
-                      resolution: '1920x1080',
+                      resolution: '3840x2160',
                       codec: 'libx264',
                       format: 'mp4',
                     })

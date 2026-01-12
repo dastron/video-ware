@@ -3,6 +3,7 @@ import type { ListResult } from 'pocketbase';
 import { FileInputSchema } from '../schema';
 import type { File, FileInput } from '../schema';
 import type { TypedPocketBase } from '../types';
+import { FileType } from '../enums';
 import { BaseMutator, type MutatorOptions } from './base';
 
 export class FileMutator extends BaseMutator<File, FileInput> {
@@ -64,5 +65,16 @@ export class FileMutator extends BaseMutator<File, FileInput> {
     perPage = 100
   ): Promise<ListResult<File>> {
     return this.getList(page, perPage, `MediaRef = "${mediaId}"`);
+  }
+
+  /**
+   * Get the original file for an upload
+   * @param uploadId The upload ID
+   * @returns The original file record or null if not found
+   */
+  async getOriginalByUpload(uploadId: string): Promise<File | null> {
+    return this.getFirstByFilter(
+      `UploadRef = "${uploadId}" && fileType = "${FileType.ORIGINAL}"`
+    );
   }
 }

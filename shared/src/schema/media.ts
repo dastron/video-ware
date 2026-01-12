@@ -28,6 +28,7 @@ export const MediaSchema = z
     spriteFileRef: RelationField({ collection: 'Files' }).optional(),
     filmstripFileRefs: RelationsField({ collection: 'Files' }).optional(),
     proxyFileRef: RelationField({ collection: 'Files' }).optional(),
+    audioFileRef: RelationField({ collection: 'Files' }).optional(),
     version: NumberField().default(1).optional(),
     processor: TextField().optional(),
   })
@@ -48,6 +49,7 @@ export const MediaInputSchema = z.object({
   spriteFileRef: z.string().optional(),
   filmstripFileRef: z.string().optional(),
   proxyFileRef: z.string().optional(),
+  audioFileRef: z.string().optional(),
   version: NumberField().default(1).optional(),
   processor: z.string().optional(),
 });

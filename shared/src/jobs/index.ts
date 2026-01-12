@@ -10,3 +10,4 @@ export * from './transcode/index.js';
 export * from './render/index.js';
 export * from './labels/index.js';
 export * from './recommendations/index.js';
+export * from './flow-definitions.js';

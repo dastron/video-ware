@@ -97,7 +97,7 @@ export class SpriteStepProcessor extends BaseStepProcessor<
     // Create File record with sprite configuration in meta
     const storageKey = `uploads/${upload.WorkspaceRef}/${input.uploadId}/${FileType.SPRITE}/${fileName}`;
 
-    const spriteFile = await this.pocketbaseService.createFileWithUpload({
+    const spriteFile = await this.pocketbaseService.uploadFile({
       localFilePath: spritePath,
       fileName,
       fileType: FileType.SPRITE,

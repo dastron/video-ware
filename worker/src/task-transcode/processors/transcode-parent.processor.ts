@@ -10,6 +10,7 @@ import {
   type TaskTranscodeSpriteStep,
   type TaskTranscodeFilmstripStep,
   type TaskTranscodeTranscodeStep,
+  type TaskTranscodeAudioStep,
 } from '@project/shared/jobs';
 import { PocketBaseService } from '../../shared/services/pocketbase.service';
 import { ProbeStepProcessor } from './probe-step.processor';
@@ -17,6 +18,7 @@ import { ThumbnailStepProcessor } from './thumbnail-step.processor';
 import { SpriteStepProcessor } from './sprite-step.processor';
 import { FilmstripStepProcessor } from './filmstrip-step.processor';
 import { TranscodeStepProcessor } from './transcode-step.processor';
+import { AudioStepProcessor } from './audio-step.processor';
 import type {
   ParentJobData,
   StepJobData,
@@ -41,7 +43,8 @@ export class TranscodeParentProcessor extends BaseFlowProcessor {
     private readonly thumbnailStepProcessor: ThumbnailStepProcessor,
     private readonly spriteStepProcessor: SpriteStepProcessor,
     private readonly filmstripStepProcessor: FilmstripStepProcessor,
-    private readonly transcodeStepProcessor: TranscodeStepProcessor
+    private readonly transcodeStepProcessor: TranscodeStepProcessor,
+    private readonly audioStepProcessor: AudioStepProcessor
   ) {
     super();
     this.pocketbaseService = pocketbaseService;
@@ -136,6 +139,13 @@ export class TranscodeParentProcessor extends BaseFlowProcessor {
         case TranscodeStepType.TRANSCODE:
           output = await this.transcodeStepProcessor.process(
             input as TaskTranscodeTranscodeStep,
+            job
+          );
+          break;
+
+        case TranscodeStepType.AUDIO:
+          output = await this.audioStepProcessor.process(
+            input as TaskTranscodeAudioStep,
             job
           );
           break;

@@ -57,7 +57,7 @@ export interface RenderExecutorResult {
 export interface IPrepareExecutor {
   execute(
     timelineId: string,
-    editList: RenderTimelinePayload['editList']
+    tracks: RenderTimelinePayload['tracks']
   ): Promise<ResolveClipsResult>;
 }
 
@@ -66,7 +66,7 @@ export interface IPrepareExecutor {
  */
 export interface IRenderExecutor {
   execute(
-    editList: RenderTimelinePayload['editList'],
+    tracks: RenderTimelinePayload['tracks'],
     clipMediaMap: Record<string, { media: Media; filePath: string }>,
     outputName: string,
     outputSettings: RenderTimelinePayload['outputSettings'],

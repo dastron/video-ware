@@ -64,6 +64,7 @@ export enum FileType {
   FILMSTRIP = 'filmstrip',
   LABELS_JSON = 'labels_json',
   RENDER = 'render',
+  AUDIO = 'audio',
 }
 
 export enum FileSource {
