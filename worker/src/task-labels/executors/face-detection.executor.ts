@@ -31,7 +31,7 @@ export interface FaceDetectionConfig {
 export class FaceDetectionExecutor {
   private readonly logger = new Logger(FaceDetectionExecutor.name);
 
-  constructor(private readonly googleCloudService: GoogleCloudService) {}
+  constructor(private readonly googleCloudService: GoogleCloudService) { }
 
   /**
    * Execute face detection on a video
@@ -105,7 +105,11 @@ export class FaceDetectionExecutor {
       const faces = (annotation.faceDetectionAnnotations || []).map((face) => {
         // Extract track ID from the first track (faces typically have one track)
         const track = face.tracks?.[0];
-        const trackId = track ? String((track as any).trackId || '') : '';
+        const rawTrackId = (track as any)?.trackId;
+        const trackId =
+          rawTrackId !== undefined && rawTrackId !== null
+            ? String(rawTrackId)
+            : '';
 
         // Process frames with bounding boxes and attributes
         const frames: FaceFrame[] = (track?.timestampedObjects || []).map(
@@ -159,7 +163,7 @@ export class FaceDetectionExecutor {
 
       this.logger.log(
         `Face detection completed: ${filteredFaces.length} faces tracked ` +
-          `(${faces.length - filteredFaces.length} filtered by confidence threshold)`
+        `(${faces.length - filteredFaces.length} filtered by confidence threshold)`
       );
 
       return {

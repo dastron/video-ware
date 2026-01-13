@@ -90,6 +90,7 @@ export class SpeechTranscriptionNormalizer {
           confidence: segment.wordTimings[idx].confidence,
         })),
         speakerTag: segment.speakerTag,
+        languageCode: response.languageCode,
         speechHash,
       });
 

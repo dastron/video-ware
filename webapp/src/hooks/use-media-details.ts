@@ -8,6 +8,7 @@ interface UseMediaDetailsResult {
   clips: MediaClip[];
   isLoading: boolean;
   error: Error | null;
+  hasActiveLabelTask: boolean;
   refresh: () => Promise<void>;
 }
 
@@ -15,6 +16,7 @@ export function useMediaDetails(mediaId: string): UseMediaDetailsResult {
   const [media, setMedia] = useState<Media | null>(null);
   const [clips, setClips] = useState<MediaClip[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasActiveLabelTask, setHasActiveLabelTask] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const { isAuthenticated } = useAuth();
 
@@ -40,6 +42,12 @@ export function useMediaDetails(mediaId: string): UseMediaDetailsResult {
 
       setMedia(mediaRecord);
       setClips(clipsList.items);
+
+      // Fetch active label detection tasks
+      const activeTasks = await pb.collection('Tasks').getList(1, 1, {
+        filter: `sourceId = "${mediaId}" && type = "detect_labels" && (status = "queued" || status = "running")`,
+      });
+      setHasActiveLabelTask(activeTasks.totalItems > 0);
     } catch (err) {
       console.error('Error fetching media details:', err);
       setError(
@@ -54,5 +62,12 @@ export function useMediaDetails(mediaId: string): UseMediaDetailsResult {
     fetchData();
   }, [fetchData]);
 
-  return { media, clips, isLoading, error, refresh: fetchData };
+  return {
+    media,
+    clips,
+    isLoading,
+    error,
+    hasActiveLabelTask,
+    refresh: fetchData,
+  };
 }

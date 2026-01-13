@@ -57,6 +57,7 @@ describe('SpeechTranscriptionNormalizer', () => {
     expect(segments[0].words.length).toBe(6);
     expect(segments[0].startTime).toBe(0);
     expect(segments[0].endTime).toBe(3.5);
+    expect(segments[0].languageCode).toBe('en-US');
   });
 
   it('should segment speech by speaker', async () => {

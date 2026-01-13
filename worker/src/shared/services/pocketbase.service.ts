@@ -15,7 +15,9 @@ import {
   FileMutator,
   LabelClipMutator,
   LabelEntityMutator,
+  LabelFaceMutator,
   LabelMediaMutator,
+  LabelSpeechMutator,
   LabelTrackMutator,
   MediaClipMutator,
   MediaMutator,
@@ -57,11 +59,13 @@ export class PocketBaseService implements OnModuleInit {
   public workspaceMutator!: WorkspaceMutator;
   public labelTrackMutator!: LabelTrackMutator;
   public labelMediaMutator!: LabelMediaMutator;
+  public labelFaceMutator!: LabelFaceMutator;
+  public labelSpeechMutator!: LabelSpeechMutator;
 
   constructor(
     private readonly configService: ConfigService,
     private readonly pocketBaseClientService: PocketBaseClientService
-  ) {}
+  ) { }
 
   async onModuleInit() {
     await this.connect();
@@ -108,6 +112,8 @@ export class PocketBaseService implements OnModuleInit {
     this.labelEntityMutator = new LabelEntityMutator(this.pb);
     this.labelMediaMutator = new LabelMediaMutator(this.pb);
     this.labelTrackMutator = new LabelTrackMutator(this.pb);
+    this.labelFaceMutator = new LabelFaceMutator(this.pb);
+    this.labelSpeechMutator = new LabelSpeechMutator(this.pb);
     this.mediaRecommendationMutator = new MediaRecommendationMutator(this.pb);
     this.timelineRecommendationMutator = new TimelineRecommendationMutator(
       this.pb

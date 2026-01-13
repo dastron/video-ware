@@ -13,6 +13,7 @@ import type { FaceDetectionStepOutput } from '../types/step-outputs';
 import type {
   FaceDetectionResponse,
   LabelClipData,
+  LabelFaceData,
   LabelTrackData,
   LabelMediaData,
 } from '../types';
@@ -120,18 +121,28 @@ export class FaceDetectionStepProcessor extends BaseStepProcessor<
         `Inserted ${entityIds.length} label entities for media ${input.mediaId}`
       );
 
-      // Step 5: Batch insert LabelTrack records (with keyframes and attributes)
-      // Face detection creates a single "Face" entity, so all tracks reference it
+      // Step 5: Batch insert LabelFace records
       const entityId = entityIds.length > 0 ? entityIds[0] : undefined;
+      const { faceIds, trackIdToFaceIdMap } = await this.batchInsertLabelFaces(
+        normalizedData.labelFaces || [],
+        entityId
+      );
+      this.logger.debug(
+        `Inserted ${faceIds.length} label faces for media ${input.mediaId}`
+      );
+
+      // Step 6: Batch insert LabelTrack records (with keyframes and attributes)
+      // Face detection creates a single "Face" entity, so all tracks reference it
       const { trackIds, trackIdToDbIdMap } = await this.batchInsertLabelTracks(
         normalizedData.labelTracks,
-        entityId
+        entityId,
+        trackIdToFaceIdMap
       );
       this.logger.debug(
         `Inserted ${trackIds.length} label tracks for media ${input.mediaId}`
       );
 
-      // Step 6: Batch insert LabelClip records (with track references)
+      // Step 7: Batch insert LabelClip records (with track references)
       // Face detection creates a single "Face" entity, so all clips reference it
       const clipIds = await this.batchInsertLabelClips(
         normalizedData.labelClips,
@@ -142,7 +153,7 @@ export class FaceDetectionStepProcessor extends BaseStepProcessor<
         `Inserted ${clipIds.length} label clips for media ${input.mediaId}`
       );
 
-      // Step 7: Update LabelMedia with aggregated data
+      // Step 8: Update LabelMedia with aggregated data
       await this.updateLabelMedia(
         input.mediaId,
         normalizedData.labelMediaUpdate
@@ -227,6 +238,66 @@ export class FaceDetectionStepProcessor extends BaseStepProcessor<
   }
 
   /**
+   * Batch insert LabelFace records
+   *
+   * @returns Object with faceIds array and trackIdToFaceIdMap
+   */
+  private async batchInsertLabelFaces(
+    faces: LabelFaceData[],
+    entityId?: string
+  ): Promise<{ faceIds: string[]; trackIdToFaceIdMap: Map<string, string> }> {
+    const faceIds: string[] = [];
+    const trackIdToFaceIdMap = new Map<string, string>();
+    const batchSize = 100;
+
+    for (let i = 0; i < faces.length; i += batchSize) {
+      const batch = faces.slice(i, i + batchSize);
+      let insertedCount = 0;
+      let skippedCount = 0;
+      let errorCount = 0;
+
+      for (const face of batch) {
+        try {
+          // Check if a face with this faceHash already exists
+          const existing =
+            await this.pocketBaseService.labelFaceMutator.getList(
+              1,
+              1,
+              `faceHash = "${face.faceHash}"`
+            );
+
+          if (existing.items.length > 0) {
+            const dbId = existing.items[0].id;
+            faceIds.push(dbId);
+            trackIdToFaceIdMap.set(face.trackId, dbId);
+            skippedCount++;
+          } else {
+            const created =
+              await this.pocketBaseService.labelFaceMutator.create({
+                ...face,
+                LabelEntityRef: entityId || face.LabelEntityRef,
+              });
+            faceIds.push(created.id);
+            trackIdToFaceIdMap.set(face.trackId, created.id);
+            insertedCount++;
+          }
+        } catch (error) {
+          this.logger.error(
+            `Failed to insert label face: ${error instanceof Error ? error.message : String(error)}`
+          );
+          errorCount++;
+        }
+      }
+
+      this.logger.debug(
+        `Face Batch ${Math.floor(i / batchSize) + 1}: Inserted ${insertedCount}, skipped ${skippedCount} duplicate faces, ${errorCount} errors`
+      );
+    }
+
+    return { faceIds, trackIdToFaceIdMap };
+  }
+
+  /**
    * Batch insert LabelTrack records
    * Inserts in batches of 100 for performance
    * Handles duplicate trackHash by checking for existing records first
@@ -239,7 +310,8 @@ export class FaceDetectionStepProcessor extends BaseStepProcessor<
    */
   private async batchInsertLabelTracks(
     tracks: LabelTrackData[],
-    entityId?: string
+    entityId?: string,
+    trackIdToFaceIdMap?: Map<string, string>
   ): Promise<{ trackIds: string[]; trackIdToDbIdMap: Map<string, string> }> {
     const trackIds: string[] = [];
     const trackIdToDbIdMap = new Map<string, string>(); // Map trackId -> database ID
@@ -283,10 +355,13 @@ export class FaceDetectionStepProcessor extends BaseStepProcessor<
               continue;
             }
 
+            const labelFaceRef = trackIdToFaceIdMap?.get(track.trackId);
+
             const created =
               await this.pocketBaseService.labelTrackMutator.create({
                 ...track,
                 LabelEntityRef: labelEntityRef,
+                LabelFaceRef: labelFaceRef,
                 provider: ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
                 keyframes: track.keyframes, // Ensure keyframes are stored
               });

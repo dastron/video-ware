@@ -17,6 +17,7 @@ export const LabelTrackSchema = z
     MediaRef: RelationField({ collection: 'Media' }),
     TaskRef: RelationField({ collection: 'Tasks' }).optional(),
     LabelEntityRef: RelationField({ collection: 'LabelEntity' }),
+    LabelFaceRef: RelationField({ collection: 'LabelFaces' }).optional(),
     trackId: TextField(), // Stable within processing run
     start: NumberField({ min: 0 }), // seconds (float)
     end: NumberField({ min: 0 }), // seconds (float)
@@ -37,6 +38,7 @@ export const LabelTrackInputSchema = z.object({
   MediaRef: z.string().min(1, 'Media is required'),
   TaskRef: z.string().optional(),
   LabelEntityRef: z.string().min(1, 'Label entity is required'),
+  LabelFaceRef: z.string().optional(),
   trackId: z.string().min(1, 'Track ID is required'),
   start: z.number().min(0),
   end: z.number().min(0),

@@ -14,6 +14,8 @@ export { LabelMediaMutator } from './label-media';
 export { LabelTrackMutator } from './label-track';
 export { MediaClipMutator } from './media-clip';
 export { LabelClipMutator } from './label-clip';
+export { LabelFaceMutator } from './label-face';
+export { LabelSpeechMutator } from './label-speech';
 export { LabelEntityMutator } from './label-entity';
 export { TaskMutator } from './task';
 export { WatchedFileMutator } from './watched-file';
