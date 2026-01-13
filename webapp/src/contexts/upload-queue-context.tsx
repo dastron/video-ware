@@ -74,7 +74,7 @@ type QueueAction =
 const initialState: UploadQueueState = {
   items: [],
   activeCount: 0,
-  maxConcurrent: 3, // Default: 3 concurrent uploads
+  maxConcurrent: 1, // Limit to 1 concurrent upload for stability
   totalProgress: {
     completed: 0,
     total: 0,
@@ -411,7 +411,7 @@ interface UploadQueueProviderProps {
 // Provider component
 export function UploadQueueProvider({
   children,
-  maxConcurrent = 3,
+  maxConcurrent = 1,
 }: UploadQueueProviderProps) {
   const { user } = useAuth();
   const { currentWorkspace } = useWorkspace();

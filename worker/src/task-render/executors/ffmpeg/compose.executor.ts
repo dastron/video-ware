@@ -169,6 +169,25 @@ export class FFmpegComposeExecutor implements IRenderExecutor {
         // Audio handled separately
         for (const seg of track.segments) {
           if (!seg.assetId) continue;
+
+          const clip = clipMediaMap[seg.assetId];
+          if (!clip) {
+            this.logger.warn(`Media not found for asset ID: ${seg.assetId}`);
+            continue;
+          }
+
+          // Check if media has audio streams
+          const hasAudio = (clip.media?.mediaData as any)?.streams?.some(
+            (s: any) => s.codec_type === 'audio'
+          );
+
+          if (!hasAudio) {
+            this.logger.debug(
+              `Skipping audio for segment ${seg.id} as media ${seg.assetId} has no audio streams`
+            );
+            continue;
+          }
+
           const idx = getInputIndex(seg.assetId);
           const sourceStart = seg.time.sourceStart || 0;
           const duration = seg.time.duration;

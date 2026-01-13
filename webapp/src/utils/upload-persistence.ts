@@ -173,7 +173,6 @@ export function restoreQueueState(): Partial<UploadQueueState> | null {
 
     return {
       items: restoredItems as UploadItem[], // Cast needed due to missing File
-      maxConcurrent: parsed.maxConcurrent,
       isPaused: false, // Always start unpaused after restore
     };
   } catch (error) {

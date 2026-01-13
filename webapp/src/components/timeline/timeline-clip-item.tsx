@@ -34,7 +34,11 @@ const MIN_CLIP_DURATION = 0.5; // seconds
  */
 interface TimelineClipWithExpand extends Omit<TimelineClip, 'expand'> {
   expand?: {
-    MediaRef?: Media;
+    MediaRef?: Media & {
+      expand?: {
+        spriteFileRef?: any;
+      };
+    };
   };
 }
 
@@ -224,6 +228,7 @@ export function TimelineClipItem({
           {media ? (
             <SpriteAnimator
               media={media}
+              spriteFile={(media as any).expand?.spriteFileRef}
               start={clip.start}
               end={clip.end}
               isHovering={isHovering}

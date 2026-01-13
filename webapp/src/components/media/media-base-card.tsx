@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { SpriteAnimator } from '@/components/sprite/sprite-animator';
-import { Media } from '@project/shared';
+import { Media, File } from '@project/shared';
 import { Film } from 'lucide-react';
 
 export interface MediaBaseCardProps {
@@ -21,6 +21,7 @@ export interface MediaBaseCardProps {
   thumbnailHeight?: string;
   draggable?: boolean;
   onDragStart?: (e: React.DragEvent) => void;
+  spriteFile?: File;
 }
 
 export function MediaBaseCard({
@@ -37,6 +38,7 @@ export function MediaBaseCard({
   thumbnailHeight = 'h-24',
   draggable,
   onDragStart,
+  spriteFile,
 }: MediaBaseCardProps) {
   const [isHovering, setIsHovering] = useState(false);
 
@@ -63,6 +65,7 @@ export function MediaBaseCard({
         {media ? (
           <SpriteAnimator
             media={media}
+            spriteFile={spriteFile}
             start={startTime || 0}
             end={endTime || 0}
             isHovering={isHovering}
