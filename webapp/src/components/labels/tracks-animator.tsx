@@ -2,7 +2,8 @@
 
 import React, { useMemo } from 'react';
 import { type Media, type LabelTrack } from '@project/shared';
-import { SpriteAnimator } from '@/components/sprite/sprite-animator';
+import { FilmstripViewer } from '@/components/filmstrip/filmstrip-viewer';
+import { useTimeAnimation } from '@/hooks/use-time-animation';
 
 interface Keyframe {
   t: number; // time offset
@@ -26,142 +27,142 @@ export function TracksAnimator({
   track,
   className,
 }: TracksAnimatorProps) {
-  // Sort keyframes by time (t) just in case
+  // Sort keyframes by time (t) and validate structure
+  // Convert keyframe times to relative times (relative to track.start)
   const sortedKeyframes = useMemo(() => {
     const kf = (track.keyframes as unknown as Keyframe[]) || [];
-    return [...kf].sort((a, b) => a.t - b.t);
-  }, [track.keyframes]);
+    // Filter out invalid keyframes, convert to relative times, and sort
+    return kf
+      .filter((kf) => {
+        // Validate keyframe structure
+        return (
+          kf &&
+          typeof kf.t === 'number' &&
+          kf.bbox &&
+          typeof kf.bbox.left === 'number' &&
+          typeof kf.bbox.top === 'number' &&
+          typeof kf.bbox.right === 'number' &&
+          typeof kf.bbox.bottom === 'number'
+        );
+      })
+      .map((kf) => ({
+        ...kf,
+        // Convert absolute time to relative time (relative to track.start)
+        // Keyframes may be stored as absolute times, but we need relative times
+        t: kf.t - track.start,
+      }))
+      .sort((a, b) => a.t - b.t);
+  }, [track.keyframes, track.start]);
 
-  // COMMENTED OUT: Video player tracking logic
-  // useEffect(() => {
-  //   const video = videoRef.current;
-  //   if (!video) return;
+  // Animate time for filmstrip viewer
+  const currentTime = useTimeAnimation({
+    start: track.start,
+    end: track.end,
+    enabled: true,
+    loop: true,
+    speed: 2, // Playback at 5 FPS
+  });
 
-  //   let animationFrameId: number;
+  // Find the current bounding box based on currentTime
+  const currentBox = useMemo(() => {
+    if (sortedKeyframes.length === 0) return null;
 
-  //   const update = () => {
-  //     const time = video.currentTime;
+    // Adjust currentTime relative to track.start
+    const relativeTime = currentTime - track.start;
 
-  //     // We need to find the bounding box for the current time.
-  //     // Since keyframes might be sparse, we could interpolate.
-  //     // For now, let's find the closest keyframe or the one that covers the current time.
-  //     // Assuming keyframes are samples at specific times.
+    // Clamp relativeTime to track bounds (0 to track duration)
+    // This ensures we always show something if we're within the track
+    const clampedRelativeTime = Math.max(
+      0,
+      Math.min(relativeTime, track.end - track.start)
+    );
 
-  //     // Simple approach: Find the last keyframe that is <= current time,
-  //     // but only if it's within a reasonable threshold (e.g. 1 second or duration of sample).
-  //     // However, usually tracks are continuous.
+    // Find the bounding keyframes for interpolation
+    let prevIdx = -1;
+    for (let i = 0; i < sortedKeyframes.length; i++) {
+      if (sortedKeyframes[i].t <= clampedRelativeTime) {
+        prevIdx = i;
+      } else {
+        break;
+      }
+    }
 
-  //     // Binary search or simple find (optimization possible later)
-  //     // Since the list might be long, let's optimize slightly if needed, but linear scan is fine for < 1000 items usually.
+    // Handle edge cases
+    if (prevIdx === -1) {
+      // Before first keyframe - use first keyframe
+      // This ensures boxes are visible even if animation starts slightly before first keyframe
+      return sortedKeyframes[0]?.bbox || null;
+    }
 
-  //     // Actually, if we want smooth animation, we should interpolate.
-  //     // Let's implement simple interpolation between two frames.
+    const prev = sortedKeyframes[prevIdx];
+    const next = sortedKeyframes[prevIdx + 1];
 
-  //     // Find indices
-  //     let prevIdx = -1;
-  //     for (let i = 0; i < sortedKeyframes.length; i++) {
-  //       if (sortedKeyframes[i].timeOffset <= time) {
-  //         prevIdx = i;
-  //       } else {
-  //         break;
-  //       }
-  //     }
+    if (!next) {
+      // After last keyframe - use last keyframe
+      // This ensures boxes stay visible until the end of the track
+      return prev.bbox;
+    }
 
-  //     if (prevIdx === -1) {
-  //       // Before first keyframe
-  //       if (
-  //         sortedKeyframes.length > 0 &&
-  //         Math.abs(sortedKeyframes[0].timeOffset - time) < 0.5
-  //       ) {
-  //         setCurrentBox(sortedKeyframes[0].boundingBox);
-  //       } else {
-  //         setCurrentBox(null);
-  //       }
-  //       return;
-  //     }
+    // Interpolate between prev and next
+    const dt = next.t - prev.t;
+    if (dt <= 0 || !isFinite(dt)) {
+      // Invalid time difference, use previous keyframe
+      return prev.bbox;
+    }
 
-  //     const prev = sortedKeyframes[prevIdx];
-  //     const next = sortedKeyframes[prevIdx + 1];
+    const t = (clampedRelativeTime - prev.t) / dt;
+    const clampedT = Math.max(0, Math.min(1, t));
 
-  //     if (!next) {
-  //       // After last keyframe
-  //       if (Math.abs(time - prev.timeOffset) < 0.5) {
-  //         // Show for 0.5s after last keyframe?
-  //         setCurrentBox(prev.boundingBox);
-  //       } else {
-  //         setCurrentBox(null);
-  //       }
-  //       return;
-  //     }
+    // Linear interpolation with validation
+    const interpolated = {
+      left: prev.bbox.left + (next.bbox.left - prev.bbox.left) * clampedT,
+      top: prev.bbox.top + (next.bbox.top - prev.bbox.top) * clampedT,
+      right: prev.bbox.right + (next.bbox.right - prev.bbox.right) * clampedT,
+      bottom:
+        prev.bbox.bottom + (next.bbox.bottom - prev.bbox.bottom) * clampedT,
+    };
 
-  //     // Interpolate
-  //     const dt = next.timeOffset - prev.timeOffset;
-  //     if (dt <= 0) {
-  //       setCurrentBox(prev.boundingBox);
-  //       return;
-  //     }
+    // Validate interpolated values are finite and reasonable
+    if (
+      !isFinite(interpolated.left) ||
+      !isFinite(interpolated.top) ||
+      !isFinite(interpolated.right) ||
+      !isFinite(interpolated.bottom) ||
+      interpolated.right <= interpolated.left ||
+      interpolated.bottom <= interpolated.top
+    ) {
+      // Fallback to previous keyframe if interpolation is invalid
+      return prev.bbox;
+    }
 
-  //     const t = (time - prev.timeOffset) / dt;
-
-  //     // Linear interpolation
-  //     const box = {
-  //       left:
-  //         prev.boundingBox.left +
-  //         (next.boundingBox.left - prev.boundingBox.left) * t,
-  //       top:
-  //         prev.boundingBox.top +
-  //         (next.boundingBox.top - prev.boundingBox.top) * t,
-  //       right:
-  //         prev.boundingBox.right +
-  //         (next.boundingBox.right - prev.boundingBox.right) * t,
-  //       bottom:
-  //         prev.boundingBox.bottom +
-  //         (next.boundingBox.bottom - prev.boundingBox.bottom) * t,
-  //     };
-
-  //     setCurrentBox(box);
-  //   };
-
-  //   // Use requestAnimationFrame for smoother updates than 'timeupdate' event
-  //   const loop = () => {
-  //     update();
-  //     animationFrameId = requestAnimationFrame(loop);
-  //   };
-
-  //   // Start loop
-  //   loop();
-
-  //   return () => cancelAnimationFrame(animationFrameId);
-  // }, [sortedKeyframes]);
+    return interpolated;
+  }, [sortedKeyframes, currentTime, track.start, track.end]);
 
   return (
     <div
       className={`relative aspect-video bg-black rounded-lg overflow-hidden ${className || ''}`}
     >
-      {/* Sprite animator for video preview */}
-      <SpriteAnimator
+      {/* Filmstrip viewer for video preview with autoplay */}
+      <FilmstripViewer
         media={media}
-        start={track.start}
-        end={track.end}
-        isHovering={true}
+        currentTime={currentTime}
         className="absolute inset-0 w-full h-full"
       />
 
-      {/* Overlay: Show all keyframes as bounding boxes */}
-      <div className="absolute inset-0 pointer-events-none">
-        {sortedKeyframes.map((keyframe, index) => (
+      {/* Overlay: Show current bounding box (interpolated) */}
+      {currentBox && (
+        <div className="absolute inset-0 pointer-events-none">
           <div
-            key={index}
             className="absolute border-2 border-red-500"
             style={{
-              left: `${keyframe.bbox.left * 100}%`,
-              top: `${keyframe.bbox.top * 100}%`,
-              width: `${(keyframe.bbox.right - keyframe.bbox.left) * 100}%`,
-              height: `${(keyframe.bbox.bottom - keyframe.bbox.top) * 100}%`,
+              left: `${Math.max(0, Math.min(100, currentBox.left * 100))}%`,
+              top: `${Math.max(0, Math.min(100, currentBox.top * 100))}%`,
+              width: `${Math.max(0, Math.min(100, (currentBox.right - currentBox.left) * 100))}%`,
+              height: `${Math.max(0, Math.min(100, (currentBox.bottom - currentBox.top) * 100))}%`,
             }}
           />
-        ))}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

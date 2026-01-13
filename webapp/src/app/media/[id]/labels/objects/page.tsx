@@ -39,9 +39,9 @@ export default function LabelObjectsPage() {
         const records = await pb
           .collection('LabelObjects')
           .getList<ExtendedLabelObject>(1, 50, {
-            filter: `MediaRef = "${mediaId}"`,
-            sort: '-confidence',
-            expand: 'LabelTrackRef,MediaRef',
+            filter: `MediaRef = "${mediaId}" && duration >= 5`,
+            sort: '-duration',
+            expand: 'LabelTrackRef,MediaRef,MediaRef.filmstripFileRefs',
           });
         setObjects(records.items);
         if (records.items.length > 0) {
@@ -152,6 +152,18 @@ export default function LabelObjectsPage() {
                     title={selectedObject.expand.LabelTrackRef.trackId}
                   >
                     {selectedObject.expand.LabelTrackRef.trackId}
+                  </p>
+                </div>
+                <div className="p-3 border rounded bg-muted/20">
+                  <h4 className="text-xs font-medium uppercase text-muted-foreground mb-1">
+                    Frames
+                  </h4>
+                  <p className="text-sm font-mono">
+                    {Array.isArray(
+                      selectedObject.expand.LabelTrackRef.keyframes
+                    )
+                      ? selectedObject.expand.LabelTrackRef.keyframes.length
+                      : 0}
                   </p>
                 </div>
               </div>

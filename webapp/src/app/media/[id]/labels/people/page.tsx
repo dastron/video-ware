@@ -39,9 +39,9 @@ export default function LabelPeoplePage() {
         const records = await pb
           .collection('LabelPerson')
           .getList<ExtendedLabelPerson>(1, 50, {
-            filter: `MediaRef = "${mediaId}"`,
-            sort: '-created',
-            expand: 'LabelTrackRef,MediaRef',
+            filter: `MediaRef = "${mediaId}" && duration >= 5`,
+            sort: '-duration',
+            expand: 'LabelTrackRef,MediaRef,MediaRef.filmstripFileRefs',
           });
         setPeople(records.items);
         if (records.items.length > 0) {
@@ -153,6 +153,18 @@ export default function LabelPeoplePage() {
                     title={selectedPerson.expand.LabelTrackRef.trackId}
                   >
                     {selectedPerson.expand.LabelTrackRef.trackId}
+                  </p>
+                </div>
+                <div className="p-3 border rounded bg-muted/20">
+                  <h4 className="text-xs font-medium uppercase text-muted-foreground mb-1">
+                    Frames
+                  </h4>
+                  <p className="text-sm font-mono">
+                    {Array.isArray(
+                      selectedPerson.expand.LabelTrackRef.keyframes
+                    )
+                      ? selectedPerson.expand.LabelTrackRef.keyframes.length
+                      : 0}
                   </p>
                 </div>
               </div>

@@ -40,9 +40,9 @@ export default function LabelFacesPage() {
         const records = await pb
           .collection('LabelFaces')
           .getList<ExtendedLabelFace>(1, 50, {
-            filter: `MediaRef = "${mediaId}"`,
-            sort: '-created',
-            expand: 'LabelTrackRef,MediaRef',
+            filter: `MediaRef = "${mediaId}" && duration >= 5`,
+            sort: '-duration',
+            expand: 'LabelTrackRef,MediaRef,MediaRef.filmstripFileRefs',
           });
         setFaces(records.items);
         if (records.items.length > 0) {
@@ -154,6 +154,16 @@ export default function LabelFacesPage() {
                     title={selectedFace.expand.LabelTrackRef.trackId}
                   >
                     {selectedFace.expand.LabelTrackRef.trackId}
+                  </p>
+                </div>
+                <div className="p-3 border rounded bg-muted/20">
+                  <h4 className="text-xs font-medium uppercase text-muted-foreground mb-1">
+                    Frames
+                  </h4>
+                  <p className="text-sm font-mono">
+                    {Array.isArray(selectedFace.expand.LabelTrackRef.keyframes)
+                      ? selectedFace.expand.LabelTrackRef.keyframes.length
+                      : 0}
                   </p>
                 </div>
               </div>

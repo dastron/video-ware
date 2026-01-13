@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { usePocketBase } from '@/contexts/pocketbase-context';
 import type { LabelShot, Media } from '@project/shared';
-import { SpriteAnimator } from '@/components/sprite/sprite-animator';
+import { FilmstripViewer } from '@/components/filmstrip/filmstrip-viewer';
+import { useTimeAnimation } from '@/hooks/use-time-animation';
 import {
   Card,
   CardContent,
@@ -39,9 +40,9 @@ export default function LabelShotsPage() {
         const records = await pb
           .collection('LabelShots')
           .getList<ExtendedLabelShot>(1, 50, {
-            filter: `MediaRef = "${mediaId}"`,
-            sort: '-created',
-            expand: 'MediaRef',
+            filter: `MediaRef = "${mediaId}" && duration >= 5`,
+            sort: '-duration',
+            expand: 'MediaRef, MediaRef.filmstripFileRefs',
           });
         setShots(records.items);
         if (records.items.length > 0) {
@@ -111,12 +112,10 @@ export default function LabelShotsPage() {
           {selectedShot && selectedShot.expand?.MediaRef ? (
             <div className="space-y-4">
               <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
-                <SpriteAnimator
+                <LabelShotFilmstrip
                   media={selectedShot.expand.MediaRef}
                   start={selectedShot.start}
                   end={selectedShot.end}
-                  isHovering={true}
-                  className="w-full h-full"
                 />
               </div>
 
@@ -157,5 +156,30 @@ export default function LabelShotsPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function LabelShotFilmstrip({
+  media,
+  start,
+  end,
+}: {
+  media: Media;
+  start: number;
+  end: number;
+}) {
+  const currentTime = useTimeAnimation({
+    start,
+    end,
+    enabled: true,
+    loop: true,
+  });
+
+  return (
+    <FilmstripViewer
+      media={media}
+      currentTime={currentTime}
+      className="w-full h-full"
+    />
   );
 }

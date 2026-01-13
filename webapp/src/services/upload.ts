@@ -341,7 +341,7 @@ export class UploadService {
       filmstrip: {
         cols: 100,
         rows: 1,
-        tileWidth: 160,
+        tileWidth: 320,
         tileHeight: 180,
       },
       transcode: {
