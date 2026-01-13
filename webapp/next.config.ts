@@ -13,6 +13,7 @@ const nextConfig: NextConfig = {
   // Optimize for production
   poweredByHeader: false,
   compress: true,
+  transpilePackages: ['@project/shared'],
 };
 
 export default nextConfig;
