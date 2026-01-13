@@ -69,6 +69,7 @@ export class PersonDetectionStepProcessor extends BaseStepProcessor<
     try {
       // Step 1: Check cache before calling executor
       const cached = await this.labelCacheService.getCachedLabels(
+        input.workspaceRef,
         input.mediaId,
         input.version,
         ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
@@ -101,6 +102,7 @@ export class PersonDetectionStepProcessor extends BaseStepProcessor<
 
         // Step 8: Store normalized response to cache
         await this.labelCacheService.storeLabelCache(
+          input.workspaceRef,
           input.mediaId,
           input.version,
           ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
@@ -223,8 +225,8 @@ export class PersonDetectionStepProcessor extends BaseStepProcessor<
         entity.labelType,
         entity.canonicalName,
         entity.provider as
-          | ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE
-          | ProcessingProvider.GOOGLE_SPEECH,
+        | ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE
+        | ProcessingProvider.GOOGLE_SPEECH,
         entity.processor,
         entity.metadata
       );

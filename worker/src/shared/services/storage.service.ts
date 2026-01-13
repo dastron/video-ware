@@ -47,7 +47,7 @@ export class StorageService implements OnModuleInit {
   private backend!: StorageBackend;
   private resolvedBasePath!: string;
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private readonly configService: ConfigService) { }
 
   async onModuleInit() {
     await this.initializeBackend();
@@ -501,9 +501,14 @@ export class StorageService implements OnModuleInit {
    * Create a deterministic render output directory in ./data/renders/<taskId>/
    * Returns the directory path - caller should use consistent filename within
    */
-  async createRenderDir(taskId: string): Promise<string> {
+  async createRenderDir(workspaceId: string, taskId: string): Promise<string> {
     try {
-      const renderDir = path.join(this.resolvedBasePath, 'renders', taskId);
+      const renderDir = path.join(
+        this.resolvedBasePath,
+        'renders',
+        workspaceId,
+        taskId
+      );
       await fs.promises.mkdir(renderDir, { recursive: true });
       this.logger.debug(`Created render directory: ${renderDir}`);
       return renderDir;
@@ -521,16 +526,16 @@ export class StorageService implements OnModuleInit {
    * Get the deterministic render directory for a task
    * Path: ./data/renders/<taskId>/
    */
-  getRenderDir(taskId: string): string {
-    return path.join(this.resolvedBasePath, 'renders', taskId);
+  getRenderDir(workspaceId: string, taskId: string): string {
+    return path.join(this.resolvedBasePath, 'renders', workspaceId, taskId);
   }
 
   /**
    * Get the deterministic render inputs directory for a task
    * Path: ./data/renders/<taskId>/inputs/
    */
-  getRenderInputsDir(taskId: string): string {
-    return path.join(this.getRenderDir(taskId), 'inputs');
+  getRenderInputsDir(workspaceId: string, taskId: string): string {
+    return path.join(this.getRenderDir(workspaceId, taskId), 'inputs');
   }
 
   /**
@@ -538,23 +543,34 @@ export class StorageService implements OnModuleInit {
    * Path: ./data/renders/<taskId>/inputs/<mediaId>.<extension>
    */
   getRenderInputPath(
+    workspaceId: string,
     taskId: string,
     mediaId: string,
     extension: string
   ): string {
     // Ensure extension doesn't have a leading dot
     const cleanExt = extension.startsWith('.') ? extension.slice(1) : extension;
-    return path.join(this.getRenderInputsDir(taskId), `${mediaId}.${cleanExt}`);
+    return path.join(
+      this.getRenderInputsDir(workspaceId, taskId),
+      `${mediaId}.${cleanExt}`
+    );
   }
 
   /**
    * Get the deterministic render output path for a task
    * Path: ./data/renders/<taskId>/output.<format>
    */
-  getRenderOutputPath(taskId: string, format: string): string {
+  getRenderOutputPath(
+    workspaceId: string,
+    taskId: string,
+    format: string
+  ): string {
     // Ensure format doesn't have a leading dot
     const cleanFormat = format.startsWith('.') ? format.slice(1) : format;
-    return path.join(this.getRenderDir(taskId), `output.${cleanFormat}`);
+    return path.join(
+      this.getRenderDir(workspaceId, taskId),
+      `output.${cleanFormat}`
+    );
   }
 
   /**

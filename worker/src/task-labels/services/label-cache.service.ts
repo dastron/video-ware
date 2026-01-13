@@ -13,11 +13,12 @@ import { getLabelCachePath } from '../utils/cache-keys';
 export class LabelCacheService {
   private readonly logger = new Logger(LabelCacheService.name);
 
-  constructor(private readonly storageService: StorageService) {}
+  constructor(private readonly storageService: StorageService) { }
 
   /**
    * Retrieve cached labels from storage
    *
+   * @param workspaceId - Workspace record ID
    * @param mediaId - Media record ID
    * @param version - Data version number
    * @param provider - Processing provider
@@ -25,12 +26,14 @@ export class LabelCacheService {
    * @returns Cached label data if exists, null otherwise
    */
   async getCachedLabels(
+    workspaceId: string,
     mediaId: string,
     version: number,
     provider: ProcessingProvider,
     processorVersion: string
   ): Promise<RawLabelCacheFile | null> {
     const cachePath = getLabelCachePath(
+      workspaceId,
       mediaId,
       version,
       provider,
@@ -87,6 +90,7 @@ export class LabelCacheService {
   /**
    * Store label data to cache
    *
+   * @param workspaceId - Workspace record ID
    * @param mediaId - Media record ID
    * @param version - Data version number
    * @param provider - Processing provider
@@ -95,6 +99,7 @@ export class LabelCacheService {
    * @param features - Optional list of features used (e.g., ['LABEL_DETECTION'])
    */
   async storeLabelCache(
+    workspaceId: string,
     mediaId: string,
     version: number,
     provider: ProcessingProvider,
@@ -102,7 +107,13 @@ export class LabelCacheService {
     processor: string,
     features: string[] = []
   ): Promise<void> {
-    const cachePath = getLabelCachePath(mediaId, version, provider, processor);
+    const cachePath = getLabelCachePath(
+      workspaceId,
+      mediaId,
+      version,
+      provider,
+      processor
+    );
 
     try {
       const cacheFile: RawLabelCacheFile = {

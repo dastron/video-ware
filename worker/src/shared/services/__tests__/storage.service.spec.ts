@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { StorageService } from '../storage.service';
 import { StorageBackendType } from '@project/shared';
 import * as fs from 'fs';
+import * as path from 'path';
 import { createMockConfigService } from '@/__mocks__/config.service';
 
 // Hoisted mock storage backend (vi.mock is hoisted, so we need hoisted variables)
@@ -326,26 +327,50 @@ describe('StorageService', () => {
     });
   });
 
-  describe('cleanupTemp', () => {
+  describe('render paths', () => {
+    const workspaceId = 'workspace123';
+    const taskId = 'task456';
+
     beforeEach(async () => {
       await service.onModuleInit();
     });
 
-    it('should clean up temporary directory', async () => {
-      vi.mocked(fs.existsSync).mockReturnValue(true);
-
-      await service.cleanupTemp('upload1');
-
-      expect(fs.promises.rm).toHaveBeenCalledWith(
-        expect.stringContaining('upload1'),
-        { recursive: true, force: true }
-      );
+    it('getRenderDir should include workspaceId and taskId', () => {
+      const result = service.getRenderDir(workspaceId, taskId);
+      expect(result).toBe(path.join(service['resolvedBasePath'], 'renders', workspaceId, taskId));
     });
 
-    it('should not fail if temp directory does not exist', async () => {
-      vi.mocked(fs.existsSync).mockReturnValue(false);
+    it('getRenderInputsDir should include inputs subdirectory', () => {
+      const result = service.getRenderInputsDir(workspaceId, taskId);
+      expect(result).toBe(path.join(service['resolvedBasePath'], 'renders', workspaceId, taskId, 'inputs'));
+    });
 
-      await expect(service.cleanupTemp('upload1')).resolves.not.toThrow();
+    it('getRenderInputPath should include mediaId and extension', () => {
+      const result = service.getRenderInputPath(workspaceId, taskId, 'media789', 'mp4');
+      expect(result).toBe(path.join(service['resolvedBasePath'], 'renders', workspaceId, taskId, 'inputs', 'media789.mp4'));
+    });
+
+    it('getRenderInputPath should handle leading dot in extension', () => {
+      const result = service.getRenderInputPath(workspaceId, taskId, 'media789', '.mp4');
+      expect(result).toBe(path.join(service['resolvedBasePath'], 'renders', workspaceId, taskId, 'inputs', 'media789.mp4'));
+    });
+
+    it('getRenderOutputPath should include output filename and format', () => {
+      const result = service.getRenderOutputPath(workspaceId, taskId, 'mp4');
+      expect(result).toBe(path.join(service['resolvedBasePath'], 'renders', workspaceId, taskId, 'output.mp4'));
+    });
+
+    it('getRenderOutputPath should handle leading dot in format', () => {
+      const result = service.getRenderOutputPath(workspaceId, taskId, '.mp4');
+      expect(result).toBe(path.join(service['resolvedBasePath'], 'renders', workspaceId, taskId, 'output.mp4'));
+    });
+
+    it('createRenderDir should call fs.promises.mkdir with workspaceId and taskId', async () => {
+      const renderDir = path.join(service['resolvedBasePath'], 'renders', workspaceId, taskId);
+      const result = await service.createRenderDir(workspaceId, taskId);
+
+      expect(fs.promises.mkdir).toHaveBeenCalledWith(renderDir, { recursive: true });
+      expect(result).toBe(renderDir);
     });
   });
 });

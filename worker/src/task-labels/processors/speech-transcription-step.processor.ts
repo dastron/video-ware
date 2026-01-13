@@ -66,6 +66,7 @@ export class SpeechTranscriptionStepProcessor extends BaseStepProcessor<
     try {
       // Step 1: Check cache before calling executor
       const cached = await this.labelCacheService.getCachedLabels(
+        input.workspaceRef,
         input.mediaId,
         input.version,
         ProcessingProvider.GOOGLE_SPEECH,
@@ -98,6 +99,7 @@ export class SpeechTranscriptionStepProcessor extends BaseStepProcessor<
 
         // Step 7: Store normalized response to cache
         await this.labelCacheService.storeLabelCache(
+          input.workspaceRef,
           input.mediaId,
           input.version,
           ProcessingProvider.GOOGLE_SPEECH,
