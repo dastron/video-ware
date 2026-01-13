@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useWorkspace } from '@/hooks/use-workspace';
 import { createWorkspaceService } from '@/services/workspace';
 import { createUserService } from '@/services/user';
 import { usePocketBase } from '@/contexts/pocketbase-context';
@@ -23,7 +22,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -103,9 +101,7 @@ export default function WorkspaceManagePage() {
       const result = await userService.searchUsers(searchQuery);
 
       // Filter out existing members
-      const existingMemberIds = new Set(
-        members.map((m) => m.UserRef)
-      );
+      const existingMemberIds = new Set(members.map((m) => m.UserRef));
 
       const availableUsers = result.items.filter(
         (user) => !existingMemberIds.has(user.id)
@@ -160,7 +156,9 @@ export default function WorkspaceManagePage() {
       }
     } catch (error) {
       console.error('Failed to remove member:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to remove member');
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to remove member'
+      );
     }
   };
 
@@ -192,15 +190,18 @@ export default function WorkspaceManagePage() {
           <div>
             <CardTitle>Members</CardTitle>
             <CardDescription>
-              {members.length} {members.length === 1 ? 'member' : 'members'} in this workspace
+              {members.length} {members.length === 1 ? 'member' : 'members'} in
+              this workspace
             </CardDescription>
           </div>
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
-              <Button onClick={() => {
-                setSearchQuery('');
-                setSearchResults([]);
-              }}>
+              <Button
+                onClick={() => {
+                  setSearchQuery('');
+                  setSearchResults([]);
+                }}
+              >
                 <UserPlus className="h-4 w-4 mr-2" />
                 Add Member
               </Button>
@@ -209,7 +210,8 @@ export default function WorkspaceManagePage() {
               <DialogHeader>
                 <DialogTitle>Add Member</DialogTitle>
                 <DialogDescription>
-                  Search for users by email or name to add them to the workspace.
+                  Search for users by email or name to add them to the
+                  workspace.
                 </DialogDescription>
               </DialogHeader>
 
@@ -219,7 +221,10 @@ export default function WorkspaceManagePage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
-                <Button type="submit" disabled={isSearching || !searchQuery.trim()}>
+                <Button
+                  type="submit"
+                  disabled={isSearching || !searchQuery.trim()}
+                >
                   <Search className="h-4 w-4" />
                 </Button>
               </form>
@@ -232,12 +237,24 @@ export default function WorkspaceManagePage() {
                   >
                     <div className="flex items-center gap-3">
                       <Avatar className="h-8 w-8">
-                        <AvatarImage src={user.avatar ? `/api/files/Users/${user.id}/${user.avatar}` : undefined} />
-                        <AvatarFallback>{user.name?.[0] || user.email[0].toUpperCase()}</AvatarFallback>
+                        <AvatarImage
+                          src={
+                            user.avatar
+                              ? `/api/files/Users/${user.id}/${user.avatar}`
+                              : undefined
+                          }
+                        />
+                        <AvatarFallback>
+                          {user.name?.[0] || user.email[0].toUpperCase()}
+                        </AvatarFallback>
                       </Avatar>
                       <div className="grid gap-0.5">
-                        <div className="text-sm font-medium">{user.name || 'Unnamed User'}</div>
-                        <div className="text-xs text-muted-foreground">{user.email}</div>
+                        <div className="text-sm font-medium">
+                          {user.name || 'Unnamed User'}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {user.email}
+                        </div>
                       </div>
                     </div>
                     <Button
@@ -277,17 +294,29 @@ export default function WorkspaceManagePage() {
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar>
-                          <AvatarImage src={user.avatar ? `/api/files/Users/${user.id}/${user.avatar}` : undefined} />
-                          <AvatarFallback>{user.name?.[0] || user.email[0].toUpperCase()}</AvatarFallback>
+                          <AvatarImage
+                            src={
+                              user.avatar
+                                ? `/api/files/Users/${user.id}/${user.avatar}`
+                                : undefined
+                            }
+                          />
+                          <AvatarFallback>
+                            {user.name?.[0] || user.email[0].toUpperCase()}
+                          </AvatarFallback>
                         </Avatar>
                         <div>
                           <div className="font-medium">
                             {user.name || 'Unnamed User'}
                             {user.id === currentUser?.id && (
-                              <Badge variant="secondary" className="ml-2">You</Badge>
+                              <Badge variant="secondary" className="ml-2">
+                                You
+                              </Badge>
                             )}
                           </div>
-                          <div className="text-sm text-muted-foreground">{user.email}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {user.email}
+                          </div>
                         </div>
                       </div>
                     </TableCell>

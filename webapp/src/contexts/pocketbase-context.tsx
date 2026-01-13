@@ -12,7 +12,11 @@ const PocketBaseContext = createContext<PocketBaseContextType>({
   pb,
 });
 
-export function PocketBaseProvider({ children }: { children: React.ReactNode }) {
+export function PocketBaseProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const value = useMemo(() => ({ pb }), []);
   return (
     <PocketBaseContext.Provider value={value}>

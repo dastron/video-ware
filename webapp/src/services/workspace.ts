@@ -158,12 +158,9 @@ export class WorkspaceService {
    * @param workspaceId Workspace ID
    * @returns List of workspace members
    */
-  async getWorkspaceMembers(
-    workspaceId: string
-  ): Promise<WorkspaceMember[]> {
-    const result = await this.workspaceMemberMutator.getMembersByWorkspace(
-      workspaceId
-    );
+  async getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMember[]> {
+    const result =
+      await this.workspaceMemberMutator.getMembersByWorkspace(workspaceId);
     return result.items;
   }
 
