@@ -337,39 +337,100 @@ describe('StorageService', () => {
 
     it('getRenderDir should include workspaceId and taskId', () => {
       const result = service.getRenderDir(workspaceId, taskId);
-      expect(result).toBe(path.join(service['resolvedBasePath'], 'renders', workspaceId, taskId));
+      expect(result).toBe(
+        path.join(service['resolvedBasePath'], 'renders', workspaceId, taskId)
+      );
     });
 
     it('getRenderInputsDir should include inputs subdirectory', () => {
       const result = service.getRenderInputsDir(workspaceId, taskId);
-      expect(result).toBe(path.join(service['resolvedBasePath'], 'renders', workspaceId, taskId, 'inputs'));
+      expect(result).toBe(
+        path.join(
+          service['resolvedBasePath'],
+          'renders',
+          workspaceId,
+          taskId,
+          'inputs'
+        )
+      );
     });
 
     it('getRenderInputPath should include mediaId and extension', () => {
-      const result = service.getRenderInputPath(workspaceId, taskId, 'media789', 'mp4');
-      expect(result).toBe(path.join(service['resolvedBasePath'], 'renders', workspaceId, taskId, 'inputs', 'media789.mp4'));
+      const result = service.getRenderInputPath(
+        workspaceId,
+        taskId,
+        'media789',
+        'mp4'
+      );
+      expect(result).toBe(
+        path.join(
+          service['resolvedBasePath'],
+          'renders',
+          workspaceId,
+          taskId,
+          'inputs',
+          'media789.mp4'
+        )
+      );
     });
 
     it('getRenderInputPath should handle leading dot in extension', () => {
-      const result = service.getRenderInputPath(workspaceId, taskId, 'media789', '.mp4');
-      expect(result).toBe(path.join(service['resolvedBasePath'], 'renders', workspaceId, taskId, 'inputs', 'media789.mp4'));
+      const result = service.getRenderInputPath(
+        workspaceId,
+        taskId,
+        'media789',
+        '.mp4'
+      );
+      expect(result).toBe(
+        path.join(
+          service['resolvedBasePath'],
+          'renders',
+          workspaceId,
+          taskId,
+          'inputs',
+          'media789.mp4'
+        )
+      );
     });
 
     it('getRenderOutputPath should include output filename and format', () => {
       const result = service.getRenderOutputPath(workspaceId, taskId, 'mp4');
-      expect(result).toBe(path.join(service['resolvedBasePath'], 'renders', workspaceId, taskId, 'output.mp4'));
+      expect(result).toBe(
+        path.join(
+          service['resolvedBasePath'],
+          'renders',
+          workspaceId,
+          taskId,
+          'output.mp4'
+        )
+      );
     });
 
     it('getRenderOutputPath should handle leading dot in format', () => {
       const result = service.getRenderOutputPath(workspaceId, taskId, '.mp4');
-      expect(result).toBe(path.join(service['resolvedBasePath'], 'renders', workspaceId, taskId, 'output.mp4'));
+      expect(result).toBe(
+        path.join(
+          service['resolvedBasePath'],
+          'renders',
+          workspaceId,
+          taskId,
+          'output.mp4'
+        )
+      );
     });
 
     it('createRenderDir should call fs.promises.mkdir with workspaceId and taskId', async () => {
-      const renderDir = path.join(service['resolvedBasePath'], 'renders', workspaceId, taskId);
+      const renderDir = path.join(
+        service['resolvedBasePath'],
+        'renders',
+        workspaceId,
+        taskId
+      );
       const result = await service.createRenderDir(workspaceId, taskId);
 
-      expect(fs.promises.mkdir).toHaveBeenCalledWith(renderDir, { recursive: true });
+      expect(fs.promises.mkdir).toHaveBeenCalledWith(renderDir, {
+        recursive: true,
+      });
       expect(result).toBe(renderDir);
     });
   });

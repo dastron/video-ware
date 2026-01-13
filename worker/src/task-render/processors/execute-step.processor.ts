@@ -103,7 +103,7 @@ export class ExecuteRenderStepProcessor extends BaseStepProcessor<
       clipMediaMap,
       outputPath,
       outputSettings,
-      (progress) => job.updateProgress(progress).catch(() => { })
+      (progress) => job.updateProgress(progress).catch(() => {})
     );
 
     return {

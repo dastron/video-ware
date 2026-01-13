@@ -215,8 +215,8 @@ export class LabelDetectionStepProcessor extends BaseStepProcessor<
         entity.labelType,
         entity.canonicalName,
         entity.provider as
-        | ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE
-        | ProcessingProvider.GOOGLE_SPEECH,
+          | ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE
+          | ProcessingProvider.GOOGLE_SPEECH,
         entity.processor,
         entity.metadata
       );

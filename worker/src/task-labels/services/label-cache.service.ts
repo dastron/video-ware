@@ -13,7 +13,7 @@ import { getLabelCachePath } from '../utils/cache-keys';
 export class LabelCacheService {
   private readonly logger = new Logger(LabelCacheService.name);
 
-  constructor(private readonly storageService: StorageService) { }
+  constructor(private readonly storageService: StorageService) {}
 
   /**
    * Retrieve cached labels from storage

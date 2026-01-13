@@ -47,7 +47,7 @@ export class StorageService implements OnModuleInit {
   private backend!: StorageBackend;
   private resolvedBasePath!: string;
 
-  constructor(private readonly configService: ConfigService) { }
+  constructor(private readonly configService: ConfigService) {}
 
   async onModuleInit() {
     await this.initializeBackend();
