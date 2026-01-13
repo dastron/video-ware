@@ -1,34 +1,48 @@
 import {
   defineCollection,
   RelationField,
-  SelectField,
   TextField,
   NumberField,
   JSONField,
   baseSchema,
 } from 'pocketbase-zod-schema/schema';
 import { z } from 'zod';
-import { ProcessingProvider } from '../enums';
 
 // Define the Zod schema for LabelTrack
 export const LabelTrackSchema = z
   .object({
+    // --- Relations ---
     WorkspaceRef: RelationField({ collection: 'Workspaces' }),
     MediaRef: RelationField({ collection: 'Media' }),
     TaskRef: RelationField({ collection: 'Tasks' }).optional(),
-    LabelEntityRef: RelationField({ collection: 'LabelEntity' }),
-    LabelFaceRef: RelationField({ collection: 'LabelFaces' }).optional(),
-    trackId: TextField(), // Stable within processing run
-    start: NumberField({ min: 0 }), // seconds (float)
-    end: NumberField({ min: 0 }), // seconds (float)
-    duration: NumberField({ min: 0 }), // seconds (float)
-    confidence: NumberField({ min: 0, max: 1 }), // average or max
-    provider: SelectField([ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE]),
-    processor: TextField(), // e.g., "object-tracking:1.0.0"
-    version: NumberField().default(1).optional(),
-    trackData: JSONField(), // Aggregated properties (class, attributes)
-    keyframes: JSONField(), // Array: [{t, bbox, confidence, ...}]
-    trackHash: TextField({ min: 1 }), // Unique constraint
+
+    // Optional: Useful for debugging, but technically redundant if
+    // LabelObjects/LabelFaces already point TO this track.
+    LabelEntityRef: RelationField({ collection: 'LabelEntity' }).optional(),
+
+    // --- Identification ---
+    trackId: TextField(), // The stable ID from the provider (e.g., "0")
+    trackHash: TextField({ min: 1 }), // Unique constraint (MediaRef + trackId + provider)
+
+    // --- Timing ---
+    start: NumberField({ min: 0 }), // Seconds (from first keyframe)
+    end: NumberField({ min: 0 }), // Seconds (from last keyframe)
+    duration: NumberField({ min: 0 }),
+
+    // --- Spatial Summary (New Recommendation) ---
+    // Storing the "Union" Bounding Box (the area covering the entire path)
+    // allows you to spatially search (e.g., "Find movement in the top-right corner")
+    // without parsing the huge keyframes JSON.
+    // Format: { top, left, bottom, right }
+    boundingBox: JSONField().optional(),
+
+    // --- The Heavy Data ---
+    // Array: [{ "timeOffset": 0.1, "boundingBox": {...}, "confidence": 0.9 }]
+    keyframes: JSONField(),
+
+    // --- Metadata ---
+    confidence: NumberField({ min: 0, max: 1 }), // Average or Max confidence of the track
+    trackData: JSONField(), // Any extra attributes (e.g., detected attributes like "sitting")
   })
   .extend(baseSchema);
 
@@ -37,19 +51,18 @@ export const LabelTrackInputSchema = z.object({
   WorkspaceRef: z.string().min(1, 'Workspace is required'),
   MediaRef: z.string().min(1, 'Media is required'),
   TaskRef: z.string().optional(),
-  LabelEntityRef: z.string().min(1, 'Label entity is required'),
-  LabelFaceRef: z.string().optional(),
+  LabelEntityRef: z.string().optional(),
   trackId: z.string().min(1, 'Track ID is required'),
+  trackHash: z.string().min(1, 'Track hash is required'),
+
   start: z.number().min(0),
   end: z.number().min(0),
   duration: z.number().min(0),
+
+  boundingBox: z.record(z.unknown()).optional(),
+  keyframes: z.array(z.unknown()),
   confidence: z.number().min(0).max(1),
-  provider: z.enum([ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE]),
-  processor: z.string().min(1, 'Processor is required'),
-  version: z.number().default(1).optional(),
-  trackData: z.record(z.unknown()), // JSON object
-  keyframes: z.array(z.unknown()), // Array of keyframe objects
-  trackHash: z.string().min(1, 'Track hash is required'),
+  trackData: z.record(z.unknown()),
 });
 
 // Define the collection with workspace-scoped permissions

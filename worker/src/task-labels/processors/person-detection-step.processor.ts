@@ -1,11 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { BaseStepProcessor } from '../../queue/processors/base-step.processor';
-import {
-  ProcessingProvider,
-  LabelType,
-  LabelMediaUpdate,
-} from '@project/shared';
+import { ProcessingProvider, LabelType } from '@project/shared';
 import { LabelCacheService } from '../services/label-cache.service';
 import { LabelEntityService } from '../services/label-entity.service';
 import { PersonDetectionExecutor } from '../executors/person-detection.executor';
@@ -15,7 +11,12 @@ import type { StepJobData } from '../../queue/types/job.types';
 import type { PersonDetectionStepInput } from '../types/step-inputs';
 import type { PersonDetectionStepOutput } from '../types/step-outputs';
 import type { PersonDetectionResponse } from '../types/executor-responses';
-import type { LabelClipData } from '../types/normalizer-outputs';
+import type {
+  LabelPersonData,
+  LabelTrackData,
+  KeyframeData,
+  LabelMediaData,
+} from '../types/normalizer-outputs';
 
 // Re-export types for parent processor
 export type { PersonDetectionStepInput, PersonDetectionStepOutput };
@@ -29,7 +30,7 @@ export type { PersonDetectionStepInput, PersonDetectionStepOutput };
  * 3. Calls PersonDetectionNormalizer to transform response
  * 4. Batch inserts LabelEntity records
  * 5. Batch inserts LabelTrack records (with keyframes, landmarks, and attributes)
- * 6. Batch inserts LabelClip records (with track references)
+ * 6. Batch inserts LabelPerson records (with track references)
  * 7. Updates LabelMedia with aggregated data
  * 8. Stores normalized response to cache
  *
@@ -131,26 +132,28 @@ export class PersonDetectionStepProcessor extends BaseStepProcessor<
       const entityIds = await this.batchInsertLabelEntities(
         normalizedData.labelEntities
       );
+      const personEntityId = entityIds[0]; // Person detection usually has one "Person" entity
       this.logger.debug(
         `Inserted ${entityIds.length} label entities for media ${input.mediaId}`
       );
 
       // Step 5: Batch insert LabelTrack records (with keyframes, landmarks, and attributes)
-      // TODO: Uncomment when LabelTrackMutator is created (task 2)
-      // const trackIds = await this.batchInsertLabelTracks(
-      //   normalizedData.labelTracks
-      // );
-      const trackIds: string[] = []; // Placeholder until LabelTrackMutator exists
+      const trackIdsMap = await this.batchInsertLabelTracks(
+        normalizedData.labelTracks,
+        personEntityId
+      );
       this.logger.debug(
-        `Inserted ${trackIds.length} label tracks for media ${input.mediaId}`
+        `Inserted ${Object.keys(trackIdsMap).length} label tracks for media ${input.mediaId}`
       );
 
-      // Step 6: Batch insert LabelClip records (with track references)
-      const clipIds = await this.batchInsertLabelClips(
-        normalizedData.labelClips
+      // Step 6: Batch insert LabelPerson records (linking to tracks and entity)
+      const personIds = await this.batchInsertLabelPeople(
+        normalizedData.labelPeople || [],
+        personEntityId,
+        trackIdsMap
       );
       this.logger.debug(
-        `Inserted ${clipIds.length} label clips for media ${input.mediaId}`
+        `Inserted ${personIds.length} label people for media ${input.mediaId}`
       );
 
       // Step 7: Update LabelMedia with aggregated data
@@ -175,8 +178,14 @@ export class PersonDetectionStepProcessor extends BaseStepProcessor<
           personTrackCount:
             normalizedData.labelMediaUpdate.personTrackCount || 0,
           labelEntityCount: entityIds.length,
-          labelTrackCount: trackIds.length,
-          labelClipCount: clipIds.length,
+          labelTrackCount: Object.keys(trackIdsMap).length,
+          labelClipCount: 0,
+          labelObjectCount: 0,
+          labelFaceCount: 0,
+          labelPersonCount: personIds.length,
+          labelSpeechCount: 0,
+          labelSegmentCount: 0,
+          labelShotCount: 0,
         },
       };
     } catch (error) {
@@ -198,6 +207,12 @@ export class PersonDetectionStepProcessor extends BaseStepProcessor<
           labelEntityCount: 0,
           labelTrackCount: 0,
           labelClipCount: 0,
+          labelObjectCount: 0,
+          labelFaceCount: 0,
+          labelPersonCount: 0,
+          labelSpeechCount: 0,
+          labelSegmentCount: 0,
+          labelShotCount: 0,
         },
       };
     }
@@ -238,245 +253,91 @@ export class PersonDetectionStepProcessor extends BaseStepProcessor<
 
   /**
    * Batch insert LabelTrack records
-   * Inserts in batches of 100 for performance
-   *
-   * TODO: Uncomment when LabelTrackMutator is created (task 2)
+   * Returns a map of trackId -> database id
    */
-  // private async batchInsertLabelTracks(tracks: Array<any>): Promise<string[]> {
-  //   const trackIds: string[] = [];
-  //   const batchSize = 100;
+  private async batchInsertLabelTracks(
+    tracks: LabelTrackData[],
+    entityId: string
+  ): Promise<Record<string, string>> {
+    const trackIdsMap: Record<string, string> = {};
+    const batchSize = 50;
 
-  //   for (let i = 0; i < tracks.length; i += batchSize) {
-  //     const batch = tracks.slice(i, i + batchSize);
+    for (let i = 0; i < tracks.length; i += batchSize) {
+      const batch = tracks.slice(i, i + batchSize);
 
-  //     for (const track of batch) {
-  //       try {
-  //         const created = await this.labelTrackMutator.create(track);
-  //         trackIds.push(created.id);
-  //       } catch (error) {
-  //         // Log error but continue with other tracks
-  //         this.logger.warn(
-  //           `Failed to insert label track: ${error instanceof Error ? error.message : String(error)}`
-  //         );
-  //       }
-  //     }
-
-  //     this.logger.debug(
-  //       `Inserted batch ${Math.floor(i / batchSize) + 1}: ${batch.length} tracks`
-  //     );
-  //   }
-
-  //   return trackIds;
-  // }
-
-  /**
-   * Batch insert LabelClip records
-   * Inserts in batches of 100 for performance
-   * Handles duplicate labelHash by checking for existing records first
-   * Filters out invalid clips before insertion
-   * Sets LabelEntityRef on clips if entityId is provided
-   */
-  private async batchInsertLabelClips(
-    clips: Array<LabelClipData>,
-    entityId?: string
-  ): Promise<string[]> {
-    // Filter out invalid clips before processing
-    const validClips = clips.filter((clip) => this.isValidLabelClip(clip));
-
-    if (validClips.length < clips.length) {
-      this.logger.warn(
-        `Filtered out ${clips.length - validClips.length} invalid label clips`
-      );
-    }
-
-    const clipIds: string[] = [];
-    const batchSize = 100;
-
-    for (let i = 0; i < validClips.length; i += batchSize) {
-      const batch = validClips.slice(i, i + batchSize);
-      let insertedCount = 0;
-      let skippedCount = 0;
-      let errorCount = 0;
-
-      for (const clip of batch) {
+      for (const track of batch) {
         try {
-          // Check if a clip with this labelHash already exists
+          // Check if track exists by trackHash
           const existing =
-            await this.pocketBaseService.labelClipMutator.getList(
-              1,
-              1,
-              `labelHash = "${clip.labelHash}"`
+            await this.pocketBaseService.labelTrackMutator.getFirstByFilter(
+              `trackHash = "${track.trackHash}"`
             );
 
-          if (existing.items.length > 0) {
-            // Clip already exists, use existing ID
-            clipIds.push(existing.items[0].id);
-            skippedCount++;
-            this.logger.debug(
-              `Skipped duplicate label clip with hash ${clip.labelHash}`
-            );
-          } else {
-            // Clip doesn't exist, create it
-            // Set LabelEntityRef if entityId is provided
-            const created =
-              await this.pocketBaseService.labelClipMutator.create({
-                ...clip,
-                LabelEntityRef: entityId || clip.LabelEntityRef,
-                provider: clip.provider as
-                  | ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE
-                  | ProcessingProvider.GOOGLE_SPEECH,
-              });
-            clipIds.push(created.id);
-            insertedCount++;
+          if (existing) {
+            trackIdsMap[track.trackId] = existing.id;
+            continue;
           }
-        } catch (error) {
-          // Check if this is a unique constraint error (race condition)
-          if (this.isUniqueConstraintError(error)) {
-            // Try to fetch the existing record
-            try {
-              const existing =
-                await this.pocketBaseService.labelClipMutator.getList(
-                  1,
-                  1,
-                  `labelHash = "${clip.labelHash}"`
-                );
-              if (existing.items.length > 0) {
-                clipIds.push(existing.items[0].id);
-                skippedCount++;
-                this.logger.debug(
-                  `Resolved duplicate label clip with hash ${clip.labelHash} (race condition)`
-                );
-              } else {
-                // Shouldn't happen, but log it
-                this.logger.warn(
-                  `Unique constraint error for labelHash ${clip.labelHash} but record not found`
-                );
-                errorCount++;
-              }
-            } catch (fetchError) {
-              this.logger.error(
-                `Failed to fetch existing label clip after unique constraint error: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`
-              );
-              errorCount++;
+
+          const created = await this.pocketBaseService.labelTrackMutator.create(
+            {
+              ...track,
+              LabelEntityRef: entityId,
             }
-          } else {
-            // Some other error occurred
-            this.logger.error(
-              `Failed to insert label clip: ${error instanceof Error ? error.message : String(error)}`
-            );
-            errorCount++;
-          }
+          );
+          trackIdsMap[track.trackId] = created.id;
+        } catch (error) {
+          this.logger.warn(`Failed to insert label track: ${error}`);
         }
       }
-
-      this.logger.debug(
-        `Batch ${Math.floor(i / batchSize) + 1}: Inserted ${insertedCount}, skipped ${skippedCount} duplicate clips, ${errorCount} errors`
-      );
     }
 
-    return clipIds;
+    return trackIdsMap;
   }
 
   /**
-   * Check if a label clip is valid before insertion
-   *
-   * @param clip The clip to validate
-   * @returns True if the clip is valid
+   * Batch insert LabelPerson records
    */
-  private isValidLabelClip(clip: LabelClipData): boolean {
-    // Check required fields
-    if (!clip.labelHash || clip.labelHash.trim().length === 0) {
-      return false;
-    }
-    if (!clip.WorkspaceRef || clip.WorkspaceRef.trim().length === 0) {
-      return false;
-    }
-    if (!clip.MediaRef || clip.MediaRef.trim().length === 0) {
-      return false;
-    }
+  private async batchInsertLabelPeople(
+    people: LabelPersonData[],
+    entityId: string,
+    trackIdsMap: Record<string, string>
+  ): Promise<string[]> {
+    const personIds: string[] = [];
+    const batchSize = 50;
 
-    // Check time values
-    if (
-      typeof clip.start !== 'number' ||
-      clip.start < 0 ||
-      !Number.isFinite(clip.start)
-    ) {
-      return false;
-    }
-    if (
-      typeof clip.end !== 'number' ||
-      clip.end < 0 ||
-      !Number.isFinite(clip.end)
-    ) {
-      return false;
-    }
+    for (let i = 0; i < people.length; i += batchSize) {
+      const batch = people.slice(i, i + batchSize);
 
-    // End must be greater than start
-    if (clip.end <= clip.start) {
-      return false;
-    }
+      for (const person of batch) {
+        try {
+          // Link to the correct track
+          const trackRef = trackIdsMap[person.personId];
 
-    // Check duration (should be positive and match end - start)
-    // Must be at least 0.5 seconds (matching normalizer's MIN_CLIP_DURATION)
-    if (
-      typeof clip.duration !== 'number' ||
-      clip.duration < 0.5 ||
-      !Number.isFinite(clip.duration)
-    ) {
-      return false;
-    }
+          // Check if person record exists by personHash
+          const existing =
+            await this.pocketBaseService.labelPersonMutator.getFirstByFilter(
+              `personHash = "${person.personHash}"`
+            );
 
-    // Check confidence (must be between 0 and 1, and at least 0.5)
-    // Matching normalizer's MIN_CLIP_CONFIDENCE
-    if (
-      typeof clip.confidence !== 'number' ||
-      clip.confidence < 0.5 ||
-      clip.confidence > 1 ||
-      !Number.isFinite(clip.confidence)
-    ) {
-      return false;
-    }
+          if (existing) {
+            personIds.push(existing.id);
+            continue;
+          }
 
-    // Check that trackId is not empty (if present in labelData)
-    if (clip.labelData && typeof clip.labelData === 'object') {
-      const labelData = clip.labelData as Record<string, unknown>;
-      const trackId = labelData.trackId;
-      if (
-        trackId !== undefined &&
-        (!trackId || String(trackId).trim().length === 0)
-      ) {
-        return false;
+          const created =
+            await this.pocketBaseService.labelPersonMutator.create({
+              ...person,
+              LabelEntityRef: entityId,
+              LabelTrackRef: trackRef,
+            });
+          personIds.push(created.id);
+        } catch (error) {
+          this.logger.warn(`Failed to insert label person: ${error}`);
+        }
       }
     }
 
-    return true;
-  }
-
-  /**
-   * Check if an error is a unique constraint violation
-   *
-   * @param error The error to check
-   * @returns True if the error is a unique constraint violation
-   */
-  private isUniqueConstraintError(error: unknown): boolean {
-    if (!error) return false;
-
-    // Check for PocketBase error structure
-    if (typeof error === 'object' && 'data' in error) {
-      const data = (error as { data?: { labelHash?: { code?: string } } }).data;
-      if (data?.labelHash?.code === 'validation_not_unique') {
-        return true;
-      }
-    }
-
-    // Check error message
-    const message = error instanceof Error ? error.message : String(error);
-    return (
-      message.includes('unique constraint') ||
-      message.includes('UNIQUE constraint') ||
-      message.includes('validation_not_unique') ||
-      message.includes('labelHash')
-    );
+    return personIds;
   }
 
   /**
@@ -484,11 +345,11 @@ export class PersonDetectionStepProcessor extends BaseStepProcessor<
    */
   private async updateLabelMedia(
     mediaId: string,
-    update: LabelMediaUpdate
+    update: Partial<LabelMediaData>
   ): Promise<void> {
     try {
       // Try to get existing LabelMedia record
-      const existing = await this.pocketBaseService.labelMediaMutator.getList(
+      const existing = await this.pocketBaseService.mediaLabelMutator.getList(
         1,
         1,
         `MediaRef = "${mediaId}"`
@@ -496,13 +357,13 @@ export class PersonDetectionStepProcessor extends BaseStepProcessor<
 
       if (existing.items.length > 0) {
         // Update existing record
-        await this.pocketBaseService.labelMediaMutator.update(
+        await this.pocketBaseService.mediaLabelMutator.update(
           existing.items[0].id,
           update
         );
       } else {
         // Create new record
-        await this.pocketBaseService.labelMediaMutator.create({
+        await this.pocketBaseService.mediaLabelMutator.create({
           MediaRef: mediaId,
           ...update,
         });

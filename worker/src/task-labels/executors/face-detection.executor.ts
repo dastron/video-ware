@@ -22,6 +22,7 @@ export interface FaceDetectionConfig {
   includeAttributes?: boolean; // default: true
   confidenceThreshold?: number; // default: 0.7
   model?: string; // default: 'builtin/latest'
+  includeThumbnails?: boolean; // default: true
 }
 
 /**
@@ -63,6 +64,7 @@ export class FaceDetectionExecutor {
             model: config.model || 'builtin/latest',
             includeBoundingBoxes: config.includeBoundingBoxes ?? true,
             includeAttributes: config.includeAttributes ?? true,
+            includeThumbnails: config.includeThumbnails ?? true,
           },
         },
       };
@@ -111,6 +113,11 @@ export class FaceDetectionExecutor {
             ? String(rawTrackId)
             : '';
 
+        const faceId = (face as any).faceId;
+        const thumbnail = face.thumbnail
+          ? (face.thumbnail as Buffer).toString('base64')
+          : undefined;
+
         // Process frames with bounding boxes and attributes
         const frames: FaceFrame[] = (track?.timestampedObjects || []).map(
           (obj) => {
@@ -122,13 +129,25 @@ export class FaceDetectionExecutor {
                 const name = attr.name?.toLowerCase() || '';
                 const value = attr.value || '';
 
-                if (name === 'headwear') {
-                  attributes.headwear = value;
-                } else if (name === 'glasses') {
-                  attributes.glasses = value;
-                } else if (name === 'looking_at_camera') {
-                  attributes.lookingAtCamera =
-                    value === 'true' || value === 'yes';
+                if (name === 'joy_likelihood') {
+                  attributes.joyLikelihood = value;
+                } else if (name === 'sorrow_likelihood') {
+                  attributes.sorrowLikelihood = value;
+                } else if (name === 'anger_likelihood') {
+                  attributes.angerLikelihood = value;
+                } else if (name === 'surprise_likelihood') {
+                  attributes.surpriseLikelihood = value;
+                } else if (name === 'under_exposed_likelihood') {
+                  attributes.underExposedLikelihood = value;
+                } else if (name === 'blurred_likelihood') {
+                  attributes.blurredLikelihood = value;
+                } else if (name === 'headwear_likelihood') {
+                  attributes.headwearLikelihood = value;
+                } else if (
+                  name === 'looking_at_camera_likelihood' ||
+                  name === 'looking_at_camera'
+                ) {
+                  attributes.lookingAtCameraLikelihood = value;
                 }
               }
             }
@@ -150,6 +169,8 @@ export class FaceDetectionExecutor {
 
         return {
           trackId,
+          faceId,
+          thumbnail,
           frames,
         };
       });

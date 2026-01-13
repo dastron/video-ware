@@ -68,7 +68,7 @@ export class FaceDetectionNormalizer {
     // Create single "Face" entity (we don't have identity information)
     const entityHash = this.generateEntityHash(
       workspaceRef,
-      LabelType.PERSON,
+      LabelType.FACE,
       'Face',
       ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE
     );
@@ -76,7 +76,7 @@ export class FaceDetectionNormalizer {
     if (!seenLabels.has(entityHash)) {
       labelEntities.push({
         WorkspaceRef: workspaceRef,
-        labelType: LabelType.PERSON,
+        labelType: LabelType.FACE,
         canonicalName: 'Face',
         provider: ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
         processor: processorVersion,
@@ -120,13 +120,7 @@ export class FaceDetectionNormalizer {
           bottom: frame.boundingBox.bottom,
         },
         confidence: frame.confidence,
-        attributes: frame.attributes
-          ? {
-              headwear: frame.attributes.headwear,
-              glasses: frame.attributes.glasses,
-              lookingAtCamera: frame.attributes.lookingAtCamera,
-            }
-          : undefined,
+        attributes: frame.attributes ? { ...frame.attributes } : undefined,
       }));
 
       // Calculate track start, end, and duration
@@ -161,14 +155,32 @@ export class FaceDetectionNormalizer {
         WorkspaceRef: workspaceRef,
         MediaRef: mediaId,
         trackId: trackId,
-        faceId: undefined, // Not provided in raw data usually
-        startTime: start,
-        endTime: end,
+        faceId: face.faceId,
+        start: start,
+        end: end,
         duration,
         avgConfidence,
-        headwearLikelihood: attributesSummary.headwear as string,
-        // Other likelihoods not extracted in this pass but could be if available in raw data
+        joyLikelihood: attributesSummary.joyLikelihood as string,
+        sorrowLikelihood: attributesSummary.sorrowLikelihood as string,
+        angerLikelihood: attributesSummary.angerLikelihood as string,
+        surpriseLikelihood: attributesSummary.surpriseLikelihood as string,
+        underExposedLikelihood:
+          attributesSummary.underExposedLikelihood as string,
+        blurredLikelihood: attributesSummary.blurredLikelihood as string,
+        headwearLikelihood: attributesSummary.headwearLikelihood as string,
+        lookingAtCameraLikelihood:
+          attributesSummary.lookingAtCameraLikelihood as string,
+        qualityScore: avgConfidence,
+        embeddingModel: face.thumbnail
+          ? 'google-video-intelligence'
+          : undefined,
+        visualHash: face.thumbnail
+          ? createHash('sha256').update(face.thumbnail).digest('hex')
+          : undefined,
         faceHash,
+        metadata: {
+          processorVersion,
+        },
       });
 
       // Create LabelTrack with keyframes and attributes
@@ -205,7 +217,7 @@ export class FaceDetectionNormalizer {
           mediaId,
           start,
           end,
-          LabelType.PERSON
+          LabelType.FACE
         );
 
         labelClips.push({
@@ -213,7 +225,7 @@ export class FaceDetectionNormalizer {
           MediaRef: mediaId,
           TaskRef: taskRef,
           labelHash: clipHash,
-          labelType: LabelType.PERSON,
+          labelType: LabelType.FACE,
           type: 'Face', // Deprecated field
           start,
           end,
@@ -285,53 +297,41 @@ export class FaceDetectionNormalizer {
    */
   private aggregateAttributes(
     frames: Array<{
-      attributes?: {
-        headwear?: string;
-        glasses?: string;
-        lookingAtCamera?: boolean;
-      };
+      attributes?: Record<string, any>;
     }>
   ): Record<string, unknown> {
-    const headwearCounts = new Map<string, number>();
-    const glassesCounts = new Map<string, number>();
-    let lookingAtCameraCount = 0;
-    let totalFrames = 0;
+    const counts: Record<string, Map<string, number>> = {
+      joyLikelihood: new Map(),
+      sorrowLikelihood: new Map(),
+      angerLikelihood: new Map(),
+      surpriseLikelihood: new Map(),
+      underExposedLikelihood: new Map(),
+      blurredLikelihood: new Map(),
+      headwearLikelihood: new Map(),
+      lookingAtCameraLikelihood: new Map(),
+    };
+
+    let totalFramesWithAttributes = 0;
 
     for (const frame of frames) {
       if (frame.attributes) {
-        totalFrames++;
-
-        if (frame.attributes.headwear) {
-          headwearCounts.set(
-            frame.attributes.headwear,
-            (headwearCounts.get(frame.attributes.headwear) ?? 0) + 1
-          );
-        }
-
-        if (frame.attributes.glasses) {
-          glassesCounts.set(
-            frame.attributes.glasses,
-            (glassesCounts.get(frame.attributes.glasses) ?? 0) + 1
-          );
-        }
-
-        if (frame.attributes.lookingAtCamera) {
-          lookingAtCameraCount++;
+        totalFramesWithAttributes++;
+        for (const [key, value] of Object.entries(frame.attributes)) {
+          if (counts[key] && value) {
+            const valStr = String(value);
+            counts[key].set(valStr, (counts[key].get(valStr) ?? 0) + 1);
+          }
         }
       }
     }
 
-    // Find most common values
-    const mostCommonHeadwear = this.getMostCommon(headwearCounts);
-    const mostCommonGlasses = this.getMostCommon(glassesCounts);
-    const lookingAtCameraPercentage =
-      totalFrames > 0 ? lookingAtCameraCount / totalFrames : 0;
+    // Find most common values for each attribute
+    const result: Record<string, unknown> = {};
+    for (const key of Object.keys(counts)) {
+      result[key] = this.getMostCommon(counts[key]);
+    }
 
-    return {
-      headwear: mostCommonHeadwear,
-      glasses: mostCommonGlasses,
-      lookingAtCameraPercentage,
-    };
+    return result;
   }
 
   /**

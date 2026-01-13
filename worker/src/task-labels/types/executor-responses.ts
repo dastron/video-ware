@@ -71,11 +71,17 @@ export interface ObjectTrackingResponse {
 
 /**
  * Face attributes detected in a frame
+ * Likelihood values are typically "VERY_UNLIKELY", "UNLIKELY", "POSSIBLE", "LIKELY", "VERY_LIKELY"
  */
 export interface FaceAttributes {
-  headwear?: string;
-  glasses?: string;
-  lookingAtCamera?: boolean;
+  joyLikelihood?: string;
+  sorrowLikelihood?: string;
+  angerLikelihood?: string;
+  surpriseLikelihood?: string;
+  underExposedLikelihood?: string;
+  blurredLikelihood?: string;
+  headwearLikelihood?: string;
+  lookingAtCameraLikelihood?: string;
 }
 
 /**
@@ -96,6 +102,8 @@ export interface FaceFrame {
 export interface FaceDetectionResponse {
   faces: Array<{
     trackId: string;
+    faceId?: string;
+    thumbnail?: string; // base64
     frames: FaceFrame[];
   }>;
 }
@@ -152,6 +160,7 @@ export interface TranscribedWord {
   startTime: number; // seconds (float)
   endTime: number; // seconds (float)
   confidence: number;
+  speakerTag?: number;
 }
 
 /**

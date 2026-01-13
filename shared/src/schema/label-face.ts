@@ -11,13 +11,24 @@ import { z } from 'zod';
 // Define the Zod schema for LabelFace
 export const LabelFaceSchema = z
   .object({
+    // --- Relations ---
     WorkspaceRef: RelationField({ collection: 'Workspaces' }),
     MediaRef: RelationField({ collection: 'Media' }),
-    LabelEntityRef: RelationField({ collection: 'LabelEntity' }).optional(),
-    trackId: TextField({ min: 1 }),
-    faceId: TextField().optional(),
+    LabelEntityRef: RelationField({ collection: 'LabelEntity' }),
+    LabelTrackRef: RelationField({ collection: 'LabelTrack' }).optional(),
 
-    // Likelihoods (e.g., VERY_UNLIKELY, UNLIKELY, POSSIBLE, LIKELY, VERY_LIKELY)
+    // --- Identification ---
+    faceId: TextField().optional(),
+    faceHash: TextField({ min: 1 }),
+
+    // --- Timing & Confidence ---
+    start: NumberField({ min: 0 }),
+    end: NumberField({ min: 0 }),
+    duration: NumberField({ min: 0 }),
+    avgConfidence: NumberField({ min: 0, max: 1 }),
+
+    // --- Attributes (Likelihoods) ---
+    // Changed to TextField to accept any string value (e.g., "VERY_LIKELY", "POSSIBLE")
     joyLikelihood: TextField().optional(),
     sorrowLikelihood: TextField().optional(),
     angerLikelihood: TextField().optional(),
@@ -25,14 +36,33 @@ export const LabelFaceSchema = z
     underExposedLikelihood: TextField().optional(),
     blurredLikelihood: TextField().optional(),
     headwearLikelihood: TextField().optional(),
+    lookingAtCameraLikelihood: TextField().optional(),
 
-    startTime: NumberField(),
-    endTime: NumberField(),
-    duration: NumberField(),
-    avgConfidence: NumberField(),
+    // Embedding Data
+    embedding: JSONField().optional(),
 
-    metadata: JSONField().optional(),
-    faceHash: TextField({ min: 1 }), // Unique constraint for deduplication
+    // 3. Model Version
+    // Essential because embeddings from AWS are not compatible with Google or dlib.
+    // e.g., "google-celebrity-v1", "facenet-512", "aws-rekognition-3.0"
+    embeddingModel: TextField().optional(),
+
+    // 4. Image Quality / Biometric Score
+    // Used to discard blurry or bad faces before trying to match them.
+    // Google doesn't give a single "quality" score, but you can derive it
+    // or store it from other providers.
+    qualityScore: NumberField({ min: 0, max: 1 }).optional(),
+
+    // 5. Visual Hash (pHash)
+    // A perceptual hash of the face crop. Useful for finding
+    // "visually identical" face images across different video files
+    // without doing full AI vector matching.
+    visualHash: TextField().optional(),
+
+    // --- Extra Data ---
+    metadata: JSONField(),
+
+    // --- System ---
+    version: NumberField().default(1).optional(),
   })
   .extend(baseSchema);
 
@@ -40,9 +70,15 @@ export const LabelFaceSchema = z
 export const LabelFaceInputSchema = z.object({
   WorkspaceRef: z.string().min(1, 'Workspace is required'),
   MediaRef: z.string().min(1, 'Media is required'),
-  LabelEntityRef: z.string().optional(),
-  trackId: z.string().min(1, 'Track ID is required'),
+  LabelEntityRef: z.string(),
+  LabelTrackRef: z.string().optional(),
   faceId: z.string().optional(),
+  faceHash: z.string().min(1, 'Face hash is required'),
+
+  start: z.number().min(0),
+  end: z.number().min(0),
+  duration: z.number().min(0),
+  avgConfidence: z.number().min(0).max(1),
 
   joyLikelihood: z.string().optional(),
   sorrowLikelihood: z.string().optional(),
@@ -51,14 +87,15 @@ export const LabelFaceInputSchema = z.object({
   underExposedLikelihood: z.string().optional(),
   blurredLikelihood: z.string().optional(),
   headwearLikelihood: z.string().optional(),
+  lookingAtCameraLikelihood: z.string().optional(),
 
-  startTime: z.number().min(0),
-  endTime: z.number().min(0),
-  duration: z.number().min(0),
-  avgConfidence: z.number().min(0).max(1),
+  embedding: z.any().optional(),
+  embeddingModel: z.string().optional(),
+  qualityScore: z.number().optional(),
+  visualHash: z.string().optional(),
 
-  metadata: z.record(z.unknown()).optional(),
-  faceHash: z.string().min(1, 'Face hash is required'),
+  metadata: z.record(z.unknown()),
+  version: z.number().optional(),
 });
 
 // Define the collection
@@ -73,10 +110,10 @@ export const LabelFaceCollection = defineCollection({
     deleteRule: '@request.auth.id != ""',
   },
   indexes: [
-    'CREATE UNIQUE INDEX idx_label_face_hash ON LabelFace (faceHash)',
-    'CREATE INDEX idx_label_face_workspace ON LabelFace (WorkspaceRef)',
-    'CREATE INDEX idx_label_face_media ON LabelFace (MediaRef)',
-    'CREATE INDEX idx_label_face_track ON LabelFace (trackId)',
+    'CREATE UNIQUE INDEX idx_label_face_hash ON LabelFaces (faceHash)',
+    'CREATE INDEX idx_label_face_workspace ON LabelFaces (WorkspaceRef)',
+    'CREATE INDEX idx_label_face_media ON LabelFaces (MediaRef)',
+    'CREATE INDEX idx_label_face_track ON LabelFaces (LabelTrackRef)',
   ],
 });
 

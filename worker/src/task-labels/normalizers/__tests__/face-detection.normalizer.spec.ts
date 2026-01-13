@@ -1,8 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { FaceDetectionNormalizer } from '../face-detection.normalizer';
-import { LabelType, ProcessingProvider } from '@project/shared';
 import { NormalizerInput } from '../../types';
+import {
+  loadFixture,
+  mapFaceDetectionFixture,
+  createMockInput,
+} from '../../__tests__/utils/test-utils';
 
 describe('FaceDetectionNormalizer', () => {
   let normalizer: FaceDetectionNormalizer;
@@ -61,10 +65,39 @@ describe('FaceDetectionNormalizer', () => {
 
     const track = output.labelTracks[0];
     expect(track.trackId).toBe(face?.trackId);
-    expect(track.LabelEntityRef).toBeUndefined(); // Will be set by processor
   });
 
-  it('should create LabelFace entities', async () => {
+  it('should normalize data from face-detection.json fixture', async () => {
+    const fixture = loadFixture('face-detection.json');
+    const mappedResponse = mapFaceDetectionFixture(fixture);
+    const input = createMockInput(mappedResponse, 'face-detection');
+
+    const output = await normalizer.normalize(input);
+
+    // Verify entity creation
+    expect(output.labelEntities.length).toBe(1);
+    expect(output.labelEntities[0].canonicalName).toBe('Face');
+
+    // Verify faces and tracks
+    expect(output.labelFaces?.length).toBeGreaterThan(0);
+    expect(output.labelTracks.length).toBeGreaterThan(0);
+
+    // Check first face mapping
+    const face = output.labelFaces?.[0];
+    expect(face).toBeDefined();
+    expect(face?.faceHash).toBeDefined();
+    expect(typeof face?.start).toBe('number');
+    expect(typeof face?.end).toBe('number');
+
+    // Check first track mapping
+    const track = output.labelTracks[0];
+    expect(track).toBeDefined();
+    expect(track.trackHash).toBeDefined();
+    expect(track.trackId).toBeDefined();
+    expect(track.keyframes.length).toBeGreaterThan(0);
+  });
+
+  it('should create LabelFace entities with attributes', async () => {
     const input: NormalizerInput<any> = {
       response: {
         faces: [
@@ -76,7 +109,7 @@ describe('FaceDetectionNormalizer', () => {
                 boundingBox: { left: 0, top: 0, right: 1, bottom: 1 },
                 confidence: 0.9,
                 attributes: {
-                  headwear: 'High',
+                  headwearLikelihood: 'High',
                 },
               },
             ],

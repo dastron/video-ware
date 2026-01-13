@@ -121,31 +121,31 @@ export class FaceDetectionStepProcessor extends BaseStepProcessor<
         `Inserted ${entityIds.length} label entities for media ${input.mediaId}`
       );
 
-      // Step 5: Batch insert LabelFace records
-      const entityId = entityIds.length > 0 ? entityIds[0] : undefined;
-      const { faceIds, trackIdToFaceIdMap } = await this.batchInsertLabelFaces(
-        normalizedData.labelFaces || [],
-        entityId
-      );
-      this.logger.debug(
-        `Inserted ${faceIds.length} label faces for media ${input.mediaId}`
-      );
-
-      // Step 6: Batch insert LabelTrack records (with keyframes and attributes)
+      // Step 5: Batch insert LabelTrack records (with keyframes and attributes)
       // Face detection creates a single "Face" entity, so all tracks reference it
+      const entityId = entityIds.length > 0 ? entityIds[0] : undefined;
       const { trackIds, trackIdToDbIdMap } = await this.batchInsertLabelTracks(
         normalizedData.labelTracks,
-        entityId,
-        trackIdToFaceIdMap
+        entityId
       );
       this.logger.debug(
         `Inserted ${trackIds.length} label tracks for media ${input.mediaId}`
       );
 
+      // Step 6: Batch insert LabelFace records
+      const faceIds = await this.batchInsertLabelFaces(
+        normalizedData.labelFaces || [],
+        entityId,
+        trackIdToDbIdMap
+      );
+      this.logger.debug(
+        `Inserted ${faceIds.length} label faces for media ${input.mediaId}`
+      );
+
       // Step 7: Batch insert LabelClip records (with track references)
       // Face detection creates a single "Face" entity, so all clips reference it
       const clipIds = await this.batchInsertLabelClips(
-        normalizedData.labelClips,
+        normalizedData.labelClips || [],
         entityId,
         trackIdToDbIdMap
       );
@@ -176,6 +176,12 @@ export class FaceDetectionStepProcessor extends BaseStepProcessor<
           labelEntityCount: entityIds.length,
           labelTrackCount: trackIds.length,
           labelClipCount: clipIds.length,
+          labelObjectCount: 0,
+          labelFaceCount: normalizedData.labelMediaUpdate.faceCount || 0,
+          labelPersonCount: 0,
+          labelSpeechCount: 0,
+          labelSegmentCount: 0,
+          labelShotCount: 0,
         },
       };
     } catch (error) {
@@ -197,6 +203,12 @@ export class FaceDetectionStepProcessor extends BaseStepProcessor<
           labelEntityCount: 0,
           labelTrackCount: 0,
           labelClipCount: 0,
+          labelObjectCount: 0,
+          labelFaceCount: 0,
+          labelPersonCount: 0,
+          labelSpeechCount: 0,
+          labelSegmentCount: 0,
+          labelShotCount: 0,
         },
       };
     }
@@ -244,10 +256,10 @@ export class FaceDetectionStepProcessor extends BaseStepProcessor<
    */
   private async batchInsertLabelFaces(
     faces: LabelFaceData[],
-    entityId?: string
-  ): Promise<{ faceIds: string[]; trackIdToFaceIdMap: Map<string, string> }> {
+    entityId?: string,
+    trackIdToDbIdMap?: Map<string, string>
+  ): Promise<string[]> {
     const faceIds: string[] = [];
-    const trackIdToFaceIdMap = new Map<string, string>();
     const batchSize = 100;
 
     for (let i = 0; i < faces.length; i += batchSize) {
@@ -269,16 +281,17 @@ export class FaceDetectionStepProcessor extends BaseStepProcessor<
           if (existing.items.length > 0) {
             const dbId = existing.items[0].id;
             faceIds.push(dbId);
-            trackIdToFaceIdMap.set(face.trackId, dbId);
             skippedCount++;
           } else {
+            const labelTrackRef = trackIdToDbIdMap?.get(face.trackId);
             const created =
               await this.pocketBaseService.labelFaceMutator.create({
                 ...face,
-                LabelEntityRef: entityId || face.LabelEntityRef,
+                LabelEntityRef: entityId || face.LabelEntityRef || '',
+                LabelTrackRef: labelTrackRef,
+                metadata: face.metadata || {},
               });
             faceIds.push(created.id);
-            trackIdToFaceIdMap.set(face.trackId, created.id);
             insertedCount++;
           }
         } catch (error) {
@@ -294,7 +307,7 @@ export class FaceDetectionStepProcessor extends BaseStepProcessor<
       );
     }
 
-    return { faceIds, trackIdToFaceIdMap };
+    return faceIds;
   }
 
   /**
@@ -310,8 +323,7 @@ export class FaceDetectionStepProcessor extends BaseStepProcessor<
    */
   private async batchInsertLabelTracks(
     tracks: LabelTrackData[],
-    entityId?: string,
-    trackIdToFaceIdMap?: Map<string, string>
+    entityId?: string
   ): Promise<{ trackIds: string[]; trackIdToDbIdMap: Map<string, string> }> {
     const trackIds: string[] = [];
     const trackIdToDbIdMap = new Map<string, string>(); // Map trackId -> database ID
@@ -355,14 +367,10 @@ export class FaceDetectionStepProcessor extends BaseStepProcessor<
               continue;
             }
 
-            const labelFaceRef = trackIdToFaceIdMap?.get(track.trackId);
-
             const created =
               await this.pocketBaseService.labelTrackMutator.create({
                 ...track,
                 LabelEntityRef: labelEntityRef,
-                LabelFaceRef: labelFaceRef,
-                provider: ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
                 keyframes: track.keyframes, // Ensure keyframes are stored
               });
             trackIds.push(created.id);
@@ -598,7 +606,7 @@ export class FaceDetectionStepProcessor extends BaseStepProcessor<
   ): Promise<void> {
     try {
       // Try to get existing LabelMedia record
-      const existing = await this.pocketBaseService.labelMediaMutator.getList(
+      const existing = await this.pocketBaseService.mediaLabelMutator.getList(
         1,
         1,
         `MediaRef = "${mediaId}"`
@@ -606,13 +614,13 @@ export class FaceDetectionStepProcessor extends BaseStepProcessor<
 
       if (existing.items.length > 0) {
         // Update existing record
-        await this.pocketBaseService.labelMediaMutator.update(
+        await this.pocketBaseService.mediaLabelMutator.update(
           existing.items[0].id,
           update
         );
       } else {
         // Create new record
-        await this.pocketBaseService.labelMediaMutator.create({
+        await this.pocketBaseService.mediaLabelMutator.create({
           MediaRef: mediaId,
           ...update,
         });

@@ -7,35 +7,43 @@ import {
   baseSchema,
 } from 'pocketbase-zod-schema/schema';
 import { z } from 'zod';
-
-// Define word timing schema
+// Define word timing structure for reference/validation
+// (This validates the content inside the JSONField)
 const WordTimingSchema = z.object({
   word: z.string(),
-  startTime: z.number(),
-  endTime: z.number(),
+  startTime: z.number(), // specific to word alignment
+  endTime: z.number(), // specific to word alignment
   confidence: z.number(),
   speakerTag: z.number().optional(),
 });
 
-// Define the Zod schema for LabelSpeech
 export const LabelSpeechSchema = z
   .object({
+    // --- Relations ---
     WorkspaceRef: RelationField({ collection: 'Workspaces' }),
     MediaRef: RelationField({ collection: 'Media' }),
+    LabelTrackRef: RelationField({ collection: 'LabelTrack' }).optional(),
+    LabelEntityRef: RelationField({ collection: 'LabelEntity' }).optional(),
 
+    // --- Content ---
     transcript: TextField({ min: 1 }),
-    startTime: NumberField(),
-    endTime: NumberField(),
-    duration: NumberField(),
-    confidence: NumberField(),
+    languageCode: TextField().optional(), // e.g. "en-US"
 
-    speakerTag: NumberField().optional(),
-    languageCode: TextField().optional(),
+    // --- Timing (Standardized) ---
+    // Changed from startTime/endTime to match LabelFaces/LabelObjects
+    start: NumberField({ min: 0 }),
+    end: NumberField({ min: 0 }),
+    duration: NumberField({ min: 0 }),
 
-    words: JSONField(), // Array of words with timing
+    confidence: NumberField({ min: 0, max: 1 }),
 
+    // --- Details ---
+    speakerTag: NumberField().optional(), // Raw integer tag from Google
+    words: JSONField(), // Stores array of WordTimingSchema
+
+    // --- System ---
     metadata: JSONField().optional(),
-    speechHash: TextField({ min: 1 }), // Unique constraint for deduplication
+    speechHash: TextField({ min: 1 }), // Unique constraint
   })
   .extend(baseSchema);
 
@@ -43,10 +51,12 @@ export const LabelSpeechSchema = z
 export const LabelSpeechInputSchema = z.object({
   WorkspaceRef: z.string().min(1, 'Workspace is required'),
   MediaRef: z.string().min(1, 'Media is required'),
+  LabelEntityRef: z.string().optional(),
+  LabelTrackRef: z.string().optional(),
 
   transcript: z.string().min(1, 'Transcript is required'),
-  startTime: z.number().min(0),
-  endTime: z.number().min(0),
+  start: z.number().min(0),
+  end: z.number().min(0),
   duration: z.number().min(0),
   confidence: z.number().min(0).max(1),
 

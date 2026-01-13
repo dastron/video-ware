@@ -7,6 +7,7 @@ import type {
   NormalizerOutput,
   LabelEntityData,
   LabelSpeechData,
+  LabelTrackData,
   LabelClipData,
   LabelMediaData,
 } from '../types';
@@ -60,97 +61,112 @@ export class SpeechTranscriptionNormalizer {
 
     const labelEntities: LabelEntityData[] = [];
     const labelSpeech: LabelSpeechData[] = [];
-    const labelClips: LabelClipData[] = [];
-    const seenLabels = new Set<string>();
+    const labelTracks: LabelTrackData[] = [];
+    const seenSpeakers = new Set<number>();
 
     // Create speech segments (time-bounded chunks)
     const segments = this.createSpeechSegments(response.words);
     this.logger.debug(`Created ${segments.length} segments`);
 
+    // Group segments by speaker to create tracks
+    const speakerSegments = new Map<number, typeof segments>();
     for (const segment of segments) {
-      const speechHash = this.generateSpeechHash(
-        mediaId,
-        segment.start,
-        segment.end,
-        processorVersion
-      );
-
-      labelSpeech.push({
-        WorkspaceRef: workspaceRef,
-        MediaRef: mediaId,
-        transcript: segment.text,
-        startTime: segment.start,
-        endTime: segment.end,
-        duration: segment.end - segment.start,
-        confidence: segment.confidence,
-        words: segment.words.map((w, idx) => ({
-          word: w,
-          startTime: segment.wordTimings[idx].start,
-          endTime: segment.wordTimings[idx].end,
-          confidence: segment.wordTimings[idx].confidence,
-        })),
-        speakerTag: segment.speakerTag,
-        languageCode: response.languageCode,
-        speechHash,
-      });
-
-      const clipHash = this.generateClipHash(
-        mediaId,
-        segment.start,
-        segment.end,
-        LabelType.SPEECH
-      );
-
-      labelClips.push({
-        WorkspaceRef: workspaceRef,
-        MediaRef: mediaId,
-        TaskRef: taskRef,
-        labelHash: clipHash,
-        labelType: LabelType.SPEECH,
-        type: 'Speech', // Deprecated field
-        start: segment.start,
-        end: segment.end,
-        duration: segment.end - segment.start,
-        confidence: segment.confidence,
-        version,
-        processor: processorVersion,
-        provider: ProcessingProvider.GOOGLE_SPEECH,
-        labelData: {
-          entity: 'Speech',
-          text: segment.text,
-          wordCount: segment.wordCount,
-          languageCode: response.languageCode,
-          speakerTag: segment.speakerTag,
-        },
-        // LabelEntityRef will be set by step processor (for "Speech" entity)
-        // LabelTrackRef is null for speech (no spatial tracking)
-      });
+      const tag = segment.speakerTag ?? 0;
+      if (!speakerSegments.has(tag)) {
+        speakerSegments.set(tag, []);
+      }
+      speakerSegments.get(tag)!.push(segment);
     }
 
-    // Extract significant words/phrases for LabelEntity
-    const significantWords = this.extractSignificantWords(response.words);
+    // Process each speaker
+    for (const [tag, utterances] of speakerSegments.entries()) {
+      const trackId = tag.toString();
 
-    for (const word of significantWords) {
+      // Generate entity for this speaker
+      // Format: "Clip Speaker Y" or "Track Z"
+      const speakerName = tag > 0 ? `Clip Speaker ${tag}` : `Track ${trackId}`;
+
       const entityHash = this.generateEntityHash(
         workspaceRef,
         LabelType.SPEECH,
-        word,
+        speakerName,
         ProcessingProvider.GOOGLE_SPEECH
       );
 
-      if (!seenLabels.has(entityHash)) {
-        labelEntities.push({
+      labelEntities.push({
+        WorkspaceRef: workspaceRef,
+        labelType: LabelType.SPEECH,
+        canonicalName: speakerName,
+        provider: ProcessingProvider.GOOGLE_SPEECH,
+        processor: processorVersion,
+        entityHash,
+        metadata: {
+          speakerTag: tag,
+          languageCode: response.languageCode,
+        },
+      });
+
+      // Create a track for this speaker
+      const trackHash = this.generateTrackHash(
+        mediaId,
+        trackId,
+        ProcessingProvider.GOOGLE_SPEECH
+      );
+
+      const trackStart = Math.min(...utterances.map((u) => u.start));
+      const trackEnd = Math.max(...utterances.map((u) => u.end));
+
+      labelTracks.push({
+        WorkspaceRef: workspaceRef,
+        MediaRef: mediaId,
+        TaskRef: taskRef,
+        trackId,
+        trackHash,
+        start: trackStart,
+        end: trackEnd,
+        duration: trackEnd - trackStart,
+        confidence:
+          utterances.reduce((sum: number, u) => sum + u.confidence, 0) /
+          utterances.length,
+        provider: ProcessingProvider.GOOGLE_SPEECH,
+        processor: processorVersion,
+        version,
+        trackData: {
+          speakerTag: tag,
+          utteranceCount: utterances.length,
+        },
+        keyframes: [], // Speech doesn't have spatial keyframes
+      });
+
+      // Create LabelSpeech records for each utterance
+      for (const segment of utterances) {
+        const speechHash = this.generateSpeechHash(
+          mediaId,
+          segment.start,
+          segment.end,
+          processorVersion
+        );
+
+        labelSpeech.push({
           WorkspaceRef: workspaceRef,
-          labelType: LabelType.SPEECH,
-          canonicalName: word,
-          provider: ProcessingProvider.GOOGLE_SPEECH,
-          processor: processorVersion,
-          entityHash,
-          metadata: {
-            languageCode: response.languageCode,
-          },
+          MediaRef: mediaId,
+          transcript: segment.text,
+          start: segment.start,
+          end: segment.end,
+          duration: segment.end - segment.start,
+          confidence: segment.confidence,
+          words: segment.words.map((w: string, idx: number) => ({
+            word: w,
+            startTime: segment.wordTimings[idx].start,
+            endTime: segment.wordTimings[idx].end,
+            confidence: segment.wordTimings[idx].confidence,
+            speakerTag: segment.speakerTag,
+          })),
+          speakerTag: segment.speakerTag,
+          languageCode: response.languageCode,
+          speechHash,
+          // Refs will be populated by the processor
         });
-        seenLabels.add(entityHash);
       }
     }
 
@@ -166,111 +182,15 @@ export class SpeechTranscriptionNormalizer {
     };
 
     this.logger.debug(
-      `Normalized ${labelEntities.length} entities, ${labelClips.length} clips from ${response.words.length} words`
+      `Normalized ${labelEntities.length} speakers/entities, ${labelTracks.length} tracks, ${labelSpeech.length} speech segments`
     );
 
     return {
       labelEntities,
       labelSpeech,
-      labelTracks: [], // No tracks for speech transcription
-      labelClips,
+      labelTracks,
       labelMediaUpdate,
     };
-  }
-
-  /**
-   * Extract significant words from transcript
-   *
-   * Filters words by:
-   * - Minimum confidence threshold
-   * - Minimum word length
-   * - Excludes common stop words
-   *
-   * @param words Array of transcribed words
-   * @returns Array of significant words
-   */
-  private extractSignificantWords(
-    words: Array<{ word: string; confidence: number }>
-  ): string[] {
-    const stopWords = new Set([
-      'the',
-      'a',
-      'an',
-      'and',
-      'or',
-      'but',
-      'in',
-      'on',
-      'at',
-      'to',
-      'for',
-      'of',
-      'with',
-      'by',
-      'from',
-      'as',
-      'is',
-      'was',
-      'are',
-      'were',
-      'be',
-      'been',
-      'being',
-      'have',
-      'has',
-      'had',
-      'do',
-      'does',
-      'did',
-      'will',
-      'would',
-      'should',
-      'could',
-      'may',
-      'might',
-      'can',
-      'this',
-      'that',
-      'these',
-      'those',
-      'it',
-      'its',
-      'they',
-      'them',
-      'their',
-      'we',
-      'us',
-      'our',
-      'you',
-      'your',
-      'he',
-      'him',
-      'his',
-      'she',
-      'her',
-      'i',
-      'me',
-      'my',
-    ]);
-
-    const significantWords = new Set<string>();
-
-    for (const wordObj of words) {
-      const word = wordObj.word.toLowerCase().trim();
-
-      // Filter by confidence, length, and stop words
-      if (
-        wordObj.confidence >= this.MIN_WORD_CONFIDENCE &&
-        word.length >= this.MIN_WORD_LENGTH &&
-        !stopWords.has(word)
-      ) {
-        // Capitalize first letter for display
-        const capitalizedWord = word.charAt(0).toUpperCase() + word.slice(1);
-        significantWords.add(capitalizedWord);
-      }
-    }
-
-    return Array.from(significantWords);
   }
 
   /**
@@ -350,7 +270,7 @@ export class SpeechTranscriptionNormalizer {
           end: currentSegment.end,
           text: currentSegment.words.join(' '),
           confidence:
-            currentSegment.confidences.reduce((sum, c) => sum + c, 0) /
+            currentSegment.confidences.reduce((sum: number, c) => sum + c, 0) /
             currentSegment.confidences.length,
           wordCount: currentSegment.words.length,
           words: currentSegment.words,
@@ -393,7 +313,7 @@ export class SpeechTranscriptionNormalizer {
         end: currentSegment.end,
         text: currentSegment.words.join(' '),
         confidence:
-          currentSegment.confidences.reduce((sum, c) => sum + c, 0) /
+          currentSegment.confidences.reduce((sum: number, c) => sum + c, 0) /
           currentSegment.confidences.length,
         wordCount: currentSegment.words.length,
         words: currentSegment.words,
@@ -403,6 +323,18 @@ export class SpeechTranscriptionNormalizer {
     }
 
     return segments;
+  }
+
+  /**
+   * Generate track hash for deduplication
+   */
+  private generateTrackHash(
+    mediaId: string,
+    trackId: string,
+    provider: ProcessingProvider
+  ): string {
+    const hashInput = `${mediaId}:${trackId}:${provider}`;
+    return createHash('sha256').update(hashInput).digest('hex');
   }
 
   /**
@@ -429,28 +361,6 @@ export class SpeechTranscriptionNormalizer {
   ): string {
     const normalizedName = canonicalName.trim().toLowerCase();
     const hashInput = `${workspaceRef}:${labelType}:${normalizedName}:${provider}`;
-    return createHash('sha256').update(hashInput).digest('hex');
-  }
-
-  /**
-   * Generate clip hash for deduplication
-   *
-   * Hash format: mediaId:start:end:labelType
-   * This ensures unique clips based on media, time range, and label type
-   *
-   * @param mediaId Media ID
-   * @param start Start time
-   * @param end End time
-   * @param labelType Label type
-   * @returns SHA-256 hash
-   */
-  private generateClipHash(
-    mediaId: string,
-    start: number,
-    end: number,
-    labelType: LabelType
-  ): string {
-    const hashInput = `${mediaId}:${start.toFixed(3)}:${end.toFixed(3)}:${labelType}`;
     return createHash('sha256').update(hashInput).digest('hex');
   }
 }

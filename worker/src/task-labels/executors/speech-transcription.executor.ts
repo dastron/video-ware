@@ -149,6 +149,7 @@ export class SpeechTranscriptionExecutor {
                 startTime: this.parseTimeOffset(word.startTime),
                 endTime: this.parseTimeOffset(word.endTime),
                 confidence: alternative.confidence || 0,
+                speakerTag: word.speakerTag || undefined,
               });
             }
           }

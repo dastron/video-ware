@@ -36,14 +36,21 @@ export interface LabelFaceData {
   underExposedLikelihood?: string;
   blurredLikelihood?: string;
   headwearLikelihood?: string;
+  lookingAtCameraLikelihood?: string;
 
-  startTime: number;
-  endTime: number;
+  start: number;
+  end: number;
   duration: number;
   avgConfidence: number;
 
   metadata?: Record<string, unknown>;
   faceHash: string;
+
+  // New fields
+  embedding?: number[];
+  embeddingModel?: string;
+  qualityScore?: number;
+  visualHash?: string;
 }
 
 /**
@@ -52,11 +59,13 @@ export interface LabelFaceData {
 export interface LabelSpeechData {
   WorkspaceRef: string;
   MediaRef: string;
+  LabelEntityRef?: string; // Link to LabelEntity
+  LabelTrackRef?: string; // Link to LabelTrack
 
   transcript: string;
 
-  startTime: number;
-  endTime: number;
+  start: number;
+  end: number;
   duration: number;
   confidence: number;
 
@@ -140,6 +149,80 @@ export interface LabelClipData {
 }
 
 /**
+ * LabelSegment data ready for database insertion
+ */
+export interface LabelSegmentData {
+  WorkspaceRef: string;
+  MediaRef: string;
+  LabelEntityRef?: string;
+  entity: string;
+  segmentHash: string;
+  start: number;
+  end: number;
+  duration: number;
+  confidence: number;
+  metadata: Record<string, unknown>;
+  version?: number;
+}
+
+/**
+ * LabelShot data ready for database insertion
+ */
+export interface LabelShotData {
+  WorkspaceRef: string;
+  MediaRef: string;
+  LabelEntityRef?: string;
+  entity: string;
+  shotHash: string;
+  start: number;
+  end: number;
+  duration: number;
+  confidence: number;
+  metadata: Record<string, unknown>;
+  version?: number;
+}
+
+/**
+ * LabelObject data ready for database insertion
+ */
+export interface LabelObjectData {
+  WorkspaceRef: string;
+  MediaRef: string;
+  LabelEntityRef?: string;
+  LabelTrackRef?: string;
+  entity: string;
+  originalTrackId: string;
+  objectHash: string;
+  start: number;
+  end: number;
+  duration: number;
+  confidence: number;
+  version?: number;
+  metadata: Record<string, unknown>;
+}
+
+/**
+ * LabelPerson data ready for database insertion
+ */
+export interface LabelPersonData {
+  WorkspaceRef: string;
+  MediaRef: string;
+  LabelEntityRef?: string;
+  LabelTrackRef?: string;
+  personId: string;
+  personHash: string;
+  start: number;
+  end: number;
+  duration: number;
+  confidence: number;
+  upperBodyColor?: string;
+  lowerBodyColor?: string;
+  hasLandmarks?: boolean;
+  metadata: Record<string, unknown>;
+  version?: number;
+}
+
+/**
  * LabelMedia update data (partial update)
  */
 export interface LabelMediaData {
@@ -188,6 +271,10 @@ export interface NormalizerOutput {
   labelFaces?: LabelFaceData[];
   labelSpeech?: LabelSpeechData[];
   labelTracks: LabelTrackData[];
-  labelClips: LabelClipData[];
+  labelClips?: LabelClipData[];
+  labelObjects?: LabelObjectData[];
+  labelSegments?: LabelSegmentData[];
+  labelShots?: LabelShotData[];
+  labelPeople?: LabelPersonData[];
   labelMediaUpdate: Partial<LabelMediaData>;
 }

@@ -58,6 +58,10 @@ export type {
   KeyframeData,
   LabelTrackData,
   LabelClipData,
+  LabelObjectData,
+  LabelSegmentData,
+  LabelShotData,
+  LabelPersonData,
   LabelMediaData,
   NormalizerOutput,
 } from './normalizer-outputs';
