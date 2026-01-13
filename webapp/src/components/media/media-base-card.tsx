@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { SpriteAnimator } from '@/components/sprite/sprite-animator';
+import { FilmstripViewer } from '@/components/filmstrip/filmstrip-viewer';
 import { Media, File } from '@project/shared';
 import { Film } from 'lucide-react';
 
@@ -41,6 +42,29 @@ export function MediaBaseCard({
   spriteFile,
 }: MediaBaseCardProps) {
   const [isHovering, setIsHovering] = useState(false);
+  const [animatedPreviewTime, setAnimatedPreviewTime] = useState(
+    startTime || 0
+  );
+
+  // Derive the effective preview time: use animated time when hovering, initial time when not
+  const previewTime = useMemo(() => {
+    return isHovering ? animatedPreviewTime : startTime || 0;
+  }, [isHovering, animatedPreviewTime, startTime]);
+
+  // Handle preview animation on hover
+  useEffect(() => {
+    if (!isHovering || !media) return;
+
+    const interval = setInterval(() => {
+      setAnimatedPreviewTime((prev) => {
+        const next = prev + 1;
+        const currentEndTime = endTime || media.duration;
+        return next >= currentEndTime ? startTime || 0 : next;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isHovering, startTime, endTime, media]);
 
   return (
     <Card
@@ -63,19 +87,27 @@ export function MediaBaseCard({
         )}
       >
         {media ? (
-          <SpriteAnimator
-            media={media}
-            spriteFile={spriteFile}
-            start={startTime || 0}
-            end={endTime || 0}
-            isHovering={isHovering}
-            className="absolute inset-0"
-            fallbackIcon={
-              <div className="flex items-center justify-center h-full text-muted-foreground/40">
-                <Film className="h-6 w-6" />
-              </div>
-            }
-          />
+          media.filmstripFileRefs && media.filmstripFileRefs.length > 0 ? (
+            <FilmstripViewer
+              media={media}
+              currentTime={previewTime}
+              className="absolute inset-0"
+            />
+          ) : (
+            <SpriteAnimator
+              media={media}
+              spriteFile={spriteFile}
+              start={startTime || 0}
+              end={endTime || 0}
+              isHovering={isHovering}
+              className="absolute inset-0"
+              fallbackIcon={
+                <div className="flex items-center justify-center h-full text-muted-foreground/40">
+                  <Film className="h-6 w-6" />
+                </div>
+              }
+            />
+          )
         ) : (
           <div className="flex items-center justify-center h-full text-muted-foreground/40">
             <Film className="h-6 w-6" />

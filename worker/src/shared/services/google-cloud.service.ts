@@ -77,6 +77,7 @@ export class GoogleCloudService implements OnModuleInit {
 
     const clientConfig: any = {
       projectId: this.projectId,
+      location: this.configService.get<string>('google.location'),
     };
 
     // Prefer inline credentials over key file
@@ -178,7 +179,7 @@ export class GoogleCloudService implements OnModuleInit {
 
       const location = this.configService.get<string>(
         'google.location',
-        'us-central1'
+        'us-west1'
       );
       const parent = `projects/${this.projectId}/locations/${location}`;
 

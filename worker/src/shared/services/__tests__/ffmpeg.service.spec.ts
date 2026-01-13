@@ -4,7 +4,7 @@ import { FFmpegService } from '../ffmpeg.service';
 import * as fs from 'fs';
 
 // Hoisted mock for child_process (vi.mock is hoisted, so we need hoisted variables)
-const { execMock } = vi.hoisted(() => {
+const { execMock, spawnMock } = vi.hoisted(() => {
   const execMock = vi.fn(() => ({
     stderr: { on: vi.fn() },
     on: vi.fn(),
@@ -12,12 +12,20 @@ const { execMock } = vi.hoisted(() => {
 
   (execMock as any)[Symbol.for('nodejs.util.promisify.custom')] = vi.fn();
 
-  return { execMock };
+  const spawnMock = vi.fn(() => ({
+    stderr: {
+      on: vi.fn(),
+    },
+    on: vi.fn(),
+  }));
+
+  return { execMock, spawnMock };
 });
 
 vi.mock('child_process', () => {
   return {
     exec: execMock,
+    spawn: spawnMock,
   };
 });
 
@@ -193,13 +201,31 @@ describe('FFmpegService', () => {
   describe('generateSprite', () => {
     it('should generate sprite sheet successfully', async () => {
       vi.mocked(fs.existsSync).mockReturnValue(true);
-      (execMock as any)[
-        Symbol.for('nodejs.util.promisify.custom')
-      ].mockResolvedValueOnce({
-        stdout: '',
-        stderr:
-          'frame=  100 fps=0.0 q=2.0 Lsize=N/A time=00:01:40.00 bitrate=N/A speed=10x',
-      });
+
+      const mockProcess = {
+        stderr: {
+          on: vi.fn((event, callback) => {
+            if (event === 'data') {
+              // Simulate successful output
+              setTimeout(
+                () =>
+                  callback(
+                    Buffer.from(
+                      'frame=  100 fps=0.0 q=2.0 Lsize=N/A time=00:01:40.00 bitrate=N/A speed=10x'
+                    )
+                  ),
+                10
+              );
+            }
+          }),
+        },
+        on: vi.fn((event, callback) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 20);
+          }
+        }),
+      };
+      spawnMock.mockReturnValueOnce(mockProcess as any);
 
       await service.generateSprite(
         '/input.mp4',
@@ -211,19 +237,35 @@ describe('FFmpegService', () => {
         120
       );
 
-      expect(
-        (execMock as any)[Symbol.for('nodejs.util.promisify.custom')]
-      ).toHaveBeenCalledWith(
-        expect.stringContaining(
-          'ffmpeg -y -i "/input.mp4" -vf "fps=0.1,scale=160:120,tile=10x10" -frames:v 1 -update 1 -q:v 2 "/output.jpg"'
-        )
+      expect(spawnMock).toHaveBeenCalledWith(
+        'ffmpeg',
+        expect.arrayContaining([
+          '-y',
+          '-i',
+          '/input.mp4',
+          '-vf',
+          'fps=0.1,scale=160:120,tile=10x10',
+          '-frames:v',
+          '1',
+          '-q:v',
+          '2',
+          '/output.jpg',
+        ])
       );
     });
 
     it('should throw error if sprite generation fails', async () => {
-      (execMock as any)[
-        Symbol.for('nodejs.util.promisify.custom')
-      ].mockRejectedValueOnce(new Error('FFmpeg failed'));
+      const mockProcess = {
+        stderr: {
+          on: vi.fn(),
+        },
+        on: vi.fn((event, callback) => {
+          if (event === 'error') {
+            setTimeout(() => callback(new Error('FFmpeg failed')), 10);
+          }
+        }),
+      };
+      spawnMock.mockReturnValueOnce(mockProcess as any);
 
       await expect(
         service.generateSprite('/input.mp4', '/output.jpg')
@@ -296,16 +338,17 @@ describe('FFmpegService', () => {
         stderr: {
           on: vi.fn((event, callback) => {
             if (event === 'data') {
-              // Simulate progress updates
-              setTimeout(
-                () => callback('time=00:01:00.00 bitrate=1000kbits/s'),
-                10
-              );
+              // Trigger the callback immediately with progress data
+              // Use setTimeout to ensure it's called asynchronously
+              setImmediate(() => {
+                callback('time=00:01:00.00 bitrate=1000kbits/s');
+              });
             }
           }),
         },
         on: vi.fn((event, callback) => {
           if (event === 'close') {
+            // Delay close to allow progress callback to fire
             setTimeout(() => callback(0), 20);
           }
         }),
@@ -387,6 +430,10 @@ describe('FFmpegService', () => {
     });
 
     it('should return false if FFmpeg is not available', async () => {
+      // Reset the mock to ensure clean state
+      (execMock as any)[Symbol.for('nodejs.util.promisify.custom')].mockReset();
+
+      // Mock the first call to fail (ffmpeg -version)
       (execMock as any)[
         Symbol.for('nodejs.util.promisify.custom')
       ].mockRejectedValueOnce(new Error('Command not found'));
@@ -394,6 +441,10 @@ describe('FFmpegService', () => {
       const result = await service.checkAvailability();
 
       expect(result).toBe(false);
+      // Verify the mock was called (only once since it fails on first call)
+      expect(
+        (execMock as any)[Symbol.for('nodejs.util.promisify.custom')]
+      ).toHaveBeenCalledTimes(1);
     });
   });
 });

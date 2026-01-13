@@ -24,6 +24,7 @@ export class TimelineClipMutator extends BaseMutator<
         'MediaRef.UploadRef',
         'MediaRef.thumbnailFileRef',
         'MediaRef.spriteFileRef',
+        'MediaRef.filmstripFileRefs',
         'MediaClipRef',
       ],
       filter: [],
