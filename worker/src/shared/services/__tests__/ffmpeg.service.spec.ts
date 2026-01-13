@@ -201,13 +201,21 @@ describe('FFmpegService', () => {
   describe('generateSprite', () => {
     it('should generate sprite sheet successfully', async () => {
       vi.mocked(fs.existsSync).mockReturnValue(true);
-      
+
       const mockProcess = {
         stderr: {
           on: vi.fn((event, callback) => {
             if (event === 'data') {
               // Simulate successful output
-              setTimeout(() => callback(Buffer.from('frame=  100 fps=0.0 q=2.0 Lsize=N/A time=00:01:40.00 bitrate=N/A speed=10x')), 10);
+              setTimeout(
+                () =>
+                  callback(
+                    Buffer.from(
+                      'frame=  100 fps=0.0 q=2.0 Lsize=N/A time=00:01:40.00 bitrate=N/A speed=10x'
+                    )
+                  ),
+                10
+              );
             }
           }),
         },
@@ -424,7 +432,7 @@ describe('FFmpegService', () => {
     it('should return false if FFmpeg is not available', async () => {
       // Reset the mock to ensure clean state
       (execMock as any)[Symbol.for('nodejs.util.promisify.custom')].mockReset();
-      
+
       // Mock the first call to fail (ffmpeg -version)
       (execMock as any)[
         Symbol.for('nodejs.util.promisify.custom')
@@ -434,7 +442,9 @@ describe('FFmpegService', () => {
 
       expect(result).toBe(false);
       // Verify the mock was called (only once since it fails on first call)
-      expect((execMock as any)[Symbol.for('nodejs.util.promisify.custom')]).toHaveBeenCalledTimes(1);
+      expect(
+        (execMock as any)[Symbol.for('nodejs.util.promisify.custom')]
+      ).toHaveBeenCalledTimes(1);
     });
   });
 });
