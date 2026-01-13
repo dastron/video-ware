@@ -140,6 +140,23 @@ export class PocketBaseService implements OnModuleInit {
   }
 
   /**
+   * Ensure mutators are initialized before use
+   * If not initialized and PocketBase client is available, initialize them now
+   */
+  private ensureMutatorsInitialized() {
+    if (!this.pb) {
+      throw new Error(
+        'PocketBase client is not initialized. Service may not be ready yet.'
+      );
+    }
+    // Check if any mutator is missing (they're all initialized together)
+    if (!this.uploadMutator || !this.fileMutator || !this.mediaMutator) {
+      // Mutators not initialized yet, initialize them now
+      this.initializeMutators();
+    }
+  }
+
+  /**
    * Get the raw PocketBase client instance
    */
   getClient(): TypedPocketBase {
@@ -151,6 +168,15 @@ export class PocketBaseService implements OnModuleInit {
    */
   async getUpload(uploadId: string) {
     try {
+      // Ensure mutators are initialized
+      this.ensureMutatorsInitialized();
+
+      if (!this.uploadMutator) {
+        throw new Error(
+          'UploadMutator is not initialized. PocketBaseService may not be ready yet.'
+        );
+      }
+
       return await this.uploadMutator.getById(uploadId);
     } catch (error) {
       this.logger.error(

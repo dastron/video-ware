@@ -4,6 +4,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import type { TimelineClip, Media } from '@project/shared';
 import { useTimeline } from '@/hooks/use-timeline';
 import { SpriteAnimator } from '@/components/sprite/sprite-animator';
+import { FilmstripViewer } from '@/components/filmstrip/filmstrip-viewer';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
@@ -69,11 +70,34 @@ export function TimelineClipItem({
   const [isHovering, setIsHovering] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [currentVideoTime, setCurrentVideoTime] = useState<number>(0);
+  const [previewTime, setPreviewTime] = useState(clip.start);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const duration = clip.end - clip.start;
   const media = clip.expand?.MediaRef;
   const { src, poster } = useVideoSource(media || ({} as Media));
+
+  // Sync previewTime with clip.start whenever clip changes or stops hovering
+  useEffect(() => {
+    if (!isHovering) {
+      setPreviewTime(clip.start);
+    }
+  }, [isHovering, clip.start]);
+
+  // Handle preview animation on hover
+  useEffect(() => {
+    if (!isHovering) return;
+
+    // Use a 1-second interval for filmstrip preview animation
+    const interval = setInterval(() => {
+      setPreviewTime((prev) => {
+        const next = prev + 1;
+        return next >= clip.end ? clip.start : next;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isHovering, clip.start, clip.end]);
 
   // Validate time range whenever inputs change
   useEffect(() => {
@@ -226,20 +250,28 @@ export function TimelineClipItem({
         {/* Sprite Preview / Thumbnail */}
         <div className="h-24 bg-muted overflow-hidden relative">
           {media ? (
-            <SpriteAnimator
-              media={media}
-              spriteFile={(media as any).expand?.spriteFileRef}
-              start={clip.start}
-              end={clip.end}
-              isHovering={isHovering}
-              className="w-full h-full"
-              fallbackIcon={
-                <div className="text-center text-xs text-muted-foreground">
-                  <Clock className="h-6 w-6 mx-auto mb-1" />
-                  <div>Clip {clip.order + 1}</div>
-                </div>
-              }
-            />
+            media.filmstripFileRefs && media.filmstripFileRefs.length > 0 ? (
+              <FilmstripViewer
+                media={media}
+                currentTime={previewTime}
+                className="w-full h-full"
+              />
+            ) : (
+              <SpriteAnimator
+                media={media}
+                spriteFile={(media as any).expand?.spriteFileRef}
+                start={clip.start}
+                end={clip.end}
+                isHovering={isHovering}
+                className="w-full h-full"
+                fallbackIcon={
+                  <div className="text-center text-xs text-muted-foreground">
+                    <Clock className="h-6 w-6 mx-auto mb-1" />
+                    <div>Clip {clip.order + 1}</div>
+                  </div>
+                }
+              />
+            )
           ) : (
             <div className="flex items-center justify-center h-full">
               <div className="text-center text-xs text-muted-foreground">

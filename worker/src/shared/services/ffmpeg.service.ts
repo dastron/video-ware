@@ -168,27 +168,32 @@ export class FFmpegService {
       const outputDir = path.dirname(outputPath);
       await fs.promises.mkdir(outputDir, { recursive: true });
 
-      const command = [
-        'ffmpeg',
+      // Build FFmpeg arguments as array (avoids shell interpretation issues)
+      const args: string[] = [
         '-y', // Overwrite output file
-        startTime > 0 ? `-ss ${startTime}` : '', // Start time
-        `-i "${inputPath}"`, // Input file
-        `-vf "fps=${fps},scale=${tileWidth}:${tileHeight},tile=${cols}x${rows}"`, // Video filter
-        '-frames:v 1', // Tile filter produces a single output frame containing all tiles
-        '-update 1', // Update the same file for each frame (required for single file output)
-        '-q:v 2', // High quality
-        `"${outputPath}"`, // Output file
-      ]
-        .filter(Boolean)
-        .join(' ');
+      ];
 
-      this.logger.debug(`Generating sprite: ${command}`);
-
-      const { stderr } = await execAsync(command);
-
-      if (stderr) {
-        this.logger.debug(`FFmpeg stderr: ${stderr}`);
+      // Add start time before input for input seeking (faster)
+      if (startTime > 0) {
+        args.push('-ss', startTime.toString());
       }
+
+      args.push(
+        '-i',
+        inputPath, // Input file (no quotes needed with spawn)
+        '-vf',
+        `fps=${fps},scale=${tileWidth}:${tileHeight},tile=${cols}x${rows}`, // Video filter
+        '-frames:v',
+        '1', // Tile filter produces a single output frame containing all tiles
+        '-q:v',
+        '2', // High quality
+        outputPath // Output file (no quotes needed with spawn)
+      );
+
+      this.logger.debug(`Generating sprite: ffmpeg ${args.join(' ')}`);
+
+      // Use spawn instead of exec to avoid shell interpretation issues
+      await this.executeWithSpawn(args, 0);
 
       // Verify output file was created
       if (!fs.existsSync(outputPath)) {

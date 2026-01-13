@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import type { Media } from '@project/shared';
 import { Card, CardContent } from '@/components/ui/card';
@@ -7,6 +7,7 @@ import { Film, Clock, Maximize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import pb from '@/lib/pocketbase-client';
 import { SpriteAnimator } from '../sprite/sprite-animator';
+import { FilmstripViewer } from '../filmstrip/filmstrip-viewer';
 
 interface MediaCardProps {
   media: Media;
@@ -16,6 +17,26 @@ interface MediaCardProps {
 
 export function MediaCard({ media, onClick, className }: MediaCardProps) {
   const [isHovering, setIsHovering] = useState(false);
+  const [animatedPreviewTime, setAnimatedPreviewTime] = useState(0);
+
+  // Derive the effective preview time: use animated time when hovering, 0 when not
+  const previewTime = useMemo(() => {
+    return isHovering ? animatedPreviewTime : 0;
+  }, [isHovering, animatedPreviewTime]);
+
+  // Handle preview animation on hover
+  useEffect(() => {
+    if (!isHovering || !media) return;
+
+    const interval = setInterval(() => {
+      setAnimatedPreviewTime((prev) => {
+        const next = prev + 1;
+        return next >= media.duration ? 0 : next;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isHovering, media]);
 
   const formatDuration = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600);
@@ -103,15 +124,22 @@ export function MediaCard({ media, onClick, className }: MediaCardProps) {
             />
 
             {/* Sprite sheet preview on hover */}
-            {isHovering && (
-              <SpriteAnimator
-                media={media}
-                spriteFile={(media.expand as any)?.spriteFileRef}
-                isHovering={isHovering}
-                className="absolute inset-0"
-                fallbackIcon={<div className="h-full w-full" />}
-              />
-            )}
+            {isHovering &&
+              (media.filmstripFileRefs && media.filmstripFileRefs.length > 0 ? (
+                <FilmstripViewer
+                  media={media}
+                  currentTime={previewTime}
+                  className="absolute inset-0"
+                />
+              ) : (
+                <SpriteAnimator
+                  media={media}
+                  spriteFile={(media.expand as any)?.spriteFileRef}
+                  isHovering={isHovering}
+                  className="absolute inset-0"
+                  fallbackIcon={<div className="h-full w-full" />}
+                />
+              ))}
           </>
         ) : (
           <div className="flex items-center justify-center h-full">

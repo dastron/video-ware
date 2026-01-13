@@ -23,6 +23,7 @@ export interface MediaClipWithExpand extends Omit<MediaClip, 'expand'> {
           file: string;
         };
         spriteFileRef?: any;
+        filmstripFileRefs?: any[];
       };
     };
   };

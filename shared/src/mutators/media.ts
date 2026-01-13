@@ -21,6 +21,7 @@ export class MediaMutator extends BaseMutator<Media, MediaInput> {
         'UploadRef',
         'thumbnailFileRef',
         'spriteFileRef',
+        'filmstripFileRefs',
         'proxyFileRef',
       ],
       filter: [],
