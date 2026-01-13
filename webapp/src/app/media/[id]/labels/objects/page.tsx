@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
 import { usePocketBase } from '@/contexts/pocketbase-context';
-import type { LabelShot, Media } from '@project/shared';
-import { SpriteAnimator } from '@/components/sprite/sprite-animator';
+import type { LabelObject, LabelTrack, Media } from '@project/shared';
+import { TracksAnimator } from '@/components/labels/tracks-animator';
 import {
   Card,
   CardContent,
@@ -15,33 +16,36 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 
-type ExtendedLabelShot = LabelShot & {
+type ExtendedLabelObject = LabelObject & {
   expand?: {
+    LabelTrackRef?: LabelTrack;
     MediaRef?: Media;
   };
 };
 
-export default function LabelShotsPage() {
+export default function LabelObjectsPage() {
   const { pb } = usePocketBase();
-  const [shots, setShots] = useState<ExtendedLabelShot[]>([]);
-  const [selectedShot, setSelectedShot] = useState<ExtendedLabelShot | null>(
-    null
-  );
+  const params = useParams();
+  const mediaId = params.id as string;
+  const [objects, setObjects] = useState<ExtendedLabelObject[]>([]);
+  const [selectedObject, setSelectedObject] =
+    useState<ExtendedLabelObject | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchShots() {
+    async function fetchObjects() {
+      if (!mediaId) return;
       try {
         const records = await pb
-          .collection('LabelShots')
-          .getList<ExtendedLabelShot>(1, 50, {
-            sort: '-created',
-            expand: 'MediaRef',
-            filter: 'duration >= 5',
+          .collection('LabelObjects')
+          .getList<ExtendedLabelObject>(1, 50, {
+            filter: `MediaRef = "${mediaId}"`,
+            sort: '-confidence',
+            expand: 'LabelTrackRef,MediaRef',
           });
-        setShots(records.items);
+        setObjects(records.items);
         if (records.items.length > 0) {
-          setSelectedShot(records.items[0]);
+          setSelectedObject(records.items[0]);
         }
       } catch (err) {
         console.error(err);
@@ -49,8 +53,8 @@ export default function LabelShotsPage() {
         setLoading(false);
       }
     }
-    fetchShots();
-  }, [pb]);
+    fetchObjects();
+  }, [pb, mediaId]);
 
   if (loading) {
     return (
@@ -64,32 +68,29 @@ export default function LabelShotsPage() {
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-[calc(100vh-12rem)]">
       <Card className="md:col-span-1 flex flex-col h-full">
         <CardHeader>
-          <CardTitle>Shots</CardTitle>
-          <CardDescription>Detected shots/segments</CardDescription>
+          <CardTitle>Objects</CardTitle>
+          <CardDescription>Found objects in this media</CardDescription>
         </CardHeader>
         <CardContent className="flex-1 overflow-hidden p-0">
           <ScrollArea className="h-full">
             <div className="p-4 pt-0 space-y-2">
-              {shots.length === 0 ? (
+              {objects.length === 0 ? (
                 <p className="text-sm text-muted-foreground p-4 text-center">
-                  No shots found.
+                  No objects found.
                 </p>
               ) : (
-                shots.map((shot) => (
+                objects.map((obj) => (
                   <Button
-                    key={shot.id}
+                    key={obj.id}
                     variant={
-                      selectedShot?.id === shot.id ? 'secondary' : 'ghost'
+                      selectedObject?.id === obj.id ? 'secondary' : 'ghost'
                     }
                     className="w-full justify-start text-left h-auto py-3 flex flex-col items-start gap-1"
-                    onClick={() => setSelectedShot(shot)}
+                    onClick={() => setSelectedObject(obj)}
                   >
-                    <div className="font-medium capitalize">{shot.entity}</div>
+                    <div className="font-medium capitalize">{obj.entity}</div>
                     <div className="text-xs text-muted-foreground">
-                      Confidence: {Math.round(shot.confidence * 100)}%
-                    </div>
-                    <div className="text-xs text-muted-foreground truncate w-full">
-                      Media: {shot.MediaRef}
+                      Confidence: {Math.round(obj.confidence * 100)}%
                     </div>
                   </Button>
                 ))
@@ -102,30 +103,28 @@ export default function LabelShotsPage() {
       <Card className="md:col-span-2 flex flex-col h-full">
         <CardHeader>
           <CardTitle className="capitalize">
-            {selectedShot?.entity || 'Select a shot'}
+            {selectedObject?.entity || 'Select an object'}
           </CardTitle>
-          <CardDescription>{selectedShot?.MediaRef}</CardDescription>
+          <CardDescription>
+            {selectedObject?.expand?.MediaRef?.filename}
+          </CardDescription>
         </CardHeader>
         <CardContent className="flex-1 overflow-auto">
-          {selectedShot && selectedShot.expand?.MediaRef ? (
+          {selectedObject &&
+          selectedObject.expand?.LabelTrackRef &&
+          selectedObject.expand.MediaRef ? (
             <div className="space-y-4">
-              <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
-                <SpriteAnimator
-                  media={selectedShot.expand.MediaRef}
-                  start={selectedShot.start}
-                  end={selectedShot.end}
-                  isHovering={true}
-                  className="absolute inset-0"
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
+              <TracksAnimator
+                media={selectedObject.expand.MediaRef}
+                track={selectedObject.expand.LabelTrackRef}
+              />
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="p-3 border rounded bg-muted/20">
                   <h4 className="text-xs font-medium uppercase text-muted-foreground mb-1">
                     Start Time
                   </h4>
                   <p className="text-sm font-mono">
-                    {selectedShot.start.toFixed(2)}s
+                    {selectedObject.start.toFixed(2)}s
                   </p>
                 </div>
                 <div className="p-3 border rounded bg-muted/20">
@@ -133,7 +132,7 @@ export default function LabelShotsPage() {
                     End Time
                   </h4>
                   <p className="text-sm font-mono">
-                    {selectedShot.end.toFixed(2)}s
+                    {selectedObject.end.toFixed(2)}s
                   </p>
                 </div>
                 <div className="p-3 border rounded bg-muted/20">
@@ -141,16 +140,24 @@ export default function LabelShotsPage() {
                     Duration
                   </h4>
                   <p className="text-sm font-mono">
-                    {selectedShot.duration.toFixed(2)}s
+                    {selectedObject.duration.toFixed(2)}s
+                  </p>
+                </div>
+                <div className="p-3 border rounded bg-muted/20">
+                  <h4 className="text-xs font-medium uppercase text-muted-foreground mb-1">
+                    Track ID
+                  </h4>
+                  <p className="text-sm font-mono truncate" title={selectedObject.expand.LabelTrackRef.trackId}>
+                    {selectedObject.expand.LabelTrackRef.trackId}
                   </p>
                 </div>
               </div>
             </div>
           ) : (
             <div className="flex items-center justify-center h-full text-muted-foreground">
-              {selectedShot
-                ? 'No media available for this shot.'
-                : 'Select a shot to view details.'}
+              {selectedObject
+                ? 'No track data available for this object.'
+                : 'Select an object to view details.'}
             </div>
           )}
         </CardContent>

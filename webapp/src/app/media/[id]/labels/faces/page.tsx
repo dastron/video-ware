@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
 import { usePocketBase } from '@/contexts/pocketbase-context';
-import type { LabelPerson, LabelTrack, Media } from '@project/shared';
+import type { LabelFace, LabelTrack, Media } from '@project/shared';
 import { TracksAnimator } from '@/components/labels/tracks-animator';
 import {
   Card,
@@ -15,33 +16,37 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 
-type ExtendedLabelPerson = LabelPerson & {
+type ExtendedLabelFace = LabelFace & {
   expand?: {
     LabelTrackRef?: LabelTrack;
     MediaRef?: Media;
   };
 };
 
-export default function LabelPeoplePage() {
+export default function LabelFacesPage() {
   const { pb } = usePocketBase();
-  const [people, setPeople] = useState<ExtendedLabelPerson[]>([]);
-  const [selectedPerson, setSelectedPerson] =
-    useState<ExtendedLabelPerson | null>(null);
+  const params = useParams();
+  const mediaId = params.id as string;
+  const [faces, setFaces] = useState<ExtendedLabelFace[]>([]);
+  const [selectedFace, setSelectedFace] = useState<ExtendedLabelFace | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchPeople() {
+    async function fetchFaces() {
+      if (!mediaId) return;
       try {
         const records = await pb
-          .collection('LabelPerson')
-          .getList<ExtendedLabelPerson>(1, 50, {
+          .collection('LabelFaces')
+          .getList<ExtendedLabelFace>(1, 50, {
+            filter: `MediaRef = "${mediaId}"`,
             sort: '-created',
             expand: 'LabelTrackRef,MediaRef',
-            filter: 'duration >= 5',
           });
-        setPeople(records.items);
+        setFaces(records.items);
         if (records.items.length > 0) {
-          setSelectedPerson(records.items[0]);
+          setSelectedFace(records.items[0]);
         }
       } catch (err) {
         console.error(err);
@@ -49,8 +54,8 @@ export default function LabelPeoplePage() {
         setLoading(false);
       }
     }
-    fetchPeople();
-  }, [pb]);
+    fetchFaces();
+  }, [pb, mediaId]);
 
   if (loading) {
     return (
@@ -64,34 +69,31 @@ export default function LabelPeoplePage() {
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-[calc(100vh-12rem)]">
       <Card className="md:col-span-1 flex flex-col h-full">
         <CardHeader>
-          <CardTitle>People</CardTitle>
-          <CardDescription>Detected people</CardDescription>
+          <CardTitle>Faces</CardTitle>
+          <CardDescription>Detected faces</CardDescription>
         </CardHeader>
         <CardContent className="flex-1 overflow-hidden p-0">
           <ScrollArea className="h-full">
             <div className="p-4 pt-0 space-y-2">
-              {people.length === 0 ? (
+              {faces.length === 0 ? (
                 <p className="text-sm text-muted-foreground p-4 text-center">
-                  No people found.
+                  No faces found.
                 </p>
               ) : (
-                people.map((person) => (
+                faces.map((face) => (
                   <Button
-                    key={person.id}
+                    key={face.id}
                     variant={
-                      selectedPerson?.id === person.id ? 'secondary' : 'ghost'
+                      selectedFace?.id === face.id ? 'secondary' : 'ghost'
                     }
                     className="w-full justify-start text-left h-auto py-3 flex flex-col items-start gap-1"
-                    onClick={() => setSelectedPerson(person)}
+                    onClick={() => setSelectedFace(face)}
                   >
                     <div className="font-medium">
-                      Person {person.personId || person.id.slice(0, 8)}
+                      Face {face.faceId || face.id.slice(0, 8)}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      Confidence: {Math.round(person.confidence * 100)}%
-                    </div>
-                    <div className="text-xs text-muted-foreground truncate w-full">
-                      Media: {person.MediaRef}
+                      Confidence: {Math.round(face.avgConfidence * 100)}%
                     </div>
                   </Button>
                 ))
@@ -103,17 +105,19 @@ export default function LabelPeoplePage() {
 
       <Card className="md:col-span-2 flex flex-col h-full">
         <CardHeader>
-          <CardTitle>Person Details</CardTitle>
-          <CardDescription>{selectedPerson?.MediaRef}</CardDescription>
+          <CardTitle>Face Details</CardTitle>
+          <CardDescription>
+            {selectedFace?.expand?.MediaRef?.filename}
+          </CardDescription>
         </CardHeader>
         <CardContent className="flex-1 overflow-auto">
-          {selectedPerson &&
-          selectedPerson.expand?.LabelTrackRef &&
-          selectedPerson.expand.MediaRef ? (
+          {selectedFace &&
+          selectedFace.expand?.LabelTrackRef &&
+          selectedFace.expand.MediaRef ? (
             <div className="space-y-4">
               <TracksAnimator
-                media={selectedPerson.expand.MediaRef}
-                track={selectedPerson.expand.LabelTrackRef}
+                media={selectedFace.expand.MediaRef}
+                track={selectedFace.expand.LabelTrackRef}
               />
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -122,7 +126,7 @@ export default function LabelPeoplePage() {
                     Start Time
                   </h4>
                   <p className="text-sm font-mono">
-                    {selectedPerson.start.toFixed(2)}s
+                    {selectedFace.start.toFixed(2)}s
                   </p>
                 </div>
                 <div className="p-3 border rounded bg-muted/20">
@@ -130,7 +134,7 @@ export default function LabelPeoplePage() {
                     End Time
                   </h4>
                   <p className="text-sm font-mono">
-                    {selectedPerson.end.toFixed(2)}s
+                    {selectedFace.end.toFixed(2)}s
                   </p>
                 </div>
                 <div className="p-3 border rounded bg-muted/20">
@@ -138,46 +142,83 @@ export default function LabelPeoplePage() {
                     Duration
                   </h4>
                   <p className="text-sm font-mono">
-                    {selectedPerson.duration.toFixed(2)}s
+                    {selectedFace.duration.toFixed(2)}s
                   </p>
                 </div>
                 <div className="p-3 border rounded bg-muted/20">
                   <h4 className="text-xs font-medium uppercase text-muted-foreground mb-1">
                     Track ID
                   </h4>
-                  <p
-                    className="text-sm font-mono truncate"
-                    title={selectedPerson.expand.LabelTrackRef.trackId}
-                  >
-                    {selectedPerson.expand.LabelTrackRef.trackId}
+                  <p className="text-sm font-mono truncate" title={selectedFace.expand.LabelTrackRef.trackId}>
+                    {selectedFace.expand.LabelTrackRef.trackId}
                   </p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div className="p-3 border rounded bg-muted/20">
                   <h4 className="text-xs font-medium uppercase text-muted-foreground mb-1">
-                    Upper Body Color
+                    Joy
                   </h4>
                   <p className="text-sm">
-                    {selectedPerson.upperBodyColor || 'Unknown'}
+                    {selectedFace.joyLikelihood || 'Unknown'}
                   </p>
                 </div>
                 <div className="p-3 border rounded bg-muted/20">
                   <h4 className="text-xs font-medium uppercase text-muted-foreground mb-1">
-                    Lower Body Color
+                    Sorrow
                   </h4>
                   <p className="text-sm">
-                    {selectedPerson.lowerBodyColor || 'Unknown'}
+                    {selectedFace.sorrowLikelihood || 'Unknown'}
+                  </p>
+                </div>
+                <div className="p-3 border rounded bg-muted/20">
+                  <h4 className="text-xs font-medium uppercase text-muted-foreground mb-1">
+                    Anger
+                  </h4>
+                  <p className="text-sm">
+                    {selectedFace.angerLikelihood || 'Unknown'}
+                  </p>
+                </div>
+                <div className="p-3 border rounded bg-muted/20">
+                  <h4 className="text-xs font-medium uppercase text-muted-foreground mb-1">
+                    Surprise
+                  </h4>
+                  <p className="text-sm">
+                    {selectedFace.surpriseLikelihood || 'Unknown'}
+                  </p>
+                </div>
+                <div className="p-3 border rounded bg-muted/20">
+                  <h4 className="text-xs font-medium uppercase text-muted-foreground mb-1">
+                    Headwear
+                  </h4>
+                  <p className="text-sm">
+                    {selectedFace.headwearLikelihood || 'Unknown'}
+                  </p>
+                </div>
+                <div className="p-3 border rounded bg-muted/20">
+                  <h4 className="text-xs font-medium uppercase text-muted-foreground mb-1">
+                    Blurred
+                  </h4>
+                  <p className="text-sm">
+                    {selectedFace.blurredLikelihood || 'Unknown'}
+                  </p>
+                </div>
+                <div className="p-3 border rounded bg-muted/20">
+                  <h4 className="text-xs font-medium uppercase text-muted-foreground mb-1">
+                    Looking at Camera
+                  </h4>
+                  <p className="text-sm">
+                    {selectedFace.lookingAtCameraLikelihood || 'Unknown'}
                   </p>
                 </div>
               </div>
             </div>
           ) : (
             <div className="flex items-center justify-center h-full text-muted-foreground">
-              {selectedPerson
-                ? 'No track data available for this person.'
-                : 'Select a person to view details.'}
+              {selectedFace
+                ? 'No track data available for this face.'
+                : 'Select a face to view details.'}
             </div>
           )}
         </CardContent>
