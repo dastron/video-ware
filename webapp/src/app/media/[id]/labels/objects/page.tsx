@@ -106,7 +106,7 @@ export default function LabelObjectsPage() {
             {selectedObject?.entity || 'Select an object'}
           </CardTitle>
           <CardDescription>
-            {selectedObject?.expand?.MediaRef?.filename}
+            {selectedObject?.entity || 'No object'}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex-1 overflow-auto">
@@ -147,7 +147,10 @@ export default function LabelObjectsPage() {
                   <h4 className="text-xs font-medium uppercase text-muted-foreground mb-1">
                     Track ID
                   </h4>
-                  <p className="text-sm font-mono truncate" title={selectedObject.expand.LabelTrackRef.trackId}>
+                  <p
+                    className="text-sm font-mono truncate"
+                    title={selectedObject.expand.LabelTrackRef.trackId}
+                  >
                     {selectedObject.expand.LabelTrackRef.trackId}
                   </p>
                 </div>

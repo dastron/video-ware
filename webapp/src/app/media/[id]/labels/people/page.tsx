@@ -106,7 +106,7 @@ export default function LabelPeoplePage() {
         <CardHeader>
           <CardTitle>Person Details</CardTitle>
           <CardDescription>
-            {selectedPerson?.expand?.MediaRef?.filename}
+            {selectedPerson?.personId || 'No person ID'}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex-1 overflow-auto">
@@ -148,7 +148,10 @@ export default function LabelPeoplePage() {
                   <h4 className="text-xs font-medium uppercase text-muted-foreground mb-1">
                     Track ID
                   </h4>
-                  <p className="text-sm font-mono truncate" title={selectedPerson.expand.LabelTrackRef.trackId}>
+                  <p
+                    className="text-sm font-mono truncate"
+                    title={selectedPerson.expand.LabelTrackRef.trackId}
+                  >
                     {selectedPerson.expand.LabelTrackRef.trackId}
                   </p>
                 </div>

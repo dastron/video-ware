@@ -107,7 +107,7 @@ export default function LabelFacesPage() {
         <CardHeader>
           <CardTitle>Face Details</CardTitle>
           <CardDescription>
-            {selectedFace?.expand?.MediaRef?.filename}
+            {selectedFace?.faceHash || 'No face hash'}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex-1 overflow-auto">
@@ -149,7 +149,10 @@ export default function LabelFacesPage() {
                   <h4 className="text-xs font-medium uppercase text-muted-foreground mb-1">
                     Track ID
                   </h4>
-                  <p className="text-sm font-mono truncate" title={selectedFace.expand.LabelTrackRef.trackId}>
+                  <p
+                    className="text-sm font-mono truncate"
+                    title={selectedFace.expand.LabelTrackRef.trackId}
+                  >
                     {selectedFace.expand.LabelTrackRef.trackId}
                   </p>
                 </div>

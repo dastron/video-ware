@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { usePocketBase } from '@/contexts/pocketbase-context';
 import type { LabelShot, Media } from '@project/shared';
-import { MediaVideoPlayer } from '@/components/video/media-video-player';
+import { SpriteAnimator } from '@/components/sprite/sprite-animator';
 import {
   Card,
   CardContent,
@@ -105,19 +105,17 @@ export default function LabelShotsPage() {
           <CardTitle className="capitalize">
             {selectedShot?.entity || 'Select a shot'}
           </CardTitle>
-          <CardDescription>
-            {selectedShot?.expand?.MediaRef?.filename}
-          </CardDescription>
+          <CardDescription>{selectedShot?.entity || 'No shot'}</CardDescription>
         </CardHeader>
         <CardContent className="flex-1 overflow-auto">
           {selectedShot && selectedShot.expand?.MediaRef ? (
             <div className="space-y-4">
               <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
-                <MediaVideoPlayer
+                <SpriteAnimator
                   media={selectedShot.expand.MediaRef}
-                  startTime={selectedShot.start}
-                  endTime={selectedShot.end}
-                  autoPlay={false}
+                  start={selectedShot.start}
+                  end={selectedShot.end}
+                  isHovering={true}
                   className="w-full h-full"
                 />
               </div>
