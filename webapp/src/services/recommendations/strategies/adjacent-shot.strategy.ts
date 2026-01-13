@@ -21,12 +21,7 @@ export class AdjacentShotStrategy extends BaseRecommendationStrategy {
   ): Promise<ScoredMediaCandidate[]> {
     const candidates: ScoredMediaCandidate[] = [];
 
-    const shotClips = context.labelClips.filter((lc) => {
-      const labelType = Array.isArray(lc.labelType)
-        ? lc.labelType[0]
-        : lc.labelType;
-      return labelType === LabelType.SHOT;
-    });
+    const shotClips = context.labelShots;
 
     if (shotClips.length === 0) return candidates;
 
@@ -34,9 +29,7 @@ export class AdjacentShotStrategy extends BaseRecommendationStrategy {
 
     for (let i = 0; i < sortedShots.length; i++) {
       const currentShot = sortedShots[i];
-      const labelType = Array.isArray(currentShot.labelType)
-        ? currentShot.labelType[0]
-        : currentShot.labelType;
+      const labelType = LabelType.SHOT;
 
       if (
         !this.passesFilters(
@@ -102,12 +95,8 @@ export class AdjacentShotStrategy extends BaseRecommendationStrategy {
     const candidates: ScoredTimelineCandidate[] = [];
     if (!context.seedClip) return [];
 
-    const seedShotClips = context.labelClips.filter((lc) => {
-      const labelType = Array.isArray(lc.labelType)
-        ? lc.labelType[0]
-        : lc.labelType;
+    const seedShotClips = context.labelShots.filter((lc) => {
       return (
-        labelType === LabelType.SHOT &&
         lc.MediaRef === context.seedClip!.MediaRef &&
         lc.start >= context.seedClip!.start &&
         lc.end <= context.seedClip!.end
@@ -116,15 +105,9 @@ export class AdjacentShotStrategy extends BaseRecommendationStrategy {
 
     if (seedShotClips.length === 0) return candidates;
 
-    const allShotClips = context.labelClips
+    const allShotClips = context.labelShots
       .filter((lc) => {
-        const labelType = Array.isArray(lc.labelType)
-          ? lc.labelType[0]
-          : lc.labelType;
-        return (
-          labelType === LabelType.SHOT &&
-          lc.MediaRef === context.seedClip!.MediaRef
-        );
+        return lc.MediaRef === context.seedClip!.MediaRef;
       })
       .sort((a, b) => a.start - b.start);
 

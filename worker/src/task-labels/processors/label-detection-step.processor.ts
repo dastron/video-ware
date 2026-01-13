@@ -13,7 +13,6 @@ import type { LabelDetectionStepOutput } from '../types/step-outputs';
 import type {
   LabelDetectionResponse,
   LabelClipData,
-  LabelMediaData,
   LabelSegmentData,
   LabelShotData,
 } from '../types';
@@ -128,12 +127,6 @@ export class LabelDetectionStepProcessor extends BaseStepProcessor<
       // Step 6: Batch insert LabelClip records (legacy/compatible)
       const clipIds = await this.batchInsertLabelClips(
         normalizedData.labelClips || []
-      );
-
-      // Step 7: Update LabelMedia
-      await this.updateLabelMedia(
-        input.mediaId,
-        normalizedData.labelMediaUpdate
       );
 
       // Clear entity cache
@@ -308,30 +301,5 @@ export class LabelDetectionStepProcessor extends BaseStepProcessor<
       message.includes('unique constraint') ||
       message.includes('validation_not_unique')
     );
-  }
-
-  private async updateLabelMedia(
-    mediaId: string,
-    update: Partial<LabelMediaData>
-  ): Promise<void> {
-    try {
-      const existing =
-        await this.pocketBaseService.mediaLabelMutator.getFirstByFilter(
-          `MediaRef = "${mediaId}"`
-        );
-      if (existing) {
-        await this.pocketBaseService.mediaLabelMutator.update(
-          existing.id,
-          update
-        );
-      } else {
-        await this.pocketBaseService.mediaLabelMutator.create({
-          MediaRef: mediaId,
-          ...update,
-        });
-      }
-    } catch (error) {
-      this.logger.error(`Failed to update LabelMedia: ${error}`);
-    }
   }
 }

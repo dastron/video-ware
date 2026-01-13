@@ -9,7 +9,6 @@ export { WorkspaceMemberMutator } from './workspace-member';
 export { UploadMutator } from './upload';
 export { FileMutator } from './file';
 export { MediaMutator } from './media';
-export { MediaLabelMutator } from './media-label';
 export { LabelTrackMutator } from './label-track';
 export { MediaClipMutator } from './media-clip';
 export { LabelClipMutator } from './label-clip';

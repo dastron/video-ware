@@ -24,7 +24,6 @@ import {
   LabelPersonMutator,
   MediaClipMutator,
   MediaMutator,
-  MediaLabelMutator,
   MediaRecommendationMutator,
   TaskMutator,
   TimelineClipMutator,
@@ -49,7 +48,6 @@ export class PocketBaseService implements OnModuleInit {
   public labelEntityMutator!: LabelEntityMutator;
   public mediaClipMutator!: MediaClipMutator;
   public mediaMutator!: MediaMutator;
-  public mediaLabelMutator!: MediaLabelMutator;
   public taskMutator!: TaskMutator;
   public timelineClipMutator!: TimelineClipMutator;
   public timelineMutator!: TimelineMutator;
@@ -129,7 +127,6 @@ export class PocketBaseService implements OnModuleInit {
     );
     this.mediaClipMutator = new MediaClipMutator(this.pb);
     this.mediaMutator = new MediaMutator(this.pb);
-    this.mediaLabelMutator = new MediaLabelMutator(this.pb);
     this.taskMutator = new TaskMutator(this.pb);
     this.timelineClipMutator = new TimelineClipMutator(this.pb);
     this.timelineMutator = new TimelineMutator(this.pb);

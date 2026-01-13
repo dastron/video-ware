@@ -156,13 +156,6 @@ export class PersonDetectionStepProcessor extends BaseStepProcessor<
         `Inserted ${personIds.length} label people for media ${input.mediaId}`
       );
 
-      // Step 7: Update LabelMedia with aggregated data
-      await this.updateLabelMedia(
-        input.mediaId,
-        normalizedData.labelMediaUpdate
-      );
-      this.logger.debug(`Updated LabelMedia for media ${input.mediaId}`);
-
       // Clear entity cache after processing
       this.labelEntityService.clearCache();
 
@@ -338,41 +331,5 @@ export class PersonDetectionStepProcessor extends BaseStepProcessor<
     }
 
     return personIds;
-  }
-
-  /**
-   * Update LabelMedia with aggregated data
-   */
-  private async updateLabelMedia(
-    mediaId: string,
-    update: Partial<LabelMediaData>
-  ): Promise<void> {
-    try {
-      // Try to get existing LabelMedia record
-      const existing = await this.pocketBaseService.mediaLabelMutator.getList(
-        1,
-        1,
-        `MediaRef = "${mediaId}"`
-      );
-
-      if (existing.items.length > 0) {
-        // Update existing record
-        await this.pocketBaseService.mediaLabelMutator.update(
-          existing.items[0].id,
-          update
-        );
-      } else {
-        // Create new record
-        await this.pocketBaseService.mediaLabelMutator.create({
-          MediaRef: mediaId,
-          ...update,
-        });
-      }
-    } catch (error) {
-      this.logger.error(
-        `Failed to update LabelMedia for media ${mediaId}: ${error instanceof Error ? error.message : String(error)}`
-      );
-      throw error;
-    }
   }
 }

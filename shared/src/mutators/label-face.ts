@@ -20,4 +20,8 @@ export class LabelFaceMutator extends BaseMutator<LabelFace, LabelFaceInput> {
   ): Promise<LabelFaceInput> {
     return LabelFaceInputSchema.parse(input);
   }
+
+  async getByMedia(mediaId: string, page = 1, perPage = 100) {
+    return this.getList(page, perPage, `MediaRef = "${mediaId}"`);
+  }
 }

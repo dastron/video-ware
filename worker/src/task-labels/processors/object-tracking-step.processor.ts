@@ -251,46 +251,52 @@ export class ObjectTrackingStepProcessor extends BaseStepProcessor<
     for (let i = 0; i < tracks.length; i += batchSize) {
       const batch = tracks.slice(i, i + batchSize);
 
-      await Promise.all(
-        batch.map(async (track) => {
-          try {
-            // Get or create LabelEntity for this track
-            const entityId =
-              await this.labelEntityService.getOrCreateLabelEntity(
-                track.WorkspaceRef,
-                LabelType.OBJECT,
-                (track.trackData.entity as string) || 'unknown',
-                ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
-                track.processor,
-                {}
-              );
+      for (const track of batch) {
+        try {
+          // Get or create LabelEntity for this track
+          const entityId = await this.labelEntityService.getOrCreateLabelEntity(
+            track.WorkspaceRef,
+            LabelType.OBJECT,
+            (track.trackData.entity as string) || 'unknown',
+            ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
+            track.processor,
+            {}
+          );
 
-            // Check if track already exists
+          // Check if track already exists
+          const existing =
+            await this.pocketBaseService.labelTrackMutator.getFirstByFilter(
+              `trackHash = "${track.trackHash}"`
+            );
+
+          if (existing) {
+            trackIdMap[track.trackId] = existing.id;
+            continue;
+          }
+
+          const created = await this.pocketBaseService.labelTrackMutator.create(
+            {
+              ...track,
+              LabelEntityRef: entityId,
+            }
+          );
+          trackIdMap[track.trackId] = created.id;
+        } catch (error) {
+          if (this.isUniqueConstraintError(error)) {
             const existing =
-              await this.pocketBaseService.labelTrackMutator.getList(
-                1,
-                1,
+              await this.pocketBaseService.labelTrackMutator.getFirstByFilter(
                 `trackHash = "${track.trackHash}"`
               );
-
-            if (existing.items.length > 0) {
-              trackIdMap[track.trackHash] = existing.items[0].id;
-              return;
+            if (existing) {
+              trackIdMap[track.trackId] = existing.id;
+              continue;
             }
-
-            const created =
-              await this.pocketBaseService.labelTrackMutator.create({
-                ...track,
-                LabelEntityRef: entityId,
-              });
-            trackIdMap[track.trackHash] = created.id;
-          } catch (error) {
-            this.logger.warn(
-              `Failed to insert label track: ${error instanceof Error ? error.message : String(error)}`
-            );
           }
-        })
-      );
+          this.logger.warn(
+            `Failed to insert label track: ${error instanceof Error ? error.message : String(error)}`
+          );
+        }
+      }
     }
 
     return trackIdMap;
@@ -309,51 +315,72 @@ export class ObjectTrackingStepProcessor extends BaseStepProcessor<
     for (let i = 0; i < objects.length; i += batchSize) {
       const batch = objects.slice(i, i + batchSize);
 
-      await Promise.all(
-        batch.slice().map(async (obj) => {
-          try {
-            // Get or create LabelEntity for this object
-            const entityId =
-              await this.labelEntityService.getOrCreateLabelEntity(
-                obj.WorkspaceRef,
-                LabelType.OBJECT,
-                obj.entity,
-                ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
-                this.processorVersion,
-                {}
-              );
+      for (const obj of batch) {
+        try {
+          // Get or create LabelEntity for this object
+          const entityId = await this.labelEntityService.getOrCreateLabelEntity(
+            obj.WorkspaceRef,
+            LabelType.OBJECT,
+            obj.entity,
+            ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
+            this.processorVersion,
+            {}
+          );
 
-            const trackRef = trackIdMap[obj.objectHash];
+          const trackRef = trackIdMap[obj.originalTrackId];
 
-            // Check if object already exists
+          // Check if object already exists
+          const existing =
+            await this.pocketBaseService.labelObjectMutator.getFirstByFilter(
+              `objectHash = "${obj.objectHash}"`
+            );
+
+          if (existing) {
+            objectIds.push(existing.id);
+            continue;
+          }
+
+          const created =
+            await this.pocketBaseService.labelObjectMutator.create({
+              ...obj,
+              LabelEntityRef: entityId,
+              LabelTrackRef: trackRef,
+            });
+          objectIds.push(created.id);
+        } catch (error) {
+          if (this.isUniqueConstraintError(error)) {
             const existing =
-              await this.pocketBaseService.labelObjectMutator.getList(
-                1,
-                1,
+              await this.pocketBaseService.labelObjectMutator.getFirstByFilter(
                 `objectHash = "${obj.objectHash}"`
               );
-
-            if (existing.items.length > 0) {
-              objectIds.push(existing.items[0].id);
-              return;
+            if (existing) {
+              objectIds.push(existing.id);
+              continue;
             }
-
-            const created =
-              await this.pocketBaseService.labelObjectMutator.create({
-                ...obj,
-                LabelEntityRef: entityId,
-                LabelTrackRef: trackRef,
-              });
-            objectIds.push(created.id);
-          } catch (error) {
-            this.logger.warn(
-              `Failed to insert label object: ${error instanceof Error ? error.message : String(error)}`
-            );
           }
-        })
-      );
+          this.logger.warn(
+            `Failed to insert label object: ${error instanceof Error ? error.message : String(error)}`
+          );
+        }
+      }
     }
 
     return objectIds;
+  }
+
+  /**
+   * Check if an error is a unique constraint violation
+   */
+  private isUniqueConstraintError(error: unknown): boolean {
+    if (!error) return false;
+
+    const message = error instanceof Error ? error.message : String(error);
+    return (
+      message.includes('unique constraint') ||
+      message.includes('UNIQUE constraint') ||
+      message.includes('validation_not_unique') ||
+      message.includes('trackHash') ||
+      message.includes('objectHash')
+    );
   }
 }

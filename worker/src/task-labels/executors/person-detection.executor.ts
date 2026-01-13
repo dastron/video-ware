@@ -107,10 +107,16 @@ export class PersonDetectionExecutor {
 
       // Process person annotations
       const persons = (annotation.personDetectionAnnotations || []).map(
-        (person) => {
+        (person, index) => {
           // Extract track ID from the first track (persons typically have one track)
           const track = person.tracks?.[0];
-          const trackId = track ? String((track as any).trackId || '') : '';
+          const rawTrackId = (track as any)?.trackId;
+          const trackId =
+            rawTrackId !== undefined &&
+            rawTrackId !== null &&
+            String(rawTrackId) !== ''
+              ? String(rawTrackId)
+              : String(index);
 
           // Process frames with bounding boxes, attributes, and landmarks
           const frames: PersonFrame[] = (track?.timestampedObjects || []).map(

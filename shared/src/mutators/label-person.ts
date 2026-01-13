@@ -23,4 +23,8 @@ export class LabelPersonMutator extends BaseMutator<
   ): Promise<LabelPersonInput> {
     return LabelPersonInputSchema.parse(input);
   }
+
+  async getByMedia(mediaId: string, page = 1, perPage = 100) {
+    return this.getList(page, perPage, `MediaRef = "${mediaId}"`);
+  }
 }

@@ -15,7 +15,6 @@ import type { Timeline } from '../schema/timeline';
 import type { TimelineClip } from '../schema/timeline-clip';
 import type { TimelineRender } from '../schema/timeline-render';
 import type { WatchedFile } from '../schema/watched-file';
-import { MediaLabel } from '../schema/media-label';
 import type { LabelClip } from '../schema/label-clip';
 import type { LabelEntity } from '../schema/label-entity';
 import { LabelTrack } from '../schema/label-track';
@@ -48,7 +47,6 @@ export interface TypedPocketBase extends PocketBase {
   collection(idOrName: 'LabelObjects'): RecordService<LabelObject>;
   collection(idOrName: 'Media'): RecordService<Media>;
   collection(idOrName: 'MediaClips'): RecordService<MediaClip>;
-  collection(idOrName: 'MediaLabels'): RecordService<MediaLabel>;
   collection(
     idOrName: 'MediaRecommendations'
   ): RecordService<MediaRecommendation>;

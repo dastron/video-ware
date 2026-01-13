@@ -179,12 +179,6 @@ export class SpeechTranscriptionStepProcessor extends BaseStepProcessor<
       const speechIds = await this.batchInsertLabelSpeech(speechToInsert);
       this.logger.debug(`Inserted ${speechIds.length} label speech segments`);
 
-      // Step 7: Update LabelMedia with aggregated data
-      await this.updateLabelMedia(
-        input.mediaId,
-        normalizedData.labelMediaUpdate
-      );
-
       // Clear entity cache after processing
       this.labelEntityService.clearCache();
 
@@ -323,34 +317,5 @@ export class SpeechTranscriptionStepProcessor extends BaseStepProcessor<
       message.includes('validation_not_unique') ||
       message.includes('speechHash')
     );
-  }
-
-  /**
-   * Update LabelMedia with aggregated data
-   */
-  private async updateLabelMedia(
-    mediaId: string,
-    update: Record<string, any>
-  ): Promise<void> {
-    try {
-      const existing = await this.pocketBaseService.mediaLabelMutator.getList(
-        1,
-        1,
-        `MediaRef = "${mediaId}"`
-      );
-      if (existing.items.length > 0) {
-        await this.pocketBaseService.mediaLabelMutator.update(
-          existing.items[0].id,
-          update
-        );
-      } else {
-        await this.pocketBaseService.mediaLabelMutator.create({
-          MediaRef: mediaId,
-          ...update,
-        });
-      }
-    } catch (error) {
-      this.logger.error(`Failed to update LabelMedia: ${error}`);
-    }
   }
 }

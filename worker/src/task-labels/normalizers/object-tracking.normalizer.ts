@@ -63,7 +63,12 @@ export class ObjectTrackingNormalizer {
     const seenLabels = new Set<string>();
 
     // Process each tracked object
-    for (const obj of response.objects) {
+    for (let i = 0; i < response.objects.length; i++) {
+      const obj = response.objects[i];
+      // Generate a unique trackId for this specific object segment/track
+      // GCVI often returns "0" for many tracks, so we append the index.
+      const uniqueTrackId = `${obj.trackId}_${i}`;
+
       // Create LabelEntity for this object type if not seen before
       const entityHash = this.generateEntityHash(
         workspaceRef,
@@ -112,7 +117,7 @@ export class ObjectTrackingNormalizer {
       // Generate track hash
       const trackHash = this.generateTrackHash(
         mediaId,
-        obj.trackId,
+        uniqueTrackId,
         version,
         processorVersion
       );
@@ -122,7 +127,7 @@ export class ObjectTrackingNormalizer {
         WorkspaceRef: workspaceRef,
         MediaRef: mediaId,
         TaskRef: taskRef,
-        trackId: obj.trackId,
+        trackId: uniqueTrackId,
         start,
         end,
         duration,
@@ -148,7 +153,7 @@ export class ObjectTrackingNormalizer {
       ) {
         const objectHash = this.generateObjectHash(
           mediaId,
-          obj.trackId,
+          uniqueTrackId,
           version,
           processorVersion
         );
@@ -157,7 +162,7 @@ export class ObjectTrackingNormalizer {
           WorkspaceRef: workspaceRef,
           MediaRef: mediaId,
           entity: obj.entity,
-          originalTrackId: obj.trackId,
+          originalTrackId: uniqueTrackId,
           objectHash,
           start,
           end,
@@ -166,7 +171,8 @@ export class ObjectTrackingNormalizer {
           version,
           metadata: {
             entity: obj.entity,
-            trackId: obj.trackId,
+            trackId: uniqueTrackId,
+            originalTrackId: obj.trackId,
             frameCount: obj.frames.length,
           },
           // LabelEntityRef and LabelTrackRef will be set by step processor
