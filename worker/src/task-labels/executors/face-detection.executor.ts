@@ -31,7 +31,7 @@ export interface FaceDetectionConfig {
 export class FaceDetectionExecutor {
   private readonly logger = new Logger(FaceDetectionExecutor.name);
 
-  constructor(private readonly googleCloudService: GoogleCloudService) { }
+  constructor(private readonly googleCloudService: GoogleCloudService) {}
 
   /**
    * Execute face detection on a video
@@ -163,7 +163,7 @@ export class FaceDetectionExecutor {
 
       this.logger.log(
         `Face detection completed: ${filteredFaces.length} faces tracked ` +
-        `(${faces.length - filteredFaces.length} filtered by confidence threshold)`
+          `(${faces.length - filteredFaces.length} filtered by confidence threshold)`
       );
 
       return {

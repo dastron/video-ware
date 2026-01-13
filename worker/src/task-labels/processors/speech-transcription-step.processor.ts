@@ -143,13 +143,14 @@ export class SpeechTranscriptionStepProcessor extends BaseStepProcessor<
       );
 
       // Step 6: Get or create canonical "Speech" entity for clips
-      const speechEntityId = await this.labelEntityService.getOrCreateLabelEntity(
-        input.workspaceRef,
-        LabelType.SPEECH,
-        'Speech',
-        ProcessingProvider.GOOGLE_SPEECH,
-        this.processorVersion
-      );
+      const speechEntityId =
+        await this.labelEntityService.getOrCreateLabelEntity(
+          input.workspaceRef,
+          LabelType.SPEECH,
+          'Speech',
+          ProcessingProvider.GOOGLE_SPEECH,
+          this.processorVersion
+        );
 
       // Step 7: Batch insert LabelClip records (for speech segments)
       const clipIds = await this.batchInsertLabelClips(
@@ -294,7 +295,9 @@ export class SpeechTranscriptionStepProcessor extends BaseStepProcessor<
                 errorCount++;
               }
             } catch (fetchError) {
-              this.logger.error(`Failed to fetch speech after unique error: ${fetchError}`);
+              this.logger.error(
+                `Failed to fetch speech after unique error: ${fetchError}`
+              );
               errorCount++;
             }
           } else {

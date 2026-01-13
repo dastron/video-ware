@@ -65,7 +65,7 @@ export class PocketBaseService implements OnModuleInit {
   constructor(
     private readonly configService: ConfigService,
     private readonly pocketBaseClientService: PocketBaseClientService
-  ) { }
+  ) {}
 
   async onModuleInit() {
     await this.connect();
