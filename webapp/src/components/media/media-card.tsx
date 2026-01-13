@@ -106,6 +106,7 @@ export function MediaCard({ media, onClick, className }: MediaCardProps) {
             {isHovering && (
               <SpriteAnimator
                 media={media}
+                spriteFile={(media.expand as any)?.spriteFileRef}
                 isHovering={isHovering}
                 className="absolute inset-0"
                 fallbackIcon={<div className="h-full w-full" />}

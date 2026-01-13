@@ -122,40 +122,18 @@ export class MediaService {
   ): Promise<MediaWithPreviews> {
     const enriched: MediaWithPreviews = { ...media };
 
-    // Get thumbnail URL if thumbnail file exists
-    if (media.thumbnailFileRef) {
-      try {
-        const thumbnailFile = await this.fileMutator.getById(
-          media.thumbnailFileRef
-        );
-        if (thumbnailFile) {
-          enriched.thumbnailUrl = this.fileMutator.getFileUrl(thumbnailFile);
-          enriched.thumbnailFileRecord = thumbnailFile;
-        }
-      } catch (error) {
-        console.warn(`Failed to get thumbnail for media ${media.id}:`, error);
-      }
+    // Get thumbnail URL from expand if available
+    const thumbnailFile = (media.expand as any)?.thumbnailFileRef;
+    if (thumbnailFile) {
+      enriched.thumbnailUrl = this.fileMutator.getFileUrl(thumbnailFile);
+      enriched.thumbnailFileRecord = thumbnailFile;
     }
 
-    // Get sprite URL if sprite file exists
-    if (media.spriteFileRef) {
-      try {
-        const spriteFile = await this.fileMutator.getById(media.spriteFileRef);
-        if (spriteFile) {
-          enriched.spriteUrl = this.fileMutator.getFileUrl(spriteFile);
-          enriched.spriteFileRecord = spriteFile;
-        }
-      } catch (error) {
-        console.warn(`Failed to get sprite for media ${media.id}:`, error);
-      }
-    }
-
-    // Get clips for this media
-    try {
-      enriched.clips = await this.getMediaClips(media.id);
-    } catch (error) {
-      console.warn(`Failed to get clips for media ${media.id}:`, error);
-      enriched.clips = [];
+    // Get sprite URL from expand if available
+    const spriteFile = (media.expand as any)?.spriteFileRef;
+    if (spriteFile) {
+      enriched.spriteUrl = this.fileMutator.getFileUrl(spriteFile);
+      enriched.spriteFileRecord = spriteFile;
     }
 
     return enriched;

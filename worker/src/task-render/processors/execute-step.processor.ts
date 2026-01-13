@@ -57,6 +57,7 @@ export class ExecuteRenderStepProcessor extends BaseStepProcessor<
     for (const [mediaId, clipMedia] of Object.entries(clipMediaMap)) {
       const extension = path.extname(clipMedia.filePath);
       const deterministicPath = this.storageService.getRenderInputPath(
+        job.data.workspaceId,
         taskId,
         mediaId,
         extension
@@ -88,8 +89,9 @@ export class ExecuteRenderStepProcessor extends BaseStepProcessor<
     }
 
     // Create deterministic render output directory (ensure it exists)
-    await this.storageService.createRenderDir(taskId);
+    await this.storageService.createRenderDir(job.data.workspaceId, taskId);
     const outputPath = this.storageService.getRenderOutputPath(
+      job.data.workspaceId,
       taskId,
       outputSettings.format
     );
@@ -106,7 +108,7 @@ export class ExecuteRenderStepProcessor extends BaseStepProcessor<
 
     return {
       outputPath: executorResult.outputPath,
-      storagePath: `renders/${taskId}/output.${outputSettings.format}`,
+      storagePath: `renders/${job.data.workspaceId}/${taskId}/output.${outputSettings.format}`,
       isLocal: true,
       probeOutput: executorResult.probeOutput,
     };

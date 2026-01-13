@@ -41,7 +41,7 @@ export interface TaskDetectLabelsUploadToGcsStep {
 export interface TaskDetectLabelsLabelDetectionStep extends TaskDetectLabelsBaseStep {
   type: 'label_detection';
   config?: {
-    labelDetectionMode?: 'SHOT_MODE' | 'SHOT_AND_FRAME_MODE';
+    labelDetectionMode?: 'SHOT_MODE' | 'SHOT_AND_FRAME_MODE' | 'FRAME_MODE';
     videoConfidenceThreshold?: number;
   };
 }
@@ -117,6 +117,12 @@ export interface TaskDetectLabelsEntityCounts {
   labelEntityCount: number;
   labelTrackCount: number;
   labelClipCount: number;
+  labelObjectCount: number;
+  labelFaceCount: number;
+  labelPersonCount: number;
+  labelSpeechCount: number;
+  labelSegmentCount: number;
+  labelShotCount: number;
 }
 
 /**

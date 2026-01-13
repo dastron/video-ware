@@ -167,7 +167,7 @@ export function MediaProvider({ workspaceId, children }: MediaProviderProps) {
             },
             {
               expand:
-                'workspace,upload,thumbnailFileRef,spriteFileRef,proxyFileRef',
+                'WorkspaceRef,UploadRef,thumbnailFileRef,spriteFileRef,proxyFileRef',
             }
           )
           .then(() => {

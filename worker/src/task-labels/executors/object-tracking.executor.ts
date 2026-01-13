@@ -95,8 +95,14 @@ export class ObjectTrackingExecutor {
       const annotation = result.annotationResults[0];
 
       // Process object annotations
-      const objects = (annotation.objectAnnotations || []).map((obj) => {
-        const trackId = obj.trackId?.toString() || '';
+      const objects = (annotation.objectAnnotations || []).map((obj, index) => {
+        const rawTrackId = (obj as any).trackId;
+        const trackId =
+          rawTrackId !== undefined &&
+          rawTrackId !== null &&
+          String(rawTrackId) !== ''
+            ? String(rawTrackId)
+            : String(index);
         const entity = obj.entity?.description || '';
         const confidence = obj.confidence || 0;
 

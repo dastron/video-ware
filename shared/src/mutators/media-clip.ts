@@ -92,7 +92,12 @@ export class MediaClipMutator extends BaseMutator<MediaClip, MediaClipInput> {
       perPage,
       filters,
       '-created', // Sort by most recent first
-      ['MediaRef', 'MediaRef.UploadRef', 'MediaRef.thumbnailFileRef']
+      [
+        'MediaRef',
+        'MediaRef.UploadRef',
+        'MediaRef.thumbnailFileRef',
+        'MediaRef.spriteFileRef',
+      ]
     );
   }
 
@@ -138,6 +143,8 @@ export class MediaClipMutator extends BaseMutator<MediaClip, MediaClipInput> {
       [LabelType.PERSON]: ClipType.PERSON,
       [LabelType.SPEECH]: ClipType.SPEECH,
       [LabelType.FACE]: ClipType.PERSON,
+      [LabelType.SEGMENT]: ClipType.RANGE,
+      [LabelType.TEXT]: ClipType.SPEECH,
     };
 
     const clipType = typeMapping[labelClip.labelType as LabelType];

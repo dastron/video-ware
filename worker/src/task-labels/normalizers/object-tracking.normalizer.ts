@@ -8,6 +8,7 @@ import type {
   LabelEntityData,
   LabelTrackData,
   LabelClipData,
+  LabelObjectData,
   LabelMediaData,
   KeyframeData,
 } from '../types';
@@ -49,7 +50,6 @@ export class ObjectTrackingNormalizer {
       workspaceRef,
       taskRef,
       version,
-      processor,
       processorVersion,
     } = input;
 
@@ -59,11 +59,16 @@ export class ObjectTrackingNormalizer {
 
     const labelEntities: LabelEntityData[] = [];
     const labelTracks: LabelTrackData[] = [];
-    const labelClips: LabelClipData[] = [];
+    const labelObjects: LabelObjectData[] = [];
     const seenLabels = new Set<string>();
 
     // Process each tracked object
-    for (const obj of response.objects) {
+    for (let i = 0; i < response.objects.length; i++) {
+      const obj = response.objects[i];
+      // Generate a unique trackId for this specific object segment/track
+      // GCVI often returns "0" for many tracks, so we append the index.
+      const uniqueTrackId = `${obj.trackId}_${i}`;
+
       // Create LabelEntity for this object type if not seen before
       const entityHash = this.generateEntityHash(
         workspaceRef,
@@ -112,7 +117,7 @@ export class ObjectTrackingNormalizer {
       // Generate track hash
       const trackHash = this.generateTrackHash(
         mediaId,
-        obj.trackId,
+        uniqueTrackId,
         version,
         processorVersion
       );
@@ -122,7 +127,7 @@ export class ObjectTrackingNormalizer {
         WorkspaceRef: workspaceRef,
         MediaRef: mediaId,
         TaskRef: taskRef,
-        trackId: obj.trackId,
+        trackId: uniqueTrackId,
         start,
         end,
         duration,
@@ -141,35 +146,33 @@ export class ObjectTrackingNormalizer {
         // LabelEntityRef will be set by step processor
       });
 
-      // Create LabelClip if track meets minimum criteria
+      // Create LabelObject if track meets minimum criteria
       if (
         duration >= this.MIN_CLIP_DURATION &&
         avgConfidence >= this.MIN_CLIP_CONFIDENCE
       ) {
-        const clipHash = this.generateClipHash(
+        const objectHash = this.generateObjectHash(
           mediaId,
-          start,
-          end,
-          LabelType.OBJECT
+          uniqueTrackId,
+          version,
+          processorVersion
         );
 
-        labelClips.push({
+        labelObjects.push({
           WorkspaceRef: workspaceRef,
           MediaRef: mediaId,
-          TaskRef: taskRef,
-          labelHash: clipHash,
-          labelType: LabelType.OBJECT,
-          type: obj.entity, // Deprecated field
+          entity: obj.entity,
+          originalTrackId: uniqueTrackId,
+          objectHash,
           start,
           end,
           duration,
           confidence: avgConfidence,
           version,
-          processor: processorVersion,
-          provider: ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
-          labelData: {
+          metadata: {
             entity: obj.entity,
-            trackId: obj.trackId,
+            trackId: uniqueTrackId,
+            originalTrackId: obj.trackId,
             frameCount: obj.frames.length,
           },
           // LabelEntityRef and LabelTrackRef will be set by step processor
@@ -177,25 +180,16 @@ export class ObjectTrackingNormalizer {
       }
     }
 
-    // Create LabelMedia update with aggregated counts
-    const labelMediaUpdate: Partial<LabelMediaData> = {
-      objectTrackingProcessedAt: new Date().toISOString(),
-      objectTrackingProcessor: processorVersion,
-      objectCount: labelClips.length, // Count of significant object appearances
-      objectTrackCount: labelTracks.length, // Total number of tracks
-      // Add processor to processors array
-      processors: ['object_tracking'],
-    };
-
     this.logger.debug(
-      `Normalized ${labelEntities.length} entities, ${labelTracks.length} tracks, ${labelClips.length} clips`
+      `Normalized ${labelEntities.length} entities, ${labelTracks.length} tracks, ${labelObjects.length} objects`
     );
 
     return {
       labelEntities,
       labelTracks,
-      labelClips,
-      labelMediaUpdate,
+      labelClips: [], // Maintain interface compatibility but empty
+      labelObjects,
+      labelMediaUpdate: {}, // Writing only to specified entities
     };
   }
 
@@ -227,24 +221,23 @@ export class ObjectTrackingNormalizer {
   }
 
   /**
-   * Generate clip hash for deduplication
+   * Generate object hash for deduplication
    *
-   * Hash format: mediaId:start:end:labelType
-   * This ensures unique clips based on media, time range, and label type
+   * Hash format: mediaId:trackId:version:processor
    *
    * @param mediaId Media ID
-   * @param start Start time
-   * @param end End time
-   * @param labelType Label type
+   * @param trackId Track ID from provider
+   * @param version Version
+   * @param processor Processor
    * @returns SHA-256 hash
    */
-  private generateClipHash(
+  private generateObjectHash(
     mediaId: string,
-    start: number,
-    end: number,
-    labelType: LabelType
+    trackId: string,
+    version: number,
+    processor: string
   ): string {
-    const hashInput = `${mediaId}:${start.toFixed(3)}:${end.toFixed(3)}:${labelType}`;
+    const hashInput = `${mediaId}:${trackId}:${version}:${processor}`;
     return createHash('sha256').update(hashInput).digest('hex');
   }
 }

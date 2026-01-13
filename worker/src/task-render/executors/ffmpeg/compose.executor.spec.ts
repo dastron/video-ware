@@ -236,4 +236,57 @@ describe('FFmpegComposeExecutor', () => {
     expect(filterComplex).toContain('fontcolor=0xFFFFFFFF'); // #FFFFFF -> 0xFFFFFFFF
     expect(filterComplex).toContain("enable='between(t,1,3)'");
   });
+
+  it('should skip audio filters for media without audio streams', async () => {
+    const tracks: TimelineTrack[] = [
+      {
+        id: 'track1',
+        type: 'audio',
+        layer: 0,
+        segments: [
+          {
+            id: 'seg1',
+            assetId: 'asset-no-audio',
+            type: 'audio',
+            time: { start: 0, duration: 5, sourceStart: 0 },
+          },
+        ],
+      },
+    ];
+
+    const clipMediaMap = {
+      'asset-no-audio': {
+        media: {
+          id: 'asset-no-audio',
+          mediaData: {
+            streams: [{ codec_type: 'video', width: 1920, height: 1080 }],
+          },
+        },
+        filePath: '/tmp/no-audio.mp4',
+      } as any,
+    };
+
+    const outputSettings = {
+      codec: 'libx264',
+      format: 'mp4',
+      resolution: '1920x1080',
+    };
+
+    await executor.execute(
+      tracks,
+      clipMediaMap,
+      '/tmp/output.mp4',
+      outputSettings
+    );
+
+    const executeSpy = vi.spyOn(ffmpegService, 'executeWithProgress');
+    const args = executeSpy.mock.calls[0][0] as string[];
+    const filterComplex = args[args.indexOf('-filter_complex') + 1];
+
+    // Should not contain audio trim/delay for seg1
+    expect(filterComplex).not.toContain('atrim');
+    expect(filterComplex).not.toContain('adelay');
+    // Should use anullsrc fallback for the mix
+    expect(filterComplex).toContain('anullsrc');
+  });
 });

@@ -52,6 +52,8 @@ export const MediaRecommendationSchema = z
         LabelType.PERSON,
         LabelType.FACE,
         LabelType.SPEECH,
+        LabelType.SEGMENT,
+        LabelType.TEXT,
       ],
       { maxSelect: 1 }
     ),
@@ -90,6 +92,8 @@ export const MediaRecommendationInputSchema = z.object({
     LabelType.PERSON,
     LabelType.FACE,
     LabelType.SPEECH,
+    LabelType.SEGMENT,
+    LabelType.TEXT,
   ]),
   queryHash: z.string().min(1, 'Query hash is required'),
   version: z.number().default(1),

@@ -7,7 +7,6 @@ import { MediaVideoPlayer } from '@/components/video/media-video-player';
 import { ClipList } from '@/components/clip/clip-list';
 import { InlineClipCreator } from '@/components/clip/inline-clip-creator';
 import { InlineClipEditor } from '@/components/clip/inline-clip-editor';
-import { LabelSearchPanel } from '@/components/labels/label-search-panel';
 import { MediaRecommendationsPanel } from '@/components/recommendations/media-recommendations-panel';
 import { MediaRecommendationProvider } from '@/contexts/media-recommendation-context';
 import { useMediaRecommendations } from '@/hooks/use-media-recommendations';
@@ -23,7 +22,6 @@ import {
   Eye,
   X,
   Check,
-  Tag,
   Sparkles,
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -41,7 +39,8 @@ function MediaDetailsPageContentWithRecommendations() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const id = params.id as string;
-  const { media, clips, isLoading, error, refresh } = useMediaDetails(id);
+  const { media, clips, isLoading, error, refresh, hasActiveLabelTask } =
+    useMediaDetails(id);
   const { currentWorkspace } = useWorkspace();
   const {
     recommendations,
@@ -151,7 +150,7 @@ function MediaDetailsPageContentWithRecommendations() {
     }
   };
 
-  const handleViewClip = (clipId: string) => {
+  const _handleViewClip = (clipId: string) => {
     // Navigate to the clip
     const newSearchParams = new URLSearchParams(searchParams.toString());
     newSearchParams.set('clip', clipId);
@@ -172,6 +171,9 @@ function MediaDetailsPageContentWithRecommendations() {
       toast.success('Label Detection Started', {
         description: `Task ${task.id} has been queued. Labels will be detected automatically.`,
       });
+
+      // Refresh to update the button state
+      refresh();
     } catch (error) {
       console.error('Failed to start label detection:', error);
       toast.error('Failed to start label detection', {
@@ -294,10 +296,12 @@ function MediaDetailsPageContentWithRecommendations() {
             size="sm"
             className="flex-1 sm:flex-initial"
             onClick={handleDetectLabels}
-            disabled={isDetectingLabels}
+            disabled={isDetectingLabels || hasActiveLabelTask}
           >
             <Sparkles className="h-4 w-4 mr-2" />
-            {isDetectingLabels ? 'Detecting...' : 'Detect Labels'}
+            {isDetectingLabels || hasActiveLabelTask
+              ? 'Detecting...'
+              : 'Detect Labels'}
           </Button>
           <Button
             variant="outline"
@@ -477,10 +481,10 @@ function MediaDetailsPageContentWithRecommendations() {
                     <Scissors className="h-4 w-4" />
                     Clips
                   </TabsTrigger>
-                  <TabsTrigger value="labels" className="flex-1 gap-1.5">
+                  {/* <TabsTrigger value="labels" className="flex-1 gap-1.5">
                     <Tag className="h-4 w-4" />
                     Labels
-                  </TabsTrigger>
+                  </TabsTrigger> */}
                   <TabsTrigger
                     value="recommendations"
                     className="flex-1 gap-1.5"
@@ -512,7 +516,7 @@ function MediaDetailsPageContentWithRecommendations() {
                   />
                 </TabsContent>
 
-                <TabsContent
+                {/* <TabsContent
                   value="labels"
                   className="flex-1 overflow-hidden mt-0 h-full"
                 >
@@ -522,7 +526,7 @@ function MediaDetailsPageContentWithRecommendations() {
                     onClipCreated={refresh}
                     onViewClip={handleViewClip}
                   />
-                </TabsContent>
+                </TabsContent> */}
 
                 <TabsContent
                   value="recommendations"

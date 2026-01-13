@@ -40,9 +40,13 @@ export class FinalizeRenderStepProcessor extends BaseStepProcessor<
     this.logger.log(`Finalizing render for timeline ${timelineId}`);
 
     // Use deterministic path - same as execute step
-    // Path: ./data/renders/<taskId>/output.<format>
-    const localPath = this.storageService.getRenderOutputPath(taskId, format);
-    const storagePath = `renders/${taskId}/output.${format}`;
+    // Path: ./data/renders/<workspaceId>/<taskId>/output.<format>
+    const localPath = this.storageService.getRenderOutputPath(
+      workspaceId,
+      taskId,
+      format
+    );
+    const storagePath = `renders/${workspaceId}/${taskId}/output.${format}`;
 
     this.logger.log(`Probing rendered file at ${localPath}`);
 

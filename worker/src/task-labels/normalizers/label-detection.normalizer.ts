@@ -8,6 +8,8 @@ import type {
   LabelEntityData,
   LabelClipData,
   LabelMediaData,
+  LabelSegmentData,
+  LabelShotData,
 } from '../types';
 
 /**
@@ -53,6 +55,8 @@ export class LabelDetectionNormalizer {
     // Collect unique labels for LabelEntity creation
     const labelEntities: LabelEntityData[] = [];
     const labelClips: LabelClipData[] = [];
+    const labelSegments: LabelSegmentData[] = [];
+    const labelShots: LabelShotData[] = [];
     const seenLabels = new Set<string>();
 
     // Process segment labels
@@ -60,7 +64,7 @@ export class LabelDetectionNormalizer {
       // Create LabelEntity for this label if not seen before
       const entityHash = this.generateEntityHash(
         workspaceRef,
-        LabelType.OBJECT,
+        LabelType.SEGMENT,
         segmentLabel.entity,
         ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE
       );
@@ -68,7 +72,7 @@ export class LabelDetectionNormalizer {
       if (!seenLabels.has(entityHash)) {
         labelEntities.push({
           WorkspaceRef: workspaceRef,
-          labelType: LabelType.OBJECT,
+          labelType: LabelType.SEGMENT,
           canonicalName: segmentLabel.entity,
           provider: ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
           processor: processorVersion,
@@ -80,13 +84,38 @@ export class LabelDetectionNormalizer {
         seenLabels.add(entityHash);
       }
 
-      // Create LabelClip for each segment
+      // Create LabelSegment for each segment
       for (const segment of segmentLabel.segments) {
+        const segmentHash = this.generateSegmentHash(
+          mediaId,
+          segment.startTime,
+          segment.endTime,
+          segmentLabel.entity
+        );
+
+        labelSegments.push({
+          WorkspaceRef: workspaceRef,
+          MediaRef: mediaId,
+          entity: segmentLabel.entity,
+          segmentHash,
+          start: segment.startTime,
+          end: segment.endTime,
+          duration: segment.endTime - segment.startTime,
+          confidence: segment.confidence ?? segmentLabel.confidence,
+          version,
+          metadata: {
+            processor: processorVersion,
+            provider: ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
+            taskRef,
+          },
+        });
+
+        // Also create a LabelClip for backward compatibility/general usage
         const clipHash = this.generateClipHash(
           mediaId,
           segment.startTime,
           segment.endTime,
-          LabelType.OBJECT
+          LabelType.SEGMENT
         );
 
         labelClips.push({
@@ -94,8 +123,8 @@ export class LabelDetectionNormalizer {
           MediaRef: mediaId,
           TaskRef: taskRef,
           labelHash: clipHash,
-          labelType: LabelType.OBJECT,
-          type: segmentLabel.entity, // Deprecated field, kept for backward compatibility
+          labelType: LabelType.SEGMENT,
+          type: segmentLabel.entity,
           start: segment.startTime,
           end: segment.endTime,
           duration: segment.endTime - segment.startTime,
@@ -107,8 +136,6 @@ export class LabelDetectionNormalizer {
             entity: segmentLabel.entity,
             segmentType: 'segment',
           },
-          // LabelEntityRef will be set by step processor after entity creation
-          // LabelTrackRef is null for segment labels (no spatial tracking)
         });
       }
     }
@@ -118,7 +145,7 @@ export class LabelDetectionNormalizer {
       // Create LabelEntity for this label if not seen before
       const entityHash = this.generateEntityHash(
         workspaceRef,
-        LabelType.OBJECT,
+        LabelType.SHOT,
         shotLabel.entity,
         ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE
       );
@@ -126,7 +153,7 @@ export class LabelDetectionNormalizer {
       if (!seenLabels.has(entityHash)) {
         labelEntities.push({
           WorkspaceRef: workspaceRef,
-          labelType: LabelType.OBJECT,
+          labelType: LabelType.SHOT,
           canonicalName: shotLabel.entity,
           provider: ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
           processor: processorVersion,
@@ -138,13 +165,38 @@ export class LabelDetectionNormalizer {
         seenLabels.add(entityHash);
       }
 
-      // Create LabelClip for each shot segment
+      // Create LabelShot for each shot segment
       for (const segment of shotLabel.segments) {
+        const shotHash = this.generateShotHash(
+          mediaId,
+          segment.startTime,
+          segment.endTime,
+          shotLabel.entity
+        );
+
+        labelShots.push({
+          WorkspaceRef: workspaceRef,
+          MediaRef: mediaId,
+          entity: shotLabel.entity,
+          shotHash,
+          start: segment.startTime,
+          end: segment.endTime,
+          duration: segment.endTime - segment.startTime,
+          confidence: segment.confidence ?? shotLabel.confidence,
+          version,
+          metadata: {
+            processor: processorVersion,
+            provider: ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
+            taskRef,
+          },
+        });
+
+        // Also create a LabelClip
         const clipHash = this.generateClipHash(
           mediaId,
           segment.startTime,
           segment.endTime,
-          LabelType.OBJECT
+          LabelType.SHOT
         );
 
         labelClips.push({
@@ -152,8 +204,8 @@ export class LabelDetectionNormalizer {
           MediaRef: mediaId,
           TaskRef: taskRef,
           labelHash: clipHash,
-          labelType: LabelType.OBJECT,
-          type: shotLabel.entity, // Deprecated field
+          labelType: LabelType.SHOT,
+          type: shotLabel.entity,
           start: segment.startTime,
           end: segment.endTime,
           duration: segment.endTime - segment.startTime,
@@ -163,10 +215,8 @@ export class LabelDetectionNormalizer {
           provider: ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
           labelData: {
             entity: shotLabel.entity,
-            segmentType: 'shot',
+            segmentType: 'shot_label',
           },
-          // LabelEntityRef will be set by step processor
-          // LabelTrackRef is null for shot labels
         });
       }
     }
@@ -208,11 +258,11 @@ export class LabelDetectionNormalizer {
         TaskRef: taskRef,
         labelHash: clipHash,
         labelType: LabelType.SHOT,
-        type: 'Shot', // Deprecated field
+        type: 'Shot',
         start: shot.startTime,
         end: shot.endTime,
         duration: shot.endTime - shot.startTime,
-        confidence: 1.0, // Shots don't have confidence scores
+        confidence: 1.0,
         version,
         processor: processorVersion,
         provider: ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
@@ -220,8 +270,6 @@ export class LabelDetectionNormalizer {
           entity: 'Shot',
           segmentType: 'shot_boundary',
         },
-        // LabelEntityRef will be set by step processor
-        // LabelTrackRef is null for shots
       });
     }
 
@@ -243,25 +291,21 @@ export class LabelDetectionNormalizer {
     };
 
     this.logger.debug(
-      `Normalized ${labelEntities.length} entities, ${labelClips.length} clips, ${response.shots.length} shots`
+      `Normalized ${labelEntities.length} entities, ${labelClips.length} clips, ${labelSegments.length} segments, ${labelShots.length} shots`
     );
 
     return {
       labelEntities,
-      labelTracks: [], // No tracks for label detection
+      labelTracks: [],
       labelClips,
+      labelSegments,
+      labelShots,
       labelMediaUpdate,
     };
   }
 
   /**
    * Generate entity hash for deduplication
-   *
-   * @param workspaceRef Workspace reference
-   * @param labelType Label type
-   * @param canonicalName Canonical name
-   * @param provider Processing provider
-   * @returns SHA-256 hash
    */
   private generateEntityHash(
     workspaceRef: string,
@@ -276,15 +320,6 @@ export class LabelDetectionNormalizer {
 
   /**
    * Generate clip hash for deduplication
-   *
-   * Hash format: mediaId:start:end:labelType
-   * This ensures unique clips based on media, time range, and label type
-   *
-   * @param mediaId Media ID
-   * @param start Start time
-   * @param end End time
-   * @param labelType Label type
-   * @returns SHA-256 hash
    */
   private generateClipHash(
     mediaId: string,
@@ -293,6 +328,34 @@ export class LabelDetectionNormalizer {
     labelType: LabelType
   ): string {
     const hashInput = `${mediaId}:${start.toFixed(3)}:${end.toFixed(3)}:${labelType}`;
+    return createHash('sha256').update(hashInput).digest('hex');
+  }
+
+  /**
+   * Generate segment hash for deduplication
+   */
+  private generateSegmentHash(
+    mediaId: string,
+    start: number,
+    end: number,
+    entity: string
+  ): string {
+    const normalizedEntity = entity.trim().toLowerCase();
+    const hashInput = `${mediaId}:${start.toFixed(3)}:${end.toFixed(3)}:segment:${normalizedEntity}`;
+    return createHash('sha256').update(hashInput).digest('hex');
+  }
+
+  /**
+   * Generate shot hash for deduplication
+   */
+  private generateShotHash(
+    mediaId: string,
+    start: number,
+    end: number,
+    entity: string
+  ): string {
+    const normalizedEntity = entity.trim().toLowerCase();
+    const hashInput = `${mediaId}:${start.toFixed(3)}:${end.toFixed(3)}:shot:${normalizedEntity}`;
     return createHash('sha256').update(hashInput).digest('hex');
   }
 }

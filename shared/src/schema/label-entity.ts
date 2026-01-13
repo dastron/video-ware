@@ -19,8 +19,10 @@ export const LabelEntitySchema = z
       LabelType.PERSON,
       LabelType.SPEECH,
       LabelType.FACE,
+      LabelType.SEGMENT,
+      LabelType.TEXT,
     ]),
-    canonicalName: TextField({ min: 1 }), // e.g., "Car", "Person", "Interview"
+    canonicalName: TextField({ min: 1 }), // e.g., "Car", "Person", "Interview", "Wilderness"
     provider: SelectField([
       ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
       ProcessingProvider.GOOGLE_SPEECH,
@@ -40,6 +42,8 @@ export const LabelEntityInputSchema = z.object({
     LabelType.PERSON,
     LabelType.SPEECH,
     LabelType.FACE,
+    LabelType.SEGMENT,
+    LabelType.TEXT,
   ]),
   canonicalName: z.string().min(1, 'Canonical name is required'),
   provider: z.enum([

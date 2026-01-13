@@ -27,23 +27,37 @@ export class TemporalNearbyStrategy extends BaseRecommendationStrategy {
       (context.filterParams as SearchParams).timeWindow ||
       this.DEFAULT_TIME_WINDOW;
 
-    const sortedClips = [...context.labelClips].sort(
+    const allDetections = [
+      ...context.labelFaces.map((f) => ({
+        ...f,
+        labelType: LabelType.FACE,
+        confidence: f.avgConfidence,
+      })),
+      ...context.labelPeople.map((p) => ({
+        ...p,
+        labelType: LabelType.PERSON,
+      })),
+      ...context.labelObjects.map((o) => ({
+        ...o,
+        labelType: LabelType.OBJECT,
+      })),
+      ...context.labelShots.map((s) => ({ ...s, labelType: LabelType.SHOT })),
+    ];
+
+    const sortedDetections = [...allDetections].sort(
       (a, b) => a.start - b.start
     );
 
-    for (let i = 0; i < sortedClips.length; i++) {
-      const clip = sortedClips[i];
-      const labelType = Array.isArray(clip.labelType)
-        ? clip.labelType[0]
-        : clip.labelType;
+    for (let i = 0; i < sortedDetections.length; i++) {
+      const det = sortedDetections[i];
 
       if (
         !this.passesFilters(
           {
-            start: clip.start,
-            end: clip.end,
-            confidence: clip.confidence,
-            labelType: labelType as LabelType,
+            start: det.start,
+            end: det.end,
+            confidence: det.confidence,
+            labelType: det.labelType,
           },
           context.filterParams
         )
@@ -51,40 +65,41 @@ export class TemporalNearbyStrategy extends BaseRecommendationStrategy {
         continue;
       }
 
-      const nearbyClips = sortedClips.filter((other, j) => {
+      const nearbyDetections = sortedDetections.filter((other, j) => {
         if (i === j) return false;
-        const timeDelta = Math.abs(other.start - clip.start);
+        const timeDelta = Math.abs(other.start - det.start);
         return timeDelta <= timeWindow;
       });
 
-      if (nearbyClips.length > 0) {
+      if (nearbyDetections.length > 0) {
         const matchingClip = context.existingClips.find(
           (mc) =>
-            Math.abs(mc.start - clip.start) < 0.1 &&
-            Math.abs(mc.end - clip.end) < 0.1
+            Math.abs(mc.start - det.start) < 0.1 &&
+            Math.abs(mc.end - det.end) < 0.1
         );
 
         const avgTimeDelta =
-          nearbyClips.reduce(
-            (sum, other) => sum + Math.abs(other.start - clip.start),
+          nearbyDetections.reduce(
+            (sum, other) => sum + Math.abs(other.start - det.start),
             0
-          ) / nearbyClips.length;
+          ) / nearbyDetections.length;
         const score = Math.min(
           1,
-          (clip.confidence + (1 - avgTimeDelta / timeWindow)) / 2
+          (det.confidence + (1 - avgTimeDelta / timeWindow)) / 2
         );
 
         candidates.push({
-          start: clip.start,
-          end: clip.end,
+          start: det.start,
+          end: det.end,
           clipId: matchingClip?.id,
           score,
-          reason: `Part of temporal cluster`,
+          reason: `TemporalCluster`,
           reasonData: {
             timeDelta: avgTimeDelta,
-            nearbyCount: nearbyClips.length,
+            nearbyCount: nearbyDetections.length,
+            type: det.labelType,
           },
-          labelType: labelType as LabelType,
+          labelType: det.labelType,
         });
       }
     }

@@ -24,11 +24,12 @@ function getProcessorName(processorVersion: string): string {
  * // Returns: 'labels/abc123/v1/label-detection_google_video_intelligence.json'
  */
 export function getLabelCachePath(
+  workspaceId: string,
   mediaId: string,
   version: number,
   provider: ProcessingProvider,
   processorVersion: string
 ): string {
   const processorName = getProcessorName(processorVersion);
-  return `labels/${mediaId}/v${version}/${processorName}_${provider}.json`;
+  return `labels/${workspaceId}/${mediaId}/v${version}/${processorName}_${provider}.json`;
 }

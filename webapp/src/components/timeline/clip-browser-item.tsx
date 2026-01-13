@@ -22,6 +22,7 @@ export interface MediaClipWithExpand extends Omit<MediaClip, 'expand'> {
           collectionId: string;
           file: string;
         };
+        spriteFileRef?: any;
       };
     };
   };
@@ -57,6 +58,7 @@ export function ClipBrowserItem({
   return (
     <MediaBaseCard
       media={media}
+      spriteFile={media?.expand?.spriteFileRef}
       startTime={clip.start}
       endTime={clip.end}
       title={

@@ -6,6 +6,7 @@ import type {
   NormalizerInput,
   NormalizerOutput,
   LabelEntityData,
+  LabelFaceData,
   LabelTrackData,
   LabelClipData,
   LabelMediaData,
@@ -17,6 +18,7 @@ import type {
  *
  * Transforms GCVI Face Detection API responses into database entities:
  * - LabelEntity: Single "Face" entity (or per-person if identity available)
+ * - LabelFace: Specific face instance data
  * - LabelTrack: Tracked faces with keyframe data (bounding boxes and attributes)
  * - LabelClip: Significant face appearances
  * - LabelMedia: Aggregated face counts
@@ -58,6 +60,7 @@ export class FaceDetectionNormalizer {
     );
 
     const labelEntities: LabelEntityData[] = [];
+    const labelFaces: LabelFaceData[] = [];
     const labelTracks: LabelTrackData[] = [];
     const labelClips: LabelClipData[] = [];
     const seenLabels = new Set<string>();
@@ -65,7 +68,7 @@ export class FaceDetectionNormalizer {
     // Create single "Face" entity (we don't have identity information)
     const entityHash = this.generateEntityHash(
       workspaceRef,
-      LabelType.PERSON,
+      LabelType.FACE,
       'Face',
       ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE
     );
@@ -73,7 +76,7 @@ export class FaceDetectionNormalizer {
     if (!seenLabels.has(entityHash)) {
       labelEntities.push({
         WorkspaceRef: workspaceRef,
-        labelType: LabelType.PERSON,
+        labelType: LabelType.FACE,
         canonicalName: 'Face',
         provider: ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
         processor: processorVersion,
@@ -87,19 +90,24 @@ export class FaceDetectionNormalizer {
 
     // Process each tracked face
     for (const face of response.faces) {
-      // Skip faces with invalid trackId or no frames
-      if (!face.trackId || face.trackId.trim().length === 0) {
-        this.logger.debug(
-          `Skipping face with empty trackId for media ${mediaId}`
-        );
+      if (!face.frames || face.frames.length === 0) {
+        this.logger.debug(`Skipping face with no frames for media ${mediaId}`);
         continue;
       }
 
-      if (!face.frames || face.frames.length === 0) {
-        this.logger.debug(
-          `Skipping face with no frames (trackId: ${face.trackId}) for media ${mediaId}`
+      let trackId = face.trackId;
+
+      // Handle empty trackId by generating a deterministic one based on first frame
+      if (!trackId || trackId.trim().length === 0) {
+        const firstFrame = face.frames[0];
+        trackId = this.generateDeterministicTrackId(
+          mediaId,
+          firstFrame.timeOffset,
+          firstFrame.boundingBox
         );
-        continue;
+        this.logger.debug(
+          `Generated deterministic trackId ${trackId} for face`
+        );
       }
 
       // Extract keyframes from frames with attributes
@@ -112,13 +120,7 @@ export class FaceDetectionNormalizer {
           bottom: frame.boundingBox.bottom,
         },
         confidence: frame.confidence,
-        attributes: frame.attributes
-          ? {
-              headwear: frame.attributes.headwear,
-              glasses: frame.attributes.glasses,
-              lookingAtCamera: frame.attributes.lookingAtCamera,
-            }
-          : undefined,
+        attributes: frame.attributes ? { ...frame.attributes } : undefined,
       }));
 
       // Calculate track start, end, and duration
@@ -137,17 +139,56 @@ export class FaceDetectionNormalizer {
       // Generate track hash
       const trackHash = this.generateTrackHash(
         mediaId,
-        face.trackId,
+        trackId,
         version,
         processorVersion
       );
+
+      // Create LabelFace
+      const faceHash = this.generateFaceHash(
+        mediaId,
+        trackId,
+        version,
+        processorVersion
+      );
+      labelFaces.push({
+        WorkspaceRef: workspaceRef,
+        MediaRef: mediaId,
+        trackId: trackId,
+        faceId: face.faceId,
+        start: start,
+        end: end,
+        duration,
+        avgConfidence,
+        joyLikelihood: attributesSummary.joyLikelihood as string,
+        sorrowLikelihood: attributesSummary.sorrowLikelihood as string,
+        angerLikelihood: attributesSummary.angerLikelihood as string,
+        surpriseLikelihood: attributesSummary.surpriseLikelihood as string,
+        underExposedLikelihood:
+          attributesSummary.underExposedLikelihood as string,
+        blurredLikelihood: attributesSummary.blurredLikelihood as string,
+        headwearLikelihood: attributesSummary.headwearLikelihood as string,
+        lookingAtCameraLikelihood:
+          attributesSummary.lookingAtCameraLikelihood as string,
+        qualityScore: avgConfidence,
+        embeddingModel: face.thumbnail
+          ? 'google-video-intelligence'
+          : undefined,
+        visualHash: face.thumbnail
+          ? createHash('sha256').update(face.thumbnail).digest('hex')
+          : undefined,
+        faceHash,
+        metadata: {
+          processorVersion,
+        },
+      });
 
       // Create LabelTrack with keyframes and attributes
       labelTracks.push({
         WorkspaceRef: workspaceRef,
         MediaRef: mediaId,
         TaskRef: taskRef,
-        trackId: face.trackId,
+        trackId: trackId,
         start,
         end,
         duration,
@@ -176,7 +217,7 @@ export class FaceDetectionNormalizer {
           mediaId,
           start,
           end,
-          LabelType.PERSON
+          LabelType.FACE
         );
 
         labelClips.push({
@@ -184,7 +225,7 @@ export class FaceDetectionNormalizer {
           MediaRef: mediaId,
           TaskRef: taskRef,
           labelHash: clipHash,
-          labelType: LabelType.PERSON,
+          labelType: LabelType.FACE,
           type: 'Face', // Deprecated field
           start,
           end,
@@ -195,7 +236,7 @@ export class FaceDetectionNormalizer {
           provider: ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
           labelData: {
             entity: 'Face',
-            trackId: face.trackId,
+            trackId: trackId,
             frameCount: face.frames.length,
             attributes: attributesSummary,
           },
@@ -242,6 +283,7 @@ export class FaceDetectionNormalizer {
 
     return {
       labelEntities,
+      labelFaces,
       labelTracks: validTracks,
       labelClips: validClips,
       labelMediaUpdate,
@@ -255,53 +297,41 @@ export class FaceDetectionNormalizer {
    */
   private aggregateAttributes(
     frames: Array<{
-      attributes?: {
-        headwear?: string;
-        glasses?: string;
-        lookingAtCamera?: boolean;
-      };
+      attributes?: Record<string, any>;
     }>
   ): Record<string, unknown> {
-    const headwearCounts = new Map<string, number>();
-    const glassesCounts = new Map<string, number>();
-    let lookingAtCameraCount = 0;
-    let totalFrames = 0;
+    const counts: Record<string, Map<string, number>> = {
+      joyLikelihood: new Map(),
+      sorrowLikelihood: new Map(),
+      angerLikelihood: new Map(),
+      surpriseLikelihood: new Map(),
+      underExposedLikelihood: new Map(),
+      blurredLikelihood: new Map(),
+      headwearLikelihood: new Map(),
+      lookingAtCameraLikelihood: new Map(),
+    };
+
+    let totalFramesWithAttributes = 0;
 
     for (const frame of frames) {
       if (frame.attributes) {
-        totalFrames++;
-
-        if (frame.attributes.headwear) {
-          headwearCounts.set(
-            frame.attributes.headwear,
-            (headwearCounts.get(frame.attributes.headwear) ?? 0) + 1
-          );
-        }
-
-        if (frame.attributes.glasses) {
-          glassesCounts.set(
-            frame.attributes.glasses,
-            (glassesCounts.get(frame.attributes.glasses) ?? 0) + 1
-          );
-        }
-
-        if (frame.attributes.lookingAtCamera) {
-          lookingAtCameraCount++;
+        totalFramesWithAttributes++;
+        for (const [key, value] of Object.entries(frame.attributes)) {
+          if (counts[key] && value) {
+            const valStr = String(value);
+            counts[key].set(valStr, (counts[key].get(valStr) ?? 0) + 1);
+          }
         }
       }
     }
 
-    // Find most common values
-    const mostCommonHeadwear = this.getMostCommon(headwearCounts);
-    const mostCommonGlasses = this.getMostCommon(glassesCounts);
-    const lookingAtCameraPercentage =
-      totalFrames > 0 ? lookingAtCameraCount / totalFrames : 0;
+    // Find most common values for each attribute
+    const result: Record<string, unknown> = {};
+    for (const key of Object.keys(counts)) {
+      result[key] = this.getMostCommon(counts[key]);
+    }
 
-    return {
-      headwear: mostCommonHeadwear,
-      glasses: mostCommonGlasses,
-      lookingAtCameraPercentage,
-    };
+    return result;
   }
 
   /**
@@ -349,6 +379,19 @@ export class FaceDetectionNormalizer {
   }
 
   /**
+   * Generate face hash for deduplication
+   */
+  private generateFaceHash(
+    mediaId: string,
+    trackId: string,
+    version: number,
+    processor: string
+  ): string {
+    const hashInput = `${mediaId}:${trackId}:${version}:${processor}:face`;
+    return createHash('sha256').update(hashInput).digest('hex');
+  }
+
+  /**
    * Generate clip hash for deduplication
    *
    * Hash format: mediaId:start:end:labelType
@@ -368,6 +411,21 @@ export class FaceDetectionNormalizer {
   ): string {
     const hashInput = `${mediaId}:${start.toFixed(3)}:${end.toFixed(3)}:${labelType}`;
     return createHash('sha256').update(hashInput).digest('hex');
+  }
+
+  /**
+   * Generate deterministic track ID
+   */
+  private generateDeterministicTrackId(
+    mediaId: string,
+    startTime: number,
+    bbox: { left?: number; top?: number; right?: number; bottom?: number }
+  ): string {
+    const hashInput = `${mediaId}:${startTime}:${bbox.left}:${bbox.top}:${bbox.right}:${bbox.bottom}`;
+    return createHash('sha256')
+      .update(hashInput)
+      .digest('hex')
+      .substring(0, 16);
   }
 
   /**
