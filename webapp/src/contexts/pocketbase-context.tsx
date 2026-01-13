@@ -8,9 +8,9 @@ interface PocketBaseContextType {
   pb: TypedPocketBase;
 }
 
-const PocketBaseContext = createContext<PocketBaseContextType>({
-  pb,
-});
+const PocketBaseContext = createContext<PocketBaseContextType | undefined>(
+  undefined
+);
 
 export function PocketBaseProvider({
   children,
