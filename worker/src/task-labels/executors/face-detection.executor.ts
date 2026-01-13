@@ -22,6 +22,7 @@ export interface FaceDetectionConfig {
   includeAttributes?: boolean; // default: true
   confidenceThreshold?: number; // default: 0.7
   model?: string; // default: 'builtin/latest'
+  includeThumbnails?: boolean; // default: true
 }
 
 /**
@@ -63,6 +64,7 @@ export class FaceDetectionExecutor {
             model: config.model || 'builtin/latest',
             includeBoundingBoxes: config.includeBoundingBoxes ?? true,
             includeAttributes: config.includeAttributes ?? true,
+            includeThumbnails: config.includeThumbnails ?? true,
           },
         },
       };
@@ -102,53 +104,80 @@ export class FaceDetectionExecutor {
       const annotation = result.annotationResults[0];
 
       // Process face annotations
-      const faces = (annotation.faceDetectionAnnotations || []).map((face) => {
-        // Extract track ID from the first track (faces typically have one track)
-        const track = face.tracks?.[0];
-        const trackId = track ? String((track as any).trackId || '') : '';
+      const faces = (annotation.faceDetectionAnnotations || []).map(
+        (face, index) => {
+          // Extract track ID from the first track (faces typically have one track)
+          const track = face.tracks?.[0];
+          const rawTrackId = (track as any)?.trackId;
+          const trackId =
+            rawTrackId !== undefined &&
+            rawTrackId !== null &&
+            String(rawTrackId) !== ''
+              ? String(rawTrackId)
+              : String(index);
 
-        // Process frames with bounding boxes and attributes
-        const frames: FaceFrame[] = (track?.timestampedObjects || []).map(
-          (obj) => {
-            const attributes: FaceAttributes = {};
+          const faceId = (face as any).faceId;
+          const thumbnail = face.thumbnail
+            ? (face.thumbnail as Buffer).toString('base64')
+            : undefined;
 
-            // Extract attributes if available
-            if (config.includeAttributes && obj.attributes) {
-              for (const attr of obj.attributes) {
-                const name = attr.name?.toLowerCase() || '';
-                const value = attr.value || '';
+          // Process frames with bounding boxes and attributes
+          const frames: FaceFrame[] = (track?.timestampedObjects || []).map(
+            (obj) => {
+              const attributes: FaceAttributes = {};
 
-                if (name === 'headwear') {
-                  attributes.headwear = value;
-                } else if (name === 'glasses') {
-                  attributes.glasses = value;
-                } else if (name === 'looking_at_camera') {
-                  attributes.lookingAtCamera =
-                    value === 'true' || value === 'yes';
+              // Extract attributes if available
+              if (config.includeAttributes && obj.attributes) {
+                for (const attr of obj.attributes) {
+                  const name = attr.name?.toLowerCase() || '';
+                  const value = attr.value || '';
+
+                  if (name === 'joy_likelihood') {
+                    attributes.joyLikelihood = value;
+                  } else if (name === 'sorrow_likelihood') {
+                    attributes.sorrowLikelihood = value;
+                  } else if (name === 'anger_likelihood') {
+                    attributes.angerLikelihood = value;
+                  } else if (name === 'surprise_likelihood') {
+                    attributes.surpriseLikelihood = value;
+                  } else if (name === 'under_exposed_likelihood') {
+                    attributes.underExposedLikelihood = value;
+                  } else if (name === 'blurred_likelihood') {
+                    attributes.blurredLikelihood = value;
+                  } else if (name === 'headwear_likelihood') {
+                    attributes.headwearLikelihood = value;
+                  } else if (
+                    name === 'looking_at_camera_likelihood' ||
+                    name === 'looking_at_camera'
+                  ) {
+                    attributes.lookingAtCameraLikelihood = value;
+                  }
                 }
               }
+
+              return {
+                timeOffset: this.parseTimeOffset(obj.timeOffset),
+                boundingBox: {
+                  left: obj.normalizedBoundingBox?.left || 0,
+                  top: obj.normalizedBoundingBox?.top || 0,
+                  right: obj.normalizedBoundingBox?.right || 0,
+                  bottom: obj.normalizedBoundingBox?.bottom || 0,
+                },
+                confidence: track?.confidence || 0,
+                attributes:
+                  Object.keys(attributes).length > 0 ? attributes : undefined,
+              };
             }
+          );
 
-            return {
-              timeOffset: this.parseTimeOffset(obj.timeOffset),
-              boundingBox: {
-                left: obj.normalizedBoundingBox?.left || 0,
-                top: obj.normalizedBoundingBox?.top || 0,
-                right: obj.normalizedBoundingBox?.right || 0,
-                bottom: obj.normalizedBoundingBox?.bottom || 0,
-              },
-              confidence: track?.confidence || 0,
-              attributes:
-                Object.keys(attributes).length > 0 ? attributes : undefined,
-            };
-          }
-        );
-
-        return {
-          trackId,
-          frames,
-        };
-      });
+          return {
+            trackId,
+            faceId,
+            thumbnail,
+            frames,
+          };
+        }
+      );
 
       // Apply confidence threshold if specified
       const threshold = config.confidenceThreshold ?? 0.7;

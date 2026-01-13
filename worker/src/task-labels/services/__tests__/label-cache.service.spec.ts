@@ -31,6 +31,7 @@ describe('LabelCacheService', () => {
       mockStorageService.exists.mockResolvedValue(false);
 
       const result = await service.getCachedLabels(
+        'workspace123',
         'media123',
         1,
         ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
@@ -39,7 +40,7 @@ describe('LabelCacheService', () => {
 
       expect(result).toBeNull();
       expect(mockStorageService.exists).toHaveBeenCalledWith(
-        'labels/media123/v1/label-detection_google_video_intelligence.json'
+        'labels/workspace123/media123/v1/label-detection_google_video_intelligence.json'
       );
     });
 
@@ -75,6 +76,7 @@ describe('LabelCacheService', () => {
       mockStorageService.download.mockResolvedValue(mockStream);
 
       const result = await service.getCachedLabels(
+        'workspace123',
         'media123',
         1,
         ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
@@ -83,7 +85,7 @@ describe('LabelCacheService', () => {
 
       expect(result).toEqual(cacheData);
       expect(mockStorageService.download).toHaveBeenCalledWith(
-        'labels/media123/v1/label-detection_google_video_intelligence.json'
+        'labels/workspace123/media123/v1/label-detection_google_video_intelligence.json'
       );
     });
 
@@ -94,6 +96,7 @@ describe('LabelCacheService', () => {
       );
 
       const result = await service.getCachedLabels(
+        'workspace123',
         'media123',
         1,
         ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
@@ -137,6 +140,7 @@ describe('LabelCacheService', () => {
       mockStorageService.download.mockResolvedValue(mockStream);
 
       const result = await service.getCachedLabels(
+        'workspace123',
         'media123',
         1,
         ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
@@ -154,6 +158,7 @@ describe('LabelCacheService', () => {
       const features = ['LABEL_DETECTION'];
 
       await service.storeLabelCache(
+        'workspace123',
         'media123',
         1,
         ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
@@ -163,7 +168,7 @@ describe('LabelCacheService', () => {
       );
 
       expect(mockStorageService.upload).toHaveBeenCalledWith(
-        'labels/media123/v1/video-intelligence_google_video_intelligence.json',
+        'labels/workspace123/media123/v1/video-intelligence_google_video_intelligence.json',
         expect.any(Buffer)
       );
 
@@ -187,6 +192,7 @@ describe('LabelCacheService', () => {
       const processor = 'video-intelligence:1.0.0';
 
       await service.storeLabelCache(
+        'workspace123',
         'media123',
         1,
         ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
@@ -206,6 +212,7 @@ describe('LabelCacheService', () => {
 
       await expect(
         service.storeLabelCache(
+          'workspace123',
           'media123',
           1,
           ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,

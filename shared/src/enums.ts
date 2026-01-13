@@ -97,6 +97,8 @@ export enum LabelType {
   PERSON = 'person',
   SPEECH = 'speech',
   FACE = 'face',
+  SEGMENT = 'segment',
+  TEXT = 'text',
 }
 
 export enum RecommendationStrategy {

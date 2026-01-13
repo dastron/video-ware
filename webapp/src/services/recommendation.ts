@@ -4,7 +4,11 @@ import {
   TimelineMutator,
   TimelineClipMutator,
   MediaClipMutator,
-  LabelClipMutator,
+  LabelFaceMutator,
+  LabelPersonMutator,
+  LabelObjectMutator,
+  LabelShotMutator,
+  LabelTrackMutator,
   LabelEntityMutator,
   MediaRecommendationMutator,
   TimelineRecommendationMutator,
@@ -36,7 +40,11 @@ import type {
  * using a pluggable strategy pattern.
  */
 export class RecommendationService {
-  private labelClipMutator: LabelClipMutator;
+  private labelFaceMutator: LabelFaceMutator;
+  private labelPersonMutator: LabelPersonMutator;
+  private labelObjectMutator: LabelObjectMutator;
+  private labelShotMutator: LabelShotMutator;
+  private labelTrackMutator: LabelTrackMutator;
   private labelEntityMutator: LabelEntityMutator;
   private mediaRecommendationMutator: MediaRecommendationMutator;
   private timelineRecommendationMutator: TimelineRecommendationMutator;
@@ -48,7 +56,11 @@ export class RecommendationService {
 
   constructor(pb: TypedPocketBase) {
     this._pb = pb;
-    this.labelClipMutator = new LabelClipMutator(pb);
+    this.labelFaceMutator = new LabelFaceMutator(pb);
+    this.labelPersonMutator = new LabelPersonMutator(pb);
+    this.labelObjectMutator = new LabelObjectMutator(pb);
+    this.labelShotMutator = new LabelShotMutator(pb);
+    this.labelTrackMutator = new LabelTrackMutator(pb);
     this.labelEntityMutator = new LabelEntityMutator(pb);
     this.mediaRecommendationMutator = new MediaRecommendationMutator(pb);
     this.timelineRecommendationMutator = new TimelineRecommendationMutator(pb);
@@ -268,14 +280,24 @@ export class RecommendationService {
     const media = await mediaMutator.getById(mediaId);
     if (!media) throw new Error(`Media ${mediaId} not found`);
 
-    const labelClipsResult = await this.labelClipMutator.getByMedia(mediaId);
-    const labelClips = labelClipsResult.items;
+    const labelFaces = (await this.labelFaceMutator.getByMedia(mediaId)).items;
+    const labelPeople = (await this.labelPersonMutator.getByMedia(mediaId))
+      .items;
+    const labelObjects = (await this.labelObjectMutator.getByMedia(mediaId))
+      .items;
+    const labelShots = (await this.labelShotMutator.getByMedia(mediaId)).items;
+    const labelTracks = (await this.labelTrackMutator.getByMedia(mediaId))
+      .items;
 
-    const entityIds = new Set(
-      labelClips
-        .map((lc) => lc.LabelEntityRef)
-        .filter((id): id is string => !!id)
-    );
+    const entityIds = new Set([
+      ...labelFaces.map((f) => f.LabelEntityRef),
+      ...labelPeople.map((p) => p.LabelEntityRef),
+      ...labelObjects.map((o) => o.LabelEntityRef),
+      ...labelShots
+        .map((s) => s.LabelEntityRef)
+        .filter((id): id is string => !!id),
+    ]);
+
     const labelEntities = await Promise.all(
       Array.from(entityIds).map((id) => this.labelEntityMutator.getById(id))
     ).then((entities) => entities.filter((e): e is LabelEntity => !!e));
@@ -287,7 +309,11 @@ export class RecommendationService {
     return {
       workspace,
       media,
-      labelClips,
+      labelFaces,
+      labelPeople,
+      labelObjects,
+      labelShots,
+      labelTracks,
       labelEntities,
       existingClips,
       filterParams,
@@ -318,17 +344,34 @@ export class RecommendationService {
       await mediaClipMutator.getByWorkspace(workspaceId);
     const availableClips = availableClipsResult.items;
 
-    const mediaIds = new Set(availableClips.map((clip) => clip.MediaRef));
-    const labelClipsResults = await Promise.all(
-      Array.from(mediaIds).map((id) => this.labelClipMutator.getByMedia(id))
+    const mediaIds = Array.from(
+      new Set(availableClips.map((clip) => clip.MediaRef))
     );
-    const labelClips = labelClipsResults.flatMap((r) => r.items);
 
-    const entityIds = new Set(
-      labelClips
-        .map((lc) => lc.LabelEntityRef)
-        .filter((id): id is string => !!id)
-    );
+    // Fetch from all specialized collections
+    const [faces, people, objects, shots, tracks] = await Promise.all([
+      Promise.all(mediaIds.map((id) => this.labelFaceMutator.getByMedia(id))),
+      Promise.all(mediaIds.map((id) => this.labelPersonMutator.getByMedia(id))),
+      Promise.all(mediaIds.map((id) => this.labelObjectMutator.getByMedia(id))),
+      Promise.all(mediaIds.map((id) => this.labelShotMutator.getByMedia(id))),
+      Promise.all(mediaIds.map((id) => this.labelTrackMutator.getByMedia(id))),
+    ]);
+
+    const labelFaces = faces.flatMap((r) => r.items);
+    const labelPeople = people.flatMap((r) => r.items);
+    const labelObjects = objects.flatMap((r) => r.items);
+    const labelShots = shots.flatMap((r) => r.items);
+    const labelTracks = tracks.flatMap((r) => r.items);
+
+    const entityIds = new Set([
+      ...labelFaces.map((f) => f.LabelEntityRef),
+      ...labelPeople.map((p) => p.LabelEntityRef),
+      ...labelObjects.map((o) => o.LabelEntityRef),
+      ...labelShots
+        .map((s) => s.LabelEntityRef)
+        .filter((id): id is string => !!id),
+    ]);
+
     const labelEntities = await Promise.all(
       Array.from(entityIds).map((id) => this.labelEntityMutator.getById(id))
     ).then((entities) => entities.filter((e): e is LabelEntity => !!e));
@@ -339,7 +382,11 @@ export class RecommendationService {
       timelineClips,
       seedClip,
       availableClips,
-      labelClips,
+      labelFaces,
+      labelPeople,
+      labelObjects,
+      labelShots,
+      labelTracks,
       labelEntities,
       searchParams,
     };

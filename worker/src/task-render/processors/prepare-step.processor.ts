@@ -52,13 +52,17 @@ export class PrepareRenderStepProcessor extends BaseStepProcessor<
     );
 
     // 2. Ensure deterministic inputs directory exists
-    const inputsDir = this.storageService.getRenderInputsDir(taskId);
+    const inputsDir = this.storageService.getRenderInputsDir(
+      job.data.workspaceId,
+      taskId
+    );
     await fs.mkdir(inputsDir, { recursive: true });
 
     // 3. Link or copy files to the inputs directory
     for (const [mediaId, clipMedia] of Object.entries(clipMediaMap)) {
       const extension = path.extname(clipMedia.filePath);
       const targetPath = this.storageService.getRenderInputPath(
+        job.data.workspaceId,
         taskId,
         mediaId,
         extension

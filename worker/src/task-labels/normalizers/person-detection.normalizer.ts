@@ -7,7 +7,7 @@ import type {
   NormalizerOutput,
   LabelEntityData,
   LabelTrackData,
-  LabelClipData,
+  LabelPersonData,
   LabelMediaData,
   KeyframeData,
 } from '../types';
@@ -27,6 +27,17 @@ import type {
  * - Pose landmarks (body keypoints)
  * - Person attributes (clothing colors)
  */
+interface AttributeSummary {
+  upperClothingColor?: string;
+  lowerClothingColor?: string;
+}
+
+interface LandmarkSummary {
+  detectedTypes: string[];
+  typeCounts: Record<string, number>;
+  avgConfidences: Record<string, number>;
+}
+
 @Injectable()
 export class PersonDetectionNormalizer {
   private readonly logger = new Logger(PersonDetectionNormalizer.name);
@@ -60,7 +71,7 @@ export class PersonDetectionNormalizer {
 
     const labelEntities: LabelEntityData[] = [];
     const labelTracks: LabelTrackData[] = [];
-    const labelClips: LabelClipData[] = [];
+    const labelPeople: LabelPersonData[] = [];
     const seenLabels = new Set<string>();
 
     // Create single "Person" entity
@@ -165,39 +176,36 @@ export class PersonDetectionNormalizer {
         // LabelEntityRef will be set by step processor
       });
 
-      // Create LabelClip if track meets minimum criteria
+      // Create LabelPerson if track meets minimum criteria
       if (
         duration >= this.MIN_CLIP_DURATION &&
         avgConfidence >= this.MIN_CLIP_CONFIDENCE
       ) {
-        const clipHash = this.generateClipHash(
+        const personHash = this.generatePersonHash(
           mediaId,
-          start,
-          end,
-          LabelType.PERSON
+          person.trackId,
+          version,
+          processorVersion
         );
 
-        labelClips.push({
+        labelPeople.push({
           WorkspaceRef: workspaceRef,
           MediaRef: mediaId,
-          TaskRef: taskRef,
-          labelHash: clipHash,
-          labelType: LabelType.PERSON,
-          type: 'Person', // Deprecated field
+          personId: person.trackId,
+          personHash,
           start,
           end,
           duration,
           confidence: avgConfidence,
-          version,
-          processor: processorVersion,
-          provider: ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
-          labelData: {
-            entity: 'Person',
-            trackId: person.trackId,
+          upperBodyColor: attributesSummary.upperClothingColor as string,
+          lowerBodyColor: attributesSummary.lowerClothingColor as string,
+          hasLandmarks: landmarksSummary.detectedTypes.length > 0,
+          metadata: {
             frameCount: person.frames.length,
             attributes: attributesSummary,
-            landmarkTypes: landmarksSummary.detectedTypes,
+            landmarks: landmarksSummary,
           },
+          version,
           // LabelEntityRef and LabelTrackRef will be set by step processor
         });
       }
@@ -207,20 +215,20 @@ export class PersonDetectionNormalizer {
     const labelMediaUpdate: Partial<LabelMediaData> = {
       personDetectionProcessedAt: new Date().toISOString(),
       personDetectionProcessor: processorVersion,
-      personCount: labelClips.length, // Count of significant person appearances
+      personCount: labelPeople.length, // Count of significant person appearances
       personTrackCount: labelTracks.length, // Total number of person tracks
       // Add processor to processors array
       processors: ['person_detection'],
     };
 
     this.logger.debug(
-      `Normalized ${labelEntities.length} entities, ${labelTracks.length} tracks, ${labelClips.length} clips`
+      `Normalized ${labelEntities.length} entities, ${labelTracks.length} tracks, ${labelPeople.length} persons`
     );
 
     return {
       labelEntities,
       labelTracks,
-      labelClips,
+      labelPeople,
       labelMediaUpdate,
     };
   }
@@ -234,7 +242,7 @@ export class PersonDetectionNormalizer {
     frames: Array<{
       attributes?: { upperClothingColor?: string; lowerClothingColor?: string };
     }>
-  ): Record<string, unknown> {
+  ): AttributeSummary {
     const upperColorCounts = new Map<string, number>();
     const lowerColorCounts = new Map<string, number>();
 
@@ -279,7 +287,7 @@ export class PersonDetectionNormalizer {
         confidence: number;
       }>;
     }>
-  ): Record<string, unknown> {
+  ): LandmarkSummary {
     const landmarkTypeCounts = new Map<string, number>();
     const landmarkConfidences = new Map<string, number[]>();
 
@@ -360,24 +368,24 @@ export class PersonDetectionNormalizer {
   }
 
   /**
-   * Generate clip hash for deduplication
+   * Generate person hash for deduplication
    *
-   * Hash format: mediaId:start:end:labelType
-   * This ensures unique clips based on media, time range, and label type
+   * Hash format: mediaId:personId:version:processor
+   * This ensures unique person records per media and tracking run
    *
    * @param mediaId Media ID
-   * @param start Start time
-   * @param end End time
-   * @param labelType Label type
+   * @param personId Person/Track ID from provider
+   * @param version Logic version
+   * @param processor Processor identifier
    * @returns SHA-256 hash
    */
-  private generateClipHash(
+  private generatePersonHash(
     mediaId: string,
-    start: number,
-    end: number,
-    labelType: LabelType
+    personId: string,
+    version: number,
+    processor: string
   ): string {
-    const hashInput = `${mediaId}:${start.toFixed(3)}:${end.toFixed(3)}:${labelType}`;
+    const hashInput = `${mediaId}:${personId}:${version}:${processor}`;
     return createHash('sha256').update(hashInput).digest('hex');
   }
 }

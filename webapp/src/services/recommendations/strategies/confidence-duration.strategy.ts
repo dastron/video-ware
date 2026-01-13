@@ -24,22 +24,35 @@ export class ConfidenceDurationStrategy extends BaseRecommendationStrategy {
   ): Promise<ScoredMediaCandidate[]> {
     const candidates: ScoredMediaCandidate[] = [];
 
-    const highConfidenceClips = context.labelClips.filter(
-      (lc) => lc.confidence >= this.HIGH_CONFIDENCE_THRESHOLD
+    const allDetections = [
+      ...context.labelFaces.map((f) => ({
+        ...f,
+        labelType: LabelType.FACE,
+        confidence: f.avgConfidence,
+      })),
+      ...context.labelPeople.map((p) => ({
+        ...p,
+        labelType: LabelType.PERSON,
+      })),
+      ...context.labelObjects.map((o) => ({
+        ...o,
+        labelType: LabelType.OBJECT,
+      })),
+      ...context.labelShots.map((s) => ({ ...s, labelType: LabelType.SHOT })),
+    ];
+
+    const highConfidenceDetections = allDetections.filter(
+      (d) => d.confidence >= this.HIGH_CONFIDENCE_THRESHOLD
     );
 
-    for (const clip of highConfidenceClips) {
-      const labelType = Array.isArray(clip.labelType)
-        ? clip.labelType[0]
-        : clip.labelType;
-
+    for (const det of highConfidenceDetections) {
       if (
         !this.passesFilters(
           {
-            start: clip.start,
-            end: clip.end,
-            confidence: clip.confidence,
-            labelType: labelType as LabelType,
+            start: det.start,
+            end: det.end,
+            confidence: det.confidence,
+            labelType: det.labelType,
           },
           context.filterParams
         )
@@ -49,18 +62,18 @@ export class ConfidenceDurationStrategy extends BaseRecommendationStrategy {
 
       const matchingClip = context.existingClips.find(
         (mc) =>
-          Math.abs(mc.start - clip.start) < 0.1 &&
-          Math.abs(mc.end - clip.end) < 0.1
+          Math.abs(mc.start - det.start) < 0.1 &&
+          Math.abs(mc.end - det.end) < 0.1
       );
 
       candidates.push({
-        start: clip.start,
-        end: clip.end,
+        start: det.start,
+        end: det.end,
         clipId: matchingClip?.id,
-        score: clip.confidence,
-        reason: `High confidence detection`,
-        reasonData: { confidence: clip.confidence },
-        labelType: labelType as LabelType,
+        score: det.confidence,
+        reason: `${det.labelType}Detection`,
+        reasonData: { confidence: det.confidence, type: det.labelType },
+        labelType: det.labelType,
       });
     }
 
@@ -75,21 +88,38 @@ export class ConfidenceDurationStrategy extends BaseRecommendationStrategy {
       ? context.seedClip.end - context.seedClip.start
       : null;
 
+    const allDetections = [
+      ...context.labelFaces.map((f) => ({
+        ...f,
+        labelType: LabelType.FACE,
+        confidence: f.avgConfidence,
+      })),
+      ...context.labelPeople.map((p) => ({
+        ...p,
+        labelType: LabelType.PERSON,
+      })),
+      ...context.labelObjects.map((o) => ({
+        ...o,
+        labelType: LabelType.OBJECT,
+      })),
+      ...context.labelShots.map((s) => ({ ...s, labelType: LabelType.SHOT })),
+    ];
+
     for (const clip of context.availableClips) {
       if (context.seedClip && clip.id === context.seedClip.id) continue;
 
-      const candidateLabelClips = context.labelClips.filter(
-        (lc) =>
-          lc.MediaRef === clip.MediaRef &&
-          lc.start >= clip.start &&
-          lc.end <= clip.end
+      const candidateDetections = allDetections.filter(
+        (d) =>
+          d.MediaRef === clip.MediaRef &&
+          d.start >= clip.start &&
+          d.end <= clip.end
       );
 
-      if (candidateLabelClips.length === 0) continue;
+      if (candidateDetections.length === 0) continue;
 
       const avgConfidence =
-        candidateLabelClips.reduce((sum, lc) => sum + lc.confidence, 0) /
-        candidateLabelClips.length;
+        candidateDetections.reduce((sum, d) => sum + d.confidence, 0) /
+        candidateDetections.length;
       if (avgConfidence < this.HIGH_CONFIDENCE_THRESHOLD) continue;
 
       let durationScore = 1.0;

@@ -15,11 +15,15 @@ import {
   FileMutator,
   LabelClipMutator,
   LabelEntityMutator,
-  LabelMediaMutator,
+  LabelFaceMutator,
+  LabelSpeechMutator,
   LabelTrackMutator,
+  LabelSegmentMutator,
+  LabelShotMutator,
+  LabelObjectMutator,
+  LabelPersonMutator,
   MediaClipMutator,
   MediaMutator,
-  MediaLabelMutator,
   MediaRecommendationMutator,
   TaskMutator,
   TimelineClipMutator,
@@ -44,7 +48,6 @@ export class PocketBaseService implements OnModuleInit {
   public labelEntityMutator!: LabelEntityMutator;
   public mediaClipMutator!: MediaClipMutator;
   public mediaMutator!: MediaMutator;
-  public mediaLabelMutator!: MediaLabelMutator;
   public taskMutator!: TaskMutator;
   public timelineClipMutator!: TimelineClipMutator;
   public timelineMutator!: TimelineMutator;
@@ -56,7 +59,12 @@ export class PocketBaseService implements OnModuleInit {
   public watchedFileMutator!: WatchedFileMutator;
   public workspaceMutator!: WorkspaceMutator;
   public labelTrackMutator!: LabelTrackMutator;
-  public labelMediaMutator!: LabelMediaMutator;
+  public labelFaceMutator!: LabelFaceMutator;
+  public labelSpeechMutator!: LabelSpeechMutator;
+  public labelSegmentMutator!: LabelSegmentMutator;
+  public labelShotMutator!: LabelShotMutator;
+  public labelObjectMutator!: LabelObjectMutator;
+  public labelPersonMutator!: LabelPersonMutator;
 
   constructor(
     private readonly configService: ConfigService,
@@ -106,15 +114,19 @@ export class PocketBaseService implements OnModuleInit {
     this.fileMutator = new FileMutator(this.pb);
     this.labelClipMutator = new LabelClipMutator(this.pb);
     this.labelEntityMutator = new LabelEntityMutator(this.pb);
-    this.labelMediaMutator = new LabelMediaMutator(this.pb);
     this.labelTrackMutator = new LabelTrackMutator(this.pb);
+    this.labelFaceMutator = new LabelFaceMutator(this.pb);
+    this.labelSpeechMutator = new LabelSpeechMutator(this.pb);
+    this.labelSegmentMutator = new LabelSegmentMutator(this.pb);
+    this.labelShotMutator = new LabelShotMutator(this.pb);
+    this.labelObjectMutator = new LabelObjectMutator(this.pb);
+    this.labelPersonMutator = new LabelPersonMutator(this.pb);
     this.mediaRecommendationMutator = new MediaRecommendationMutator(this.pb);
     this.timelineRecommendationMutator = new TimelineRecommendationMutator(
       this.pb
     );
     this.mediaClipMutator = new MediaClipMutator(this.pb);
     this.mediaMutator = new MediaMutator(this.pb);
-    this.mediaLabelMutator = new MediaLabelMutator(this.pb);
     this.taskMutator = new TaskMutator(this.pb);
     this.timelineClipMutator = new TimelineClipMutator(this.pb);
     this.timelineMutator = new TimelineMutator(this.pb);

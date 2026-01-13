@@ -1,4 +1,4 @@
-import { RecommendationStrategy, type LabelClip } from '@project/shared';
+import { RecommendationStrategy, LabelType } from '@project/shared';
 import { BaseRecommendationStrategy } from './base-strategy';
 import type {
   MediaStrategyContext,
@@ -19,38 +19,46 @@ export class SameEntityStrategy extends BaseRecommendationStrategy {
     context: MediaStrategyContext
   ): Promise<ScoredMediaCandidate[]> {
     const candidates: ScoredMediaCandidate[] = [];
-    const clipsByEntity = new Map<string, LabelClip[]>();
 
-    for (const lc of context.labelClips) {
-      if (!lc.LabelEntityRef) continue;
-      if (!clipsByEntity.has(lc.LabelEntityRef)) {
-        clipsByEntity.set(lc.LabelEntityRef, []);
+    const allDetections = [
+      ...context.labelFaces.map((f) => ({
+        ...f,
+        labelType: LabelType.FACE,
+        confidence: f.avgConfidence,
+      })),
+      ...context.labelPeople.map((p) => ({
+        ...p,
+        labelType: LabelType.PERSON,
+      })),
+      ...context.labelObjects.map((o) => ({
+        ...o,
+        labelType: LabelType.OBJECT,
+      })),
+      ...context.labelShots.map((s) => ({ ...s, labelType: LabelType.SHOT })),
+    ];
+
+    const detectionsByEntity = new Map<string, any[]>();
+
+    for (const det of allDetections) {
+      if (!det.LabelEntityRef) continue;
+      if (!detectionsByEntity.has(det.LabelEntityRef)) {
+        detectionsByEntity.set(det.LabelEntityRef, []);
       }
-      clipsByEntity.get(lc.LabelEntityRef)!.push(lc);
+      detectionsByEntity.get(det.LabelEntityRef)!.push(det);
     }
 
-    for (const [entityId, clips] of clipsByEntity.entries()) {
+    for (const [entityId, detections] of detectionsByEntity.entries()) {
       const entity = context.labelEntities.find((e) => e.id === entityId);
       if (!entity) continue;
 
-      for (const clip of clips) {
-        const matchingClip = context.existingClips.find(
-          (mc) =>
-            Math.abs(mc.start - clip.start) < 0.1 &&
-            Math.abs(mc.end - clip.end) < 0.1
-        );
-
-        const labelType = Array.isArray(clip.labelType)
-          ? clip.labelType[0]
-          : clip.labelType;
-
+      for (const det of detections) {
         if (
           !this.passesFilters(
             {
-              start: clip.start,
-              end: clip.end,
-              confidence: clip.confidence,
-              labelType,
+              start: det.start,
+              end: det.end,
+              confidence: det.confidence,
+              labelType: det.labelType,
             },
             context.filterParams
           )
@@ -58,17 +66,24 @@ export class SameEntityStrategy extends BaseRecommendationStrategy {
           continue;
         }
 
+        const matchingClip = context.existingClips.find(
+          (mc) =>
+            Math.abs(mc.start - det.start) < 0.1 &&
+            Math.abs(mc.end - det.end) < 0.1
+        );
+
         candidates.push({
-          start: clip.start,
-          end: clip.end,
+          start: det.start,
+          end: det.end,
           clipId: matchingClip?.id,
-          score: clip.confidence,
+          score: det.confidence,
           reason: `Contains ${entity.canonicalName}`,
           reasonData: {
             entityId: entity.id,
             entityName: entity.canonicalName,
+            type: det.labelType,
           },
-          labelType,
+          labelType: det.labelType,
         });
       }
     }
@@ -81,16 +96,33 @@ export class SameEntityStrategy extends BaseRecommendationStrategy {
     const candidates: ScoredTimelineCandidate[] = [];
     if (!context.seedClip) return [];
 
-    const seedLabelClips = context.labelClips.filter(
-      (lc) =>
-        lc.MediaRef === context.seedClip!.MediaRef &&
-        lc.start >= context.seedClip!.start &&
-        lc.end <= context.seedClip!.end
+    const allDetections = [
+      ...context.labelFaces.map((f) => ({
+        ...f,
+        labelType: LabelType.FACE,
+        confidence: f.avgConfidence,
+      })),
+      ...context.labelPeople.map((p) => ({
+        ...p,
+        labelType: LabelType.PERSON,
+      })),
+      ...context.labelObjects.map((o) => ({
+        ...o,
+        labelType: LabelType.OBJECT,
+      })),
+      ...context.labelShots.map((s) => ({ ...s, labelType: LabelType.SHOT })),
+    ];
+
+    const seedDetections = allDetections.filter(
+      (d) =>
+        d.MediaRef === context.seedClip!.MediaRef &&
+        d.start >= context.seedClip!.start &&
+        d.end <= context.seedClip!.end
     );
 
     const seedEntityIds = new Set(
-      seedLabelClips
-        .map((lc) => lc.LabelEntityRef)
+      seedDetections
+        .map((d) => d.LabelEntityRef)
         .filter((id): id is string => !!id)
     );
     if (seedEntityIds.size === 0) return [];
@@ -98,30 +130,29 @@ export class SameEntityStrategy extends BaseRecommendationStrategy {
     for (const clip of context.availableClips) {
       if (clip.id === context.seedClip.id) continue;
 
-      const candidateLabelClips = context.labelClips.filter(
-        (lc) =>
-          lc.MediaRef === clip.MediaRef &&
-          lc.start >= clip.start &&
-          lc.end <= clip.end
+      const candidateDetections = allDetections.filter(
+        (d) =>
+          d.MediaRef === clip.MediaRef &&
+          d.start >= clip.start &&
+          d.end <= clip.end
       );
 
-      const sharedEntities = candidateLabelClips
-        .filter(
-          (lc) => lc.LabelEntityRef && seedEntityIds.has(lc.LabelEntityRef)
-        )
+      const sharedEntities = candidateDetections
+        .filter((d) => d.LabelEntityRef && seedEntityIds.has(d.LabelEntityRef))
         .map(
-          (lc) =>
-            context.labelEntities.find((e) => e.id === lc.LabelEntityRef)
+          (d) =>
+            context.labelEntities.find((e) => e.id === d.LabelEntityRef)
               ?.canonicalName
         )
         .filter((name): name is string => !!name);
 
       if (sharedEntities.length > 0) {
+        const uniqueShared = Array.from(new Set(sharedEntities));
         candidates.push({
           clipId: clip.id,
-          score: 0.5 + Math.min(0.5, sharedEntities.length * 0.1),
-          reason: `Shares entities: ${sharedEntities.join(', ')}`,
-          reasonData: { sharedEntities },
+          score: 0.5 + Math.min(0.5, uniqueShared.length * 0.1),
+          reason: `Shares entities: ${uniqueShared.join(', ')}`,
+          reasonData: { sharedEntities: uniqueShared },
         });
       }
     }

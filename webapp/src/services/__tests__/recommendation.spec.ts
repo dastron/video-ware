@@ -38,24 +38,28 @@ describe('RecommendationService', () => {
       vi.spyOn(service as any, 'loadMediaContext').mockResolvedValue({
         workspace: { id: 'ws1' },
         media: { id: 'm1' },
-        labelClips: [
+        labelFaces: [],
+        labelPeople: [
           {
             id: 'lc1',
+            MediaRef: 'm1',
             LabelEntityRef: 'e1',
             start: 0,
             end: 5,
             confidence: 0.9,
-            labelType: 'person',
           },
           {
             id: 'lc2',
+            MediaRef: 'm1',
             LabelEntityRef: 'e1',
             start: 10,
             end: 15,
             confidence: 0.8,
-            labelType: 'person',
           },
         ],
+        labelObjects: [],
+        labelShots: [],
+        labelTracks: [],
         labelEntities: [{ id: 'e1', canonicalName: 'John Doe' }],
         existingClips: [],
         filterParams: {},
@@ -102,7 +106,9 @@ describe('RecommendationService', () => {
           { id: 'mc1', MediaRef: 'm2', start: 0, end: 5 },
           { id: 'mc2', MediaRef: 'm3', start: 10, end: 15 },
         ],
-        labelClips: [
+        labelFaces: [],
+        labelPeople: [],
+        labelObjects: [
           // Seed clip has entity e1
           {
             id: 'lc_seed',
@@ -122,6 +128,8 @@ describe('RecommendationService', () => {
             confidence: 0.8,
           },
         ],
+        labelShots: [],
+        labelTracks: [],
         labelEntities: [{ id: 'e1', canonicalName: 'Car' }],
         searchParams: {},
       });

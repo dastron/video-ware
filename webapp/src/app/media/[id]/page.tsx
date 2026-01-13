@@ -39,7 +39,8 @@ function MediaDetailsPageContentWithRecommendations() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const id = params.id as string;
-  const { media, clips, isLoading, error, refresh } = useMediaDetails(id);
+  const { media, clips, isLoading, error, refresh, hasActiveLabelTask } =
+    useMediaDetails(id);
   const { currentWorkspace } = useWorkspace();
   const {
     recommendations,
@@ -170,6 +171,9 @@ function MediaDetailsPageContentWithRecommendations() {
       toast.success('Label Detection Started', {
         description: `Task ${task.id} has been queued. Labels will be detected automatically.`,
       });
+
+      // Refresh to update the button state
+      refresh();
     } catch (error) {
       console.error('Failed to start label detection:', error);
       toast.error('Failed to start label detection', {
@@ -292,10 +296,12 @@ function MediaDetailsPageContentWithRecommendations() {
             size="sm"
             className="flex-1 sm:flex-initial"
             onClick={handleDetectLabels}
-            disabled={isDetectingLabels}
+            disabled={isDetectingLabels || hasActiveLabelTask}
           >
             <Sparkles className="h-4 w-4 mr-2" />
-            {isDetectingLabels ? 'Detecting...' : 'Detect Labels'}
+            {isDetectingLabels || hasActiveLabelTask
+              ? 'Detecting...'
+              : 'Detect Labels'}
           </Button>
           <Button
             variant="outline"

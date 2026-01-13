@@ -2,7 +2,11 @@ import type {
   Workspace,
   Media,
   MediaClip,
-  LabelClip,
+  LabelFace,
+  LabelPerson,
+  LabelObject,
+  LabelShot,
+  LabelTrack,
   LabelEntity,
   Timeline,
   TimelineClip,
@@ -35,7 +39,11 @@ export interface SearchParams {
 export interface MediaStrategyContext {
   workspace: Workspace;
   media: Media;
-  labelClips: LabelClip[];
+  labelFaces: LabelFace[];
+  labelPeople: LabelPerson[];
+  labelObjects: LabelObject[];
+  labelShots: LabelShot[];
+  labelTracks: LabelTrack[];
   labelEntities: LabelEntity[];
   existingClips: MediaClip[];
   filterParams: FilterParams;
@@ -50,7 +58,11 @@ export interface TimelineStrategyContext {
   timelineClips: TimelineClip[];
   seedClip?: MediaClip;
   availableClips: MediaClip[];
-  labelClips: LabelClip[];
+  labelFaces: LabelFace[];
+  labelPeople: LabelPerson[];
+  labelObjects: LabelObject[];
+  labelShots: LabelShot[];
+  labelTracks: LabelTrack[];
   labelEntities: LabelEntity[];
   searchParams: SearchParams;
 }

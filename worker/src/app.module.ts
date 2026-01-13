@@ -11,7 +11,6 @@ import { RenderModule } from './task-render/render.module';
 import { HealthModule } from './health/health.module';
 import { TasksModule } from './tasks/tasks.module';
 import { LabelsModule } from './task-labels/labels.module';
-import { RecommendationsModule } from './task-recommendations/recommendations.module';
 
 @Module({
   imports: [
@@ -54,7 +53,6 @@ import { RecommendationsModule } from './task-recommendations/recommendations.mo
     TranscodeModule,
     LabelsModule,
     RenderModule,
-    RecommendationsModule,
     HealthModule,
   ],
 })

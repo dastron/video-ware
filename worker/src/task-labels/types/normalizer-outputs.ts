@@ -20,6 +20,71 @@ export interface LabelEntityData {
 }
 
 /**
+ * LabelFace data ready for database insertion
+ */
+export interface LabelFaceData {
+  WorkspaceRef: string;
+  MediaRef: string;
+  LabelEntityRef?: string; // Will be set by processor
+  trackId: string;
+  faceId?: string;
+
+  joyLikelihood?: string;
+  sorrowLikelihood?: string;
+  angerLikelihood?: string;
+  surpriseLikelihood?: string;
+  underExposedLikelihood?: string;
+  blurredLikelihood?: string;
+  headwearLikelihood?: string;
+  lookingAtCameraLikelihood?: string;
+
+  start: number;
+  end: number;
+  duration: number;
+  avgConfidence: number;
+
+  metadata?: Record<string, unknown>;
+  faceHash: string;
+
+  // New fields
+  embedding?: number[];
+  embeddingModel?: string;
+  qualityScore?: number;
+  visualHash?: string;
+}
+
+/**
+ * LabelSpeech data ready for database insertion
+ */
+export interface LabelSpeechData {
+  WorkspaceRef: string;
+  MediaRef: string;
+  LabelEntityRef?: string; // Link to LabelEntity
+  LabelTrackRef?: string; // Link to LabelTrack
+
+  transcript: string;
+
+  start: number;
+  end: number;
+  duration: number;
+  confidence: number;
+
+  speakerTag?: number;
+  languageCode?: string;
+
+  words: Array<{
+    word: string;
+    startTime: number;
+    endTime: number;
+    confidence: number;
+    speakerTag?: number;
+  }>;
+
+  metadata?: Record<string, unknown>;
+  speechHash: string;
+}
+
+/**
  * Keyframe data for tracks
  */
 export interface KeyframeData {
@@ -47,6 +112,7 @@ export interface LabelTrackData {
   MediaRef: string;
   TaskRef?: string;
   LabelEntityRef?: string; // Optional - will be set by step processor
+  LabelFaceRef?: string; // Optional - will be set by step processor
   trackId: string;
   start: number; // seconds (float)
   end: number; // seconds (float)
@@ -80,6 +146,80 @@ export interface LabelClipData {
   processor: string;
   provider: ProcessingProvider;
   labelData: Record<string, unknown>; // Compact label data
+}
+
+/**
+ * LabelSegment data ready for database insertion
+ */
+export interface LabelSegmentData {
+  WorkspaceRef: string;
+  MediaRef: string;
+  LabelEntityRef?: string;
+  entity: string;
+  segmentHash: string;
+  start: number;
+  end: number;
+  duration: number;
+  confidence: number;
+  metadata: Record<string, unknown>;
+  version?: number;
+}
+
+/**
+ * LabelShot data ready for database insertion
+ */
+export interface LabelShotData {
+  WorkspaceRef: string;
+  MediaRef: string;
+  LabelEntityRef?: string;
+  entity: string;
+  shotHash: string;
+  start: number;
+  end: number;
+  duration: number;
+  confidence: number;
+  metadata: Record<string, unknown>;
+  version?: number;
+}
+
+/**
+ * LabelObject data ready for database insertion
+ */
+export interface LabelObjectData {
+  WorkspaceRef: string;
+  MediaRef: string;
+  LabelEntityRef?: string;
+  LabelTrackRef?: string;
+  entity: string;
+  originalTrackId: string;
+  objectHash: string;
+  start: number;
+  end: number;
+  duration: number;
+  confidence: number;
+  version?: number;
+  metadata: Record<string, unknown>;
+}
+
+/**
+ * LabelPerson data ready for database insertion
+ */
+export interface LabelPersonData {
+  WorkspaceRef: string;
+  MediaRef: string;
+  LabelEntityRef?: string;
+  LabelTrackRef?: string;
+  personId: string;
+  personHash: string;
+  start: number;
+  end: number;
+  duration: number;
+  confidence: number;
+  upperBodyColor?: string;
+  lowerBodyColor?: string;
+  hasLandmarks?: boolean;
+  metadata: Record<string, unknown>;
+  version?: number;
 }
 
 /**
@@ -128,7 +268,13 @@ export interface LabelMediaData {
  */
 export interface NormalizerOutput {
   labelEntities: LabelEntityData[];
+  labelFaces?: LabelFaceData[];
+  labelSpeech?: LabelSpeechData[];
   labelTracks: LabelTrackData[];
-  labelClips: LabelClipData[];
+  labelClips?: LabelClipData[];
+  labelObjects?: LabelObjectData[];
+  labelSegments?: LabelSegmentData[];
+  labelShots?: LabelShotData[];
+  labelPeople?: LabelPersonData[];
   labelMediaUpdate: Partial<LabelMediaData>;
 }
