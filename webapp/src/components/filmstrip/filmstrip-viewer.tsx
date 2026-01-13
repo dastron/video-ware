@@ -55,7 +55,7 @@ export function FilmstripViewer({
   }
 
   const { file, config } = activeData;
-  const url = pb.files.getURL(file, file.file);
+  const url = pb.files.getURL(file, file.file as string);
 
   // Calculate local time within this filmstrip segment
   const localTime = Math.max(0, currentTime - config.startTime);

@@ -27,7 +27,12 @@ export class MediaClipMutator extends BaseMutator<MediaClip, MediaClipInput> {
 
   protected setDefaults(): MutatorOptions {
     return {
-      expand: ['WorkspaceRef', 'MediaRef', 'MediaRef.UploadRef'],
+      expand: [
+        'WorkspaceRef',
+        'MediaRef',
+        'MediaRef.UploadRef',
+        'MediaRef.filmstripFileRefs',
+      ],
       filter: [],
       sort: ['start'], // Sort by start time by default
     };
@@ -97,6 +102,7 @@ export class MediaClipMutator extends BaseMutator<MediaClip, MediaClipInput> {
         'MediaRef.UploadRef',
         'MediaRef.thumbnailFileRef',
         'MediaRef.spriteFileRef',
+        'MediaRef.filmstripFileRefs',
       ]
     );
   }

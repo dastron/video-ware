@@ -19,8 +19,9 @@ export function useFilmstripData(media: Media) {
   useEffect(() => {
     async function fetchFilmstrips() {
       // Check if we already have expanded filmstrips
-      const expanded = (media.expand as { filmstripFileRefs?: File[] } | undefined)
-        ?.filmstripFileRefs;
+      const expanded = (
+        media.expand as { filmstripFileRefs?: File[] } | undefined
+      )?.filmstripFileRefs;
       if (expanded && Array.isArray(expanded) && expanded.length > 0) {
         // Sort expanded files just in case
         const sorted = [...expanded].sort((a: File, b: File) => {

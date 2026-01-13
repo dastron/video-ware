@@ -30,7 +30,7 @@ export class FileResolver {
     this.logger.log(`Resolving file path for upload ${uploadId}`);
 
     // Get upload record
-    const upload = await pocketbaseService.uploadMutator.getById(uploadId);
+    const upload = await pocketbaseService.getUpload(uploadId);
     if (!upload) {
       throw new Error(`Upload ${uploadId} not found`);
     }
@@ -43,6 +43,13 @@ export class FileResolver {
 
     // If no externalPath on upload, try to get from associated file
     if (!storagePath) {
+      // Ensure mutators are initialized (getUpload above should have done this, but be defensive)
+      if (!pocketbaseService.fileMutator) {
+        throw new Error(
+          'FileMutator is not initialized. PocketBaseService may not be ready yet.'
+        );
+      }
+
       const files = await pocketbaseService.fileMutator.getByUpload(
         uploadId,
         1,
