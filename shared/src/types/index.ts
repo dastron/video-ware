@@ -22,6 +22,8 @@ import { LabelMedia } from '../schema/label-media';
 import { LabelTrack } from '../schema/label-track';
 import { MediaRecommendation } from '../schema/media-recommendation';
 import { TimelineRecommendation } from '../schema/timeline-recommendation';
+import { LabelSpeech } from '../schema/label-speech';
+import { LabelFace } from '../schema/label-face';
 
 export * from './video-ware.js';
 export * from './task-contracts.js';
@@ -33,8 +35,10 @@ export * from './raw-label-cache.js';
 export interface TypedPocketBase extends PocketBase {
   collection(idOrName: 'Files'): RecordService<File>;
   collection(idOrName: 'LabelClips'): RecordService<LabelClip>;
+  collection(idOrName: 'LabelFaces'): RecordService<LabelFace>;
   collection(idOrName: 'LabelEntity'): RecordService<LabelEntity>;
   collection(idOrName: 'LabelMedia'): RecordService<LabelMedia>;
+  collection(idOrName: 'LabelSpeech'): RecordService<LabelSpeech>;
   collection(idOrName: 'LabelTrack'): RecordService<LabelTrack>;
   collection(idOrName: 'Media'): RecordService<Media>;
   collection(idOrName: 'MediaClips'): RecordService<MediaClip>;

@@ -17,7 +17,9 @@ export class LabelSpeechMutator extends BaseMutator<
     return this.pb.collection('LabelSpeech');
   }
 
-  protected async validateInput(input: LabelSpeechInput): Promise<LabelSpeechInput> {
+  protected async validateInput(
+    input: LabelSpeechInput
+  ): Promise<LabelSpeechInput> {
     return LabelSpeechInputSchema.parse(input);
   }
 }

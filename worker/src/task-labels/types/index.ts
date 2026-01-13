@@ -53,6 +53,8 @@ export type { NormalizerInput, ExtractResponse } from './normalizer-inputs';
 // Normalizer Output Types
 export type {
   LabelEntityData,
+  LabelFaceData,
+  LabelSpeechData,
   KeyframeData,
   LabelTrackData,
   LabelClipData,

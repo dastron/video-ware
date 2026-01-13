@@ -1,15 +1,13 @@
 import { BaseMutator } from './base';
 import {
-  LabelFace,
   LabelFaceInput,
+  LabelFace,
   LabelFaceInputSchema,
 } from '../schema/label-face';
+import { TypedPocketBase } from '../types';
 
-export class LabelFaceMutator extends BaseMutator<
-  LabelFace,
-  LabelFaceInput
-> {
-  constructor(pb: any) {
+export class LabelFaceMutator extends BaseMutator<LabelFace, LabelFaceInput> {
+  constructor(pb: TypedPocketBase) {
     super(pb);
   }
 
@@ -17,7 +15,9 @@ export class LabelFaceMutator extends BaseMutator<
     return this.pb.collection('LabelFaces');
   }
 
-  protected async validateInput(input: LabelFaceInput): Promise<LabelFaceInput> {
+  protected async validateInput(
+    input: LabelFaceInput
+  ): Promise<LabelFaceInput> {
     return LabelFaceInputSchema.parse(input);
   }
 }

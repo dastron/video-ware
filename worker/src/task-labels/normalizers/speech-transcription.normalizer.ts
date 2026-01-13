@@ -68,25 +68,30 @@ export class SpeechTranscriptionNormalizer {
     this.logger.debug(`Created ${segments.length} segments`);
 
     for (const segment of segments) {
-       const speechHash = this.generateSpeechHash(mediaId, segment.start, segment.end, processorVersion);
+      const speechHash = this.generateSpeechHash(
+        mediaId,
+        segment.start,
+        segment.end,
+        processorVersion
+      );
 
-       labelSpeech.push({
-         WorkspaceRef: workspaceRef,
-         MediaRef: mediaId,
-         transcript: segment.text,
-         startTime: segment.start,
-         endTime: segment.end,
-         duration: segment.end - segment.start,
-         confidence: segment.confidence,
-         words: segment.words.map((w, idx) => ({
-           word: w,
-           startTime: segment.wordTimings[idx].start,
-           endTime: segment.wordTimings[idx].end,
-           confidence: segment.wordTimings[idx].confidence
-         })),
-         speakerTag: segment.speakerTag,
-         speechHash,
-       });
+      labelSpeech.push({
+        WorkspaceRef: workspaceRef,
+        MediaRef: mediaId,
+        transcript: segment.text,
+        startTime: segment.start,
+        endTime: segment.end,
+        duration: segment.end - segment.start,
+        confidence: segment.confidence,
+        words: segment.words.map((w, idx) => ({
+          word: w,
+          startTime: segment.wordTimings[idx].start,
+          endTime: segment.wordTimings[idx].end,
+          confidence: segment.wordTimings[idx].confidence,
+        })),
+        speakerTag: segment.speakerTag,
+        speechHash,
+      });
 
       const clipHash = this.generateClipHash(
         mediaId,
@@ -291,7 +296,7 @@ export class SpeechTranscriptionNormalizer {
     confidence: number;
     wordCount: number;
     words: string[];
-    wordTimings: Array<{start: number, end: number, confidence: number}>;
+    wordTimings: Array<{ start: number; end: number; confidence: number }>;
     speakerTag?: number;
   }> {
     if (words.length === 0) {
@@ -305,7 +310,7 @@ export class SpeechTranscriptionNormalizer {
       confidence: number;
       wordCount: number;
       words: string[];
-      wordTimings: Array<{start: number, end: number, confidence: number}>;
+      wordTimings: Array<{ start: number; end: number; confidence: number }>;
       speakerTag?: number;
     }> = [];
 
@@ -314,15 +319,21 @@ export class SpeechTranscriptionNormalizer {
       end: number;
       words: string[];
       confidences: number[];
-      wordTimings: Array<{start: number, end: number, confidence: number}>;
+      wordTimings: Array<{ start: number; end: number; confidence: number }>;
       speakerTag?: number;
     } = {
       start: words[0].startTime,
       end: words[0].endTime,
       words: [words[0].word],
       confidences: [words[0].confidence],
-      wordTimings: [{start: words[0].startTime, end: words[0].endTime, confidence: words[0].confidence}],
-      speakerTag: words[0].speakerTag
+      wordTimings: [
+        {
+          start: words[0].startTime,
+          end: words[0].endTime,
+          confidence: words[0].confidence,
+        },
+      ],
+      speakerTag: words[0].speakerTag,
     };
 
     for (let i = 1; i < words.length; i++) {
@@ -343,7 +354,7 @@ export class SpeechTranscriptionNormalizer {
           wordCount: currentSegment.words.length,
           words: currentSegment.words,
           wordTimings: currentSegment.wordTimings,
-          speakerTag: currentSegment.speakerTag
+          speakerTag: currentSegment.speakerTag,
         });
 
         // Start new segment
@@ -352,15 +363,25 @@ export class SpeechTranscriptionNormalizer {
           end: word.endTime,
           words: [word.word],
           confidences: [word.confidence],
-          wordTimings: [{start: word.startTime, end: word.endTime, confidence: word.confidence}],
-          speakerTag: word.speakerTag
+          wordTimings: [
+            {
+              start: word.startTime,
+              end: word.endTime,
+              confidence: word.confidence,
+            },
+          ],
+          speakerTag: word.speakerTag,
         };
       } else {
         // Add word to current segment
         currentSegment.end = word.endTime;
         currentSegment.words.push(word.word);
         currentSegment.confidences.push(word.confidence);
-        currentSegment.wordTimings.push({start: word.startTime, end: word.endTime, confidence: word.confidence});
+        currentSegment.wordTimings.push({
+          start: word.startTime,
+          end: word.endTime,
+          confidence: word.confidence,
+        });
       }
     }
 
@@ -376,7 +397,7 @@ export class SpeechTranscriptionNormalizer {
         wordCount: currentSegment.words.length,
         words: currentSegment.words,
         wordTimings: currentSegment.wordTimings,
-        speakerTag: currentSegment.speakerTag
+        speakerTag: currentSegment.speakerTag,
       });
     }
 

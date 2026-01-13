@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { SpeechTranscriptionNormalizer } from '../speech-transcription.normalizer';
 import { NormalizerInput } from '../../types';
@@ -10,7 +11,9 @@ describe('SpeechTranscriptionNormalizer', () => {
       providers: [SpeechTranscriptionNormalizer],
     }).compile();
 
-    normalizer = module.get<SpeechTranscriptionNormalizer>(SpeechTranscriptionNormalizer);
+    normalizer = module.get<SpeechTranscriptionNormalizer>(
+      SpeechTranscriptionNormalizer
+    );
   });
 
   it('should be defined', () => {
@@ -61,14 +64,62 @@ describe('SpeechTranscriptionNormalizer', () => {
       response: {
         transcript: 'Hello from speaker 1. Hello from speaker 2.',
         words: [
-          { word: 'Hello', startTime: 0, endTime: 0.5, confidence: 0.9, speakerTag: 1 },
-          { word: 'from', startTime: 0.6, endTime: 1.0, confidence: 0.9, speakerTag: 1 },
-          { word: 'speaker', startTime: 1.1, endTime: 1.5, confidence: 0.9, speakerTag: 1 },
-          { word: '1', startTime: 1.6, endTime: 2.0, confidence: 0.9, speakerTag: 1 },
-          { word: 'Hello', startTime: 2.1, endTime: 2.5, confidence: 0.9, speakerTag: 2 },
-          { word: 'from', startTime: 2.6, endTime: 3.0, confidence: 0.9, speakerTag: 2 },
-          { word: 'speaker', startTime: 3.1, endTime: 3.5, confidence: 0.9, speakerTag: 2 },
-          { word: '2', startTime: 3.6, endTime: 4.0, confidence: 0.9, speakerTag: 2 },
+          {
+            word: 'Hello',
+            startTime: 0,
+            endTime: 0.5,
+            confidence: 0.9,
+            speakerTag: 1,
+          },
+          {
+            word: 'from',
+            startTime: 0.6,
+            endTime: 1.0,
+            confidence: 0.9,
+            speakerTag: 1,
+          },
+          {
+            word: 'speaker',
+            startTime: 1.1,
+            endTime: 1.5,
+            confidence: 0.9,
+            speakerTag: 1,
+          },
+          {
+            word: '1',
+            startTime: 1.6,
+            endTime: 2.0,
+            confidence: 0.9,
+            speakerTag: 1,
+          },
+          {
+            word: 'Hello',
+            startTime: 2.1,
+            endTime: 2.5,
+            confidence: 0.9,
+            speakerTag: 2,
+          },
+          {
+            word: 'from',
+            startTime: 2.6,
+            endTime: 3.0,
+            confidence: 0.9,
+            speakerTag: 2,
+          },
+          {
+            word: 'speaker',
+            startTime: 3.1,
+            endTime: 3.5,
+            confidence: 0.9,
+            speakerTag: 2,
+          },
+          {
+            word: '2',
+            startTime: 3.6,
+            endTime: 4.0,
+            confidence: 0.9,
+            speakerTag: 2,
+          },
         ],
         languageCode: 'en-US',
       },

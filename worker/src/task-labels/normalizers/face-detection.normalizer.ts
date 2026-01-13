@@ -91,9 +91,7 @@ export class FaceDetectionNormalizer {
     // Process each tracked face
     for (const face of response.faces) {
       if (!face.frames || face.frames.length === 0) {
-        this.logger.debug(
-          `Skipping face with no frames for media ${mediaId}`
-        );
+        this.logger.debug(`Skipping face with no frames for media ${mediaId}`);
         continue;
       }
 
@@ -103,9 +101,9 @@ export class FaceDetectionNormalizer {
       if (!trackId || trackId.trim().length === 0) {
         const firstFrame = face.frames[0];
         trackId = this.generateDeterministicTrackId(
-            mediaId,
-            firstFrame.timeOffset,
-            firstFrame.boundingBox
+          mediaId,
+          firstFrame.timeOffset,
+          firstFrame.boundingBox
         );
         this.logger.debug(
           `Generated deterministic trackId ${trackId} for face`
@@ -153,7 +151,12 @@ export class FaceDetectionNormalizer {
       );
 
       // Create LabelFace
-      const faceHash = this.generateFaceHash(mediaId, trackId, version, processorVersion);
+      const faceHash = this.generateFaceHash(
+        mediaId,
+        trackId,
+        version,
+        processorVersion
+      );
       labelFaces.push({
         WorkspaceRef: workspaceRef,
         MediaRef: mediaId,
@@ -165,7 +168,7 @@ export class FaceDetectionNormalizer {
         avgConfidence,
         headwearLikelihood: attributesSummary.headwear as string,
         // Other likelihoods not extracted in this pass but could be if available in raw data
-        faceHash
+        faceHash,
       });
 
       // Create LabelTrack with keyframes and attributes
@@ -414,12 +417,15 @@ export class FaceDetectionNormalizer {
    * Generate deterministic track ID
    */
   private generateDeterministicTrackId(
-      mediaId: string,
-      startTime: number,
-      bbox: { left?: number; top?: number; right?: number; bottom?: number }
+    mediaId: string,
+    startTime: number,
+    bbox: { left?: number; top?: number; right?: number; bottom?: number }
   ): string {
-      const hashInput = `${mediaId}:${startTime}:${bbox.left}:${bbox.top}:${bbox.right}:${bbox.bottom}`;
-      return createHash('sha256').update(hashInput).digest('hex').substring(0, 16);
+    const hashInput = `${mediaId}:${startTime}:${bbox.left}:${bbox.top}:${bbox.right}:${bbox.bottom}`;
+    return createHash('sha256')
+      .update(hashInput)
+      .digest('hex')
+      .substring(0, 16);
   }
 
   /**

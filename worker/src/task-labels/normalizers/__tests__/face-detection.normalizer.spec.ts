@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { FaceDetectionNormalizer } from '../face-detection.normalizer';
 import { LabelType, ProcessingProvider } from '@project/shared';
@@ -75,8 +76,8 @@ describe('FaceDetectionNormalizer', () => {
                 boundingBox: { left: 0, top: 0, right: 1, bottom: 1 },
                 confidence: 0.9,
                 attributes: {
-                    headwear: 'High'
-                }
+                  headwear: 'High',
+                },
               },
             ],
           },
