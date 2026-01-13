@@ -73,8 +73,12 @@ export class WorkspaceMemberMutator extends BaseMutator<
     page = 1,
     perPage = 100
   ): Promise<ListResult<WorkspaceMember>> {
-    return this.getList(page, perPage, `WorkspaceRef = "${workspaceId}"`, {
-      expand: 'UserRef',
-    });
+    return this.getList(
+      page,
+      perPage,
+      `WorkspaceRef = "${workspaceId}"`,
+      undefined,
+      'UserRef'
+    );
   }
 }
