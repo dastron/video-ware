@@ -60,4 +60,25 @@ export class WorkspaceMemberMutator extends BaseMutator<
   ): Promise<ListResult<WorkspaceMember>> {
     return this.getList(page, perPage, `UserRef = "${userId}"`);
   }
+
+  /**
+   * Get all members of a workspace
+   * @param workspaceId The workspace ID
+   * @param page Page number (default: 1)
+   * @param perPage Items per page (default: 100)
+   * @returns List of workspace members
+   */
+  async getMembersByWorkspace(
+    workspaceId: string,
+    page = 1,
+    perPage = 100
+  ): Promise<ListResult<WorkspaceMember>> {
+    return this.getList(
+      page,
+      perPage,
+      `WorkspaceRef = "${workspaceId}"`,
+      undefined,
+      'UserRef'
+    );
+  }
 }
