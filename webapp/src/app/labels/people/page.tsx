@@ -37,6 +37,7 @@ export default function LabelPeoplePage() {
           .getList<ExtendedLabelPerson>(1, 50, {
             sort: '-created',
             expand: 'LabelTrackRef,MediaRef',
+            filter: 'duration >= 5',
           });
         setPeople(records.items);
         if (records.items.length > 0) {
@@ -90,7 +91,7 @@ export default function LabelPeoplePage() {
                       Confidence: {Math.round(person.confidence * 100)}%
                     </div>
                     <div className="text-xs text-muted-foreground truncate w-full">
-                      Media: {person.expand?.MediaRef?.filename || person.MediaRef}
+                      Media: {person.MediaRef}
                     </div>
                   </Button>
                 ))
@@ -103,9 +104,7 @@ export default function LabelPeoplePage() {
       <Card className="md:col-span-2 flex flex-col h-full">
         <CardHeader>
           <CardTitle>Person Details</CardTitle>
-          <CardDescription>
-            {selectedPerson?.expand?.MediaRef?.filename}
-          </CardDescription>
+          <CardDescription>{selectedPerson?.MediaRef}</CardDescription>
         </CardHeader>
         <CardContent className="flex-1 overflow-auto">
           {selectedPerson &&
@@ -146,7 +145,10 @@ export default function LabelPeoplePage() {
                   <h4 className="text-xs font-medium uppercase text-muted-foreground mb-1">
                     Track ID
                   </h4>
-                  <p className="text-sm font-mono truncate" title={selectedPerson.expand.LabelTrackRef.trackId}>
+                  <p
+                    className="text-sm font-mono truncate"
+                    title={selectedPerson.expand.LabelTrackRef.trackId}
+                  >
                     {selectedPerson.expand.LabelTrackRef.trackId}
                   </p>
                 </div>

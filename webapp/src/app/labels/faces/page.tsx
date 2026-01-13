@@ -38,6 +38,7 @@ export default function LabelFacesPage() {
           .getList<ExtendedLabelFace>(1, 50, {
             sort: '-created',
             expand: 'LabelTrackRef,MediaRef',
+            filter: 'duration >= 5',
           });
         setFaces(records.items);
         if (records.items.length > 0) {
@@ -91,7 +92,10 @@ export default function LabelFacesPage() {
                       Confidence: {Math.round(face.avgConfidence * 100)}%
                     </div>
                     <div className="text-xs text-muted-foreground truncate w-full">
-                      Media: {face.expand?.MediaRef?.filename || face.MediaRef}
+                      Media:{' '}
+                      {face.expand?.MediaRef?.id ||
+                        face.MediaRef?.slice(0, 8) ||
+                        'N/A'}
                     </div>
                   </Button>
                 ))
@@ -105,13 +109,15 @@ export default function LabelFacesPage() {
         <CardHeader>
           <CardTitle>Face Details</CardTitle>
           <CardDescription>
-            {selectedFace?.expand?.MediaRef?.filename}
+            {selectedFace?.expand?.MediaRef?.id ||
+              selectedFace?.MediaRef?.slice(0, 8) ||
+              'N/A'}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex-1 overflow-auto">
           {selectedFace &&
           selectedFace.expand?.LabelTrackRef &&
-          selectedFace.expand.MediaRef ? (
+          selectedFace.expand?.MediaRef ? (
             <div className="space-y-4">
               <TracksAnimator
                 media={selectedFace.expand.MediaRef}
@@ -147,7 +153,10 @@ export default function LabelFacesPage() {
                   <h4 className="text-xs font-medium uppercase text-muted-foreground mb-1">
                     Track ID
                   </h4>
-                  <p className="text-sm font-mono truncate" title={selectedFace.expand.LabelTrackRef.trackId}>
+                  <p
+                    className="text-sm font-mono truncate"
+                    title={selectedFace.expand.LabelTrackRef.trackId}
+                  >
                     {selectedFace.expand.LabelTrackRef.trackId}
                   </p>
                 </div>
@@ -214,9 +223,23 @@ export default function LabelFacesPage() {
             </div>
           ) : (
             <div className="flex items-center justify-center h-full text-muted-foreground">
-              {selectedFace
-                ? 'No track data available for this face.'
-                : 'Select a face to view details.'}
+              {selectedFace ? (
+                <div className="text-center space-y-2">
+                  <p>No track data available for this face.</p>
+                  {!selectedFace.expand?.LabelTrackRef && (
+                    <p className="text-xs">
+                      Missing LabelTrackRef (expand may have failed)
+                    </p>
+                  )}
+                  {!selectedFace.expand?.MediaRef && (
+                    <p className="text-xs">
+                      Missing MediaRef (expand may have failed)
+                    </p>
+                  )}
+                </div>
+              ) : (
+                'Select a face to view details.'
+              )}
             </div>
           )}
         </CardContent>

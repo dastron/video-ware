@@ -37,6 +37,7 @@ export default function LabelObjectsPage() {
           .getList<ExtendedLabelObject>(1, 50, {
             sort: '-created',
             expand: 'LabelTrackRef,MediaRef',
+            filter: 'duration >= 5',
           });
         setObjects(records.items);
         if (records.items.length > 0) {
@@ -88,7 +89,7 @@ export default function LabelObjectsPage() {
                       Confidence: {Math.round(obj.confidence * 100)}%
                     </div>
                     <div className="text-xs text-muted-foreground truncate w-full">
-                      Media: {obj.expand?.MediaRef?.filename || obj.MediaRef}
+                      Media: {obj.MediaRef}
                     </div>
                   </Button>
                 ))
@@ -103,9 +104,7 @@ export default function LabelObjectsPage() {
           <CardTitle className="capitalize">
             {selectedObject?.entity || 'Select an object'}
           </CardTitle>
-          <CardDescription>
-            {selectedObject?.expand?.MediaRef?.filename}
-          </CardDescription>
+          <CardDescription>{selectedObject?.MediaRef}</CardDescription>
         </CardHeader>
         <CardContent className="flex-1 overflow-auto">
           {selectedObject &&
@@ -145,7 +144,10 @@ export default function LabelObjectsPage() {
                   <h4 className="text-xs font-medium uppercase text-muted-foreground mb-1">
                     Track ID
                   </h4>
-                  <p className="text-sm font-mono truncate" title={selectedObject.expand.LabelTrackRef.trackId}>
+                  <p
+                    className="text-sm font-mono truncate"
+                    title={selectedObject.expand.LabelTrackRef.trackId}
+                  >
                     {selectedObject.expand.LabelTrackRef.trackId}
                   </p>
                 </div>

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { usePocketBase } from '@/contexts/pocketbase-context';
 import type { LabelShot, Media } from '@project/shared';
-import { MediaVideoPlayer } from '@/components/video/media-video-player';
+import { SpriteAnimator } from '@/components/sprite/sprite-animator';
 import {
   Card,
   CardContent,
@@ -37,6 +37,7 @@ export default function LabelShotsPage() {
           .getList<ExtendedLabelShot>(1, 50, {
             sort: '-created',
             expand: 'MediaRef',
+            filter: 'duration >= 5',
           });
         setShots(records.items);
         if (records.items.length > 0) {
@@ -88,7 +89,7 @@ export default function LabelShotsPage() {
                       Confidence: {Math.round(shot.confidence * 100)}%
                     </div>
                     <div className="text-xs text-muted-foreground truncate w-full">
-                      Media: {shot.expand?.MediaRef?.filename || shot.MediaRef}
+                      Media: {shot.MediaRef}
                     </div>
                   </Button>
                 ))
@@ -103,20 +104,18 @@ export default function LabelShotsPage() {
           <CardTitle className="capitalize">
             {selectedShot?.entity || 'Select a shot'}
           </CardTitle>
-          <CardDescription>
-            {selectedShot?.expand?.MediaRef?.filename}
-          </CardDescription>
+          <CardDescription>{selectedShot?.MediaRef}</CardDescription>
         </CardHeader>
         <CardContent className="flex-1 overflow-auto">
           {selectedShot && selectedShot.expand?.MediaRef ? (
             <div className="space-y-4">
               <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
-                <MediaVideoPlayer
+                <SpriteAnimator
                   media={selectedShot.expand.MediaRef}
-                  startTime={selectedShot.start}
-                  endTime={selectedShot.end}
-                  autoPlay={false}
-                  className="w-full h-full"
+                  start={selectedShot.start}
+                  end={selectedShot.end}
+                  isHovering={true}
+                  className="absolute inset-0"
                 />
               </div>
 
