@@ -123,9 +123,7 @@ export class UploadMutator extends BaseMutator<Upload, UploadInput> {
     }
 
     const currentUserId =
-      userId ||
-      (upload.UserRef as string) ||
-      this.pb.authStore.record?.id;
+      userId || (upload.UserRef as string) || this.pb.authStore.record?.id;
     if (!currentUserId) {
       throw new Error('User context required for task creation');
     }
