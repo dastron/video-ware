@@ -41,6 +41,9 @@ import type {
  * using a pluggable strategy pattern.
  */
 export class RecommendationService {
+  private static readonly MIN_RECOMMENDATION_DURATION_SECONDS = 5;
+  private static readonly MAX_REASON_LENGTH = 500;
+
   private labelFaceMutator: LabelFaceMutator;
   private labelPersonMutator: LabelPersonMutator;
   private labelObjectMutator: LabelObjectMutator;
@@ -76,6 +79,15 @@ export class RecommendationService {
     return this._pb;
   }
 
+  private static sanitizeReason(reason: string): string {
+    const trimmed = (reason ?? '').trim();
+    if (trimmed.length === 0) return 'Recommendation';
+    if (trimmed.length <= RecommendationService.MAX_REASON_LENGTH)
+      return trimmed;
+    // Keep within schema limit (500). Reserve space for ellipsis.
+    return `${trimmed.slice(0, RecommendationService.MAX_REASON_LENGTH - 1)}…`;
+  }
+
   /**
    * Get media-level recommendations (segments)
    */
@@ -91,6 +103,11 @@ export class RecommendationService {
       workspaceId,
       mediaId,
       filterParams
+    );
+
+    const minDurationSeconds = Math.max(
+      RecommendationService.MIN_RECOMMENDATION_DURATION_SECONDS,
+      filterParams.durationRange?.min ?? 0
     );
 
     let strategies = this.registry.getAll();
@@ -114,8 +131,11 @@ export class RecommendationService {
         queryHash,
         maxResults
       );
-      if (cached.length > 0) {
-        return cached;
+      const cachedFiltered = cached
+        .filter((r) => r.end - r.start >= minDurationSeconds)
+        .slice(0, maxResults);
+      if (cachedFiltered.length > 0) {
+        return cachedFiltered;
       }
     }
 
@@ -133,6 +153,7 @@ export class RecommendationService {
 
     // Final filtering and sorting
     let filtered = combined;
+    filtered = filtered.filter((c) => c.end - c.start >= minDurationSeconds);
     if (filterParams.durationRange?.max) {
       filtered = filtered.filter(
         (c) => c.end - c.start <= filterParams.durationRange!.max!
@@ -154,7 +175,7 @@ export class RecommendationService {
           MediaClipRef: c.clipId,
           score: c.score,
           rank: index,
-          reason: c.reason,
+          reason: RecommendationService.sanitizeReason(c.reason),
           reasonData: c.reasonData,
           strategy: RecommendationStrategy.SAME_ENTITY, // Default for combined
           labelType: c.labelType,
@@ -186,6 +207,11 @@ export class RecommendationService {
       searchParams
     );
 
+    const minDurationSeconds = Math.max(
+      RecommendationService.MIN_RECOMMENDATION_DURATION_SECONDS,
+      searchParams.durationRange?.min ?? 0
+    );
+
     let strategies = this.registry.getAll();
     if (requestedStrategies && requestedStrategies.length > 0) {
       strategies = strategies.filter((s) =>
@@ -210,8 +236,17 @@ export class RecommendationService {
         queryHash,
         maxResults
       );
-      if (cached.length > 0) {
-        return cached;
+      const cachedFiltered = cached
+        .filter((r) => {
+          const clip = context.availableClips.find(
+            (c) => c.id === r.MediaClipRef
+          );
+          if (!clip) return false;
+          return clip.end - clip.start >= minDurationSeconds;
+        })
+        .slice(0, maxResults);
+      if (cachedFiltered.length > 0) {
+        return cachedFiltered;
       }
     }
 
@@ -228,11 +263,18 @@ export class RecommendationService {
     const combined =
       this.combiner.combineTimelineCandidates(candidatesByStrategy);
 
+    // Filter out candidates that are shorter than the minimum duration
+    const combinedMinDuration = combined.filter((c) => {
+      const clip = context.availableClips.find((ac) => ac.id === c.clipId);
+      if (!clip) return false;
+      return clip.end - clip.start >= minDurationSeconds;
+    });
+
     // Filter out duplicates (clips already in timeline)
     // AND clips that overlap with existing timeline content from the same media
     const timelineClips = context.timelineClips;
 
-    const uniqueCandidates = combined.filter((c) => {
+    const uniqueCandidates = combinedMinDuration.filter((c) => {
       // 1. Exact clip ID check
       if (timelineClips.some((tc) => tc.MediaClipRef === c.clipId))
         return false;
@@ -281,7 +323,7 @@ export class RecommendationService {
           MediaClipRef: c.clipId,
           score: c.score,
           rank: index,
-          reason: c.reason,
+          reason: RecommendationService.sanitizeReason(c.reason),
           reasonData: c.reasonData,
           strategy: RecommendationStrategy.SAME_ENTITY, // Default for combined
           targetMode: RecommendationTargetMode.APPEND,
