@@ -73,6 +73,9 @@ export const TimelineRecommendationInputSchema = z.object({
     RecommendationStrategy.ADJACENT_SHOT,
     RecommendationStrategy.TEMPORAL_NEARBY,
     RecommendationStrategy.CONFIDENCE_DURATION,
+    RecommendationStrategy.DIALOG_CLUSTER,
+    RecommendationStrategy.OBJECT_POSITION_MATCHER,
+    RecommendationStrategy.ACTIVITY_STRATEGY,
   ]),
   targetMode: z.enum([
     RecommendationTargetMode.APPEND,
@@ -153,6 +156,11 @@ export interface TimelineReasonData {
   // For confidence_duration strategy
   confidence?: number;
   durationDelta?: number;
+
+  // For activity_strategy
+  activeCount?: number;
+  activeLabelTypes?: string[];
+  averageConfidence?: number;
 
   // For score combiner (when multiple strategies contribute)
   combinedStrategies?: RecommendationStrategy[];

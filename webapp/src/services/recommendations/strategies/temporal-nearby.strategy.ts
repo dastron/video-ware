@@ -41,7 +41,6 @@ export class TemporalNearbyStrategy extends BaseRecommendationStrategy {
         ...o,
         labelType: LabelType.OBJECT,
       })),
-      ...context.labelShots.map((s) => ({ ...s, labelType: LabelType.SHOT })),
     ];
 
     const sortedDetections = [...allDetections].sort(

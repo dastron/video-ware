@@ -66,6 +66,9 @@ export const MediaRecommendationInputSchema = z.object({
     RecommendationStrategy.ADJACENT_SHOT,
     RecommendationStrategy.TEMPORAL_NEARBY,
     RecommendationStrategy.CONFIDENCE_DURATION,
+    RecommendationStrategy.DIALOG_CLUSTER,
+    RecommendationStrategy.OBJECT_POSITION_MATCHER,
+    RecommendationStrategy.ACTIVITY_STRATEGY,
   ]),
   labelType: z.enum([
     LabelType.OBJECT,
@@ -146,6 +149,12 @@ export interface MediaReasonData {
   // For confidence_duration strategy
   confidence?: number;
   duration?: number;
+
+  // For activity_strategy
+  activeCount?: number;
+  activeLabelTypes?: LabelType[];
+  activeEntities?: string[];
+  averageConfidence?: number;
 
   // For score combiner (when multiple strategies contribute)
   combinedStrategies?: RecommendationStrategy[];

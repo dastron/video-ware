@@ -53,6 +53,7 @@ export function TimelineRecommendationCard({
       [RecommendationStrategy.DIALOG_CLUSTER]: 'Dialog Cluster',
       [RecommendationStrategy.OBJECT_POSITION_MATCHER]:
         'Object Position Matcher',
+      [RecommendationStrategy.ACTIVITY_STRATEGY]: 'Activity',
     };
     return displayMap[strategy] || strategy;
   };
@@ -71,6 +72,7 @@ export function TimelineRecommendationCard({
       [RecommendationStrategy.CONFIDENCE_DURATION]: 'default',
       [RecommendationStrategy.DIALOG_CLUSTER]: 'default',
       [RecommendationStrategy.OBJECT_POSITION_MATCHER]: 'default',
+      [RecommendationStrategy.ACTIVITY_STRATEGY]: 'default',
     };
     return variantMap[strategy] || 'outline';
   };
