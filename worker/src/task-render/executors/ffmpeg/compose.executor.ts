@@ -177,9 +177,7 @@ export class FFmpegComposeExecutor implements IRenderExecutor {
           }
 
           // Check if media has audio streams
-          const hasAudio = (clip.media?.mediaData as any)?.streams?.some(
-            (s: any) => s.codec_type === 'audio'
-          );
+          const hasAudio = !!(clip.media?.mediaData as any)?.audio;
 
           if (!hasAudio) {
             this.logger.debug(
