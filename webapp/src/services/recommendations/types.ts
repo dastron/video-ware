@@ -7,6 +7,7 @@ import type {
   LabelObject,
   LabelShot,
   LabelTrack,
+  LabelSpeech,
   LabelEntity,
   Timeline,
   TimelineClip,
@@ -44,6 +45,7 @@ export interface MediaStrategyContext {
   labelObjects: LabelObject[];
   labelShots: LabelShot[];
   labelTracks: LabelTrack[];
+  labelSpeech: LabelSpeech[];
   labelEntities: LabelEntity[];
   existingClips: MediaClip[];
   filterParams: FilterParams;
@@ -63,6 +65,7 @@ export interface TimelineStrategyContext {
   labelObjects: LabelObject[];
   labelShots: LabelShot[];
   labelTracks: LabelTrack[];
+  labelSpeech: LabelSpeech[];
   labelEntities: LabelEntity[];
   searchParams: SearchParams;
 }

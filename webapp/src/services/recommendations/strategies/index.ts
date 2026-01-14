@@ -8,6 +8,8 @@ import { SameEntityStrategy } from './same-entity.strategy';
 import { AdjacentShotStrategy } from './adjacent-shot.strategy';
 import { TemporalNearbyStrategy } from './temporal-nearby.strategy';
 import { ConfidenceDurationStrategy } from './confidence-duration.strategy';
+import { DialogClusterStrategy } from './dialog-cluster.strategy';
+import { ObjectPositionStrategy } from './object-position.strategy';
 
 /**
  * Strategy Registry
@@ -21,6 +23,8 @@ export class StrategyRegistry {
     this.register(new AdjacentShotStrategy());
     this.register(new TemporalNearbyStrategy());
     this.register(new ConfidenceDurationStrategy());
+    this.register(new DialogClusterStrategy());
+    this.register(new ObjectPositionStrategy());
   }
 
   register(strategy: IRecommendationStrategy) {
@@ -54,7 +58,10 @@ export class ScoreCombiner {
           const existing = combined.get(key)!;
           // Weighted average or max (simplified for now)
           existing.score = (existing.score + cand.score) / 2;
-          existing.reason += `; ${cand.reason}`;
+          existing.reason = `${existing.reason}; ${cand.reason}`.substring(
+            0,
+            2000
+          );
         }
       }
     }
@@ -74,7 +81,10 @@ export class ScoreCombiner {
         } else {
           const existing = combined.get(cand.clipId)!;
           existing.score = (existing.score + cand.score) / 2;
-          existing.reason += `; ${cand.reason}`;
+          existing.reason = `${existing.reason}; ${cand.reason}`.substring(
+            0,
+            2000
+          );
         }
       }
     }
@@ -88,3 +98,5 @@ export * from './same-entity.strategy';
 export * from './adjacent-shot.strategy';
 export * from './temporal-nearby.strategy';
 export * from './confidence-duration.strategy';
+export * from './dialog-cluster.strategy';
+export * from './object-position.strategy';

@@ -50,6 +50,9 @@ export function TimelineRecommendationCard({
       [RecommendationStrategy.ADJACENT_SHOT]: 'Adjacent Shot',
       [RecommendationStrategy.TEMPORAL_NEARBY]: 'Nearby',
       [RecommendationStrategy.CONFIDENCE_DURATION]: 'High Confidence',
+      [RecommendationStrategy.DIALOG_CLUSTER]: 'Dialog Cluster',
+      [RecommendationStrategy.OBJECT_POSITION_MATCHER]:
+        'Object Position Matcher',
     };
     return displayMap[strategy] || strategy;
   };
@@ -66,6 +69,8 @@ export function TimelineRecommendationCard({
       [RecommendationStrategy.ADJACENT_SHOT]: 'secondary',
       [RecommendationStrategy.TEMPORAL_NEARBY]: 'outline',
       [RecommendationStrategy.CONFIDENCE_DURATION]: 'default',
+      [RecommendationStrategy.DIALOG_CLUSTER]: 'default',
+      [RecommendationStrategy.OBJECT_POSITION_MATCHER]: 'default',
     };
     return variantMap[strategy] || 'outline';
   };
