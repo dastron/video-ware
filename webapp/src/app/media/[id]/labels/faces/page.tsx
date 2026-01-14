@@ -40,7 +40,7 @@ export default function LabelFacesPage() {
         const records = await pb
           .collection('LabelFaces')
           .getList<ExtendedLabelFace>(1, 50, {
-            filter: `MediaRef = "${mediaId}" && duration >= 5`,
+            filter: `MediaRef = "${mediaId}" && duration >= 2 `,
             sort: '-duration',
             expand: 'LabelTrackRef,MediaRef,MediaRef.filmstripFileRefs',
           });

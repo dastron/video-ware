@@ -60,7 +60,8 @@ export function TracksAnimator({
     end: track.end,
     enabled: true,
     loop: true,
-    speed: 2, // Playback at 5 FPS
+    speed: 4, // Playback at 3 x speed
+    fps: 4, // Poll data at 1 fps
   });
 
   // Find the current bounding box based on currentTime

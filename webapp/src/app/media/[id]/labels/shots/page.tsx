@@ -40,7 +40,7 @@ export default function LabelShotsPage() {
         const records = await pb
           .collection('LabelShots')
           .getList<ExtendedLabelShot>(1, 50, {
-            filter: `MediaRef = "${mediaId}" && duration >= 5`,
+            filter: `MediaRef = "${mediaId}" && duration >= 5 && confidence >= 0.85`,
             sort: '-duration',
             expand: 'MediaRef, MediaRef.filmstripFileRefs',
           });

@@ -39,7 +39,7 @@ export default function LabelPeoplePage() {
         const records = await pb
           .collection('LabelPerson')
           .getList<ExtendedLabelPerson>(1, 50, {
-            filter: `MediaRef = "${mediaId}" && duration >= 5`,
+            filter: `MediaRef = "${mediaId}" && duration >= 5 && confidence >= 0.85`,
             sort: '-duration',
             expand: 'LabelTrackRef,MediaRef,MediaRef.filmstripFileRefs',
           });
