@@ -3,7 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { usePocketBase } from '@/contexts/pocketbase-context';
-import { ClipType, type LabelPerson, type LabelTrack, type Media } from '@project/shared';
+import {
+  ClipType,
+  type LabelPerson,
+  type LabelTrack,
+  type Media,
+} from '@project/shared';
 import { TracksAnimator } from '@/components/labels/tracks-animator';
 import {
   Card,
