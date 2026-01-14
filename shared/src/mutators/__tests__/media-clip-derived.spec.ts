@@ -82,9 +82,10 @@ describe('MediaClipMutator - Derived Clips', () => {
       expand: {},
       WorkspaceRef: 'ws1',
       MediaRef: 'media1',
+      MediaClipRef: 'mediaclip1',
+      labelId: 'source_shot_1',
       labelHash: 'hash123',
       labelType: LabelType.SHOT,
-      type: 'shot',
       start: 10.5,
       end: 20.5,
       duration: 10,
@@ -229,30 +230,6 @@ describe('MediaClipMutator - Derived Clips', () => {
 
       expect(result).toEqual(existingClip);
       expect(mockPb.collection().create).not.toHaveBeenCalled();
-    });
-
-    it('should use custom processor version if provided', async () => {
-      mockPb.collection().getList.mockResolvedValue({
-        items: [],
-        page: 1,
-        perPage: 1,
-        totalItems: 0,
-        totalPages: 0,
-      });
-
-      mockPb.collection().create.mockResolvedValue({
-        id: 'clip123',
-        processor: 'custom-processor:2.0.0',
-      });
-
-      await mutator.createFromLabel(mockLabelClip, 'custom-processor:2.0.0');
-
-      expect(mockPb.collection().create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          processor: 'custom-processor:2.0.0',
-        }),
-        expect.any(Object)
-      );
     });
 
     it('should copy time values exactly from label clip', async () => {

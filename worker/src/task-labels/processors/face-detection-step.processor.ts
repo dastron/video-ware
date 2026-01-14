@@ -12,10 +12,8 @@ import type { FaceDetectionStepInput } from '../types/step-inputs';
 import type { FaceDetectionStepOutput } from '../types/step-outputs';
 import type {
   FaceDetectionResponse,
-  LabelClipData,
   LabelFaceData,
   LabelTrackData,
-  LabelMediaData,
 } from '../types';
 
 // Re-export types for parent processor
@@ -142,17 +140,6 @@ export class FaceDetectionStepProcessor extends BaseStepProcessor<
         `Inserted ${faceIds.length} label faces for media ${input.mediaId}`
       );
 
-      // Step 7: Batch insert LabelClip records (with track references)
-      // Face detection creates a single "Face" entity, so all clips reference it
-      const clipIds = await this.batchInsertLabelClips(
-        normalizedData.labelClips || [],
-        entityId,
-        trackIdToDbIdMap
-      );
-      this.logger.debug(
-        `Inserted ${clipIds.length} label clips for media ${input.mediaId}`
-      );
-
       // Clear entity cache after processing
       this.labelEntityService.clearCache();
 
@@ -168,7 +155,7 @@ export class FaceDetectionStepProcessor extends BaseStepProcessor<
           faceTrackCount: normalizedData.labelMediaUpdate.faceTrackCount || 0,
           labelEntityCount: entityIds.length,
           labelTrackCount: trackIds.length,
-          labelClipCount: clipIds.length,
+          labelClipCount: 0,
           labelObjectCount: 0,
           labelFaceCount: normalizedData.labelMediaUpdate.faceCount || 0,
           labelPersonCount: 0,
@@ -418,122 +405,6 @@ export class FaceDetectionStepProcessor extends BaseStepProcessor<
     }
 
     return { trackIds, trackIdToDbIdMap };
-  }
-
-  /**
-   * Batch insert LabelClip records
-   * Inserts in batches of 100 for performance
-   * Handles duplicate labelHash by checking for existing records first
-   * Sets LabelEntityRef and LabelTrackRef on clips if provided
-   *
-   * Note: Clips are already validated and filtered by the normalizer
-   */
-  private async batchInsertLabelClips(
-    clips: LabelClipData[],
-    entityId?: string,
-    trackIdToDbIdMap?: Map<string, string>
-  ): Promise<string[]> {
-    const clipIds: string[] = [];
-    const batchSize = 100;
-
-    for (let i = 0; i < clips.length; i += batchSize) {
-      const batch = clips.slice(i, i + batchSize);
-      let insertedCount = 0;
-      let skippedCount = 0;
-      let errorCount = 0;
-
-      for (const clip of batch) {
-        try {
-          // Check if a clip with this labelHash already exists
-          const existing =
-            await this.pocketBaseService.labelClipMutator.getList(
-              1,
-              1,
-              `labelHash = "${clip.labelHash}"`
-            );
-
-          if (existing.items.length > 0) {
-            // Clip already exists, use existing ID
-            clipIds.push(existing.items[0].id);
-            skippedCount++;
-            this.logger.debug(
-              `Skipped duplicate label clip with hash ${clip.labelHash}`
-            );
-          } else {
-            // Clip doesn't exist, create it
-            // Set LabelEntityRef if entityId is provided
-            // Set LabelTrackRef if trackId is found in labelData
-            let labelTrackRef: string | undefined;
-            if (
-              trackIdToDbIdMap &&
-              clip.labelData &&
-              typeof clip.labelData === 'object'
-            ) {
-              const labelData = clip.labelData as Record<string, unknown>;
-              const trackId = labelData.trackId;
-              if (trackId && typeof trackId === 'string') {
-                labelTrackRef = trackIdToDbIdMap.get(trackId);
-              }
-            }
-
-            const created =
-              await this.pocketBaseService.labelClipMutator.create({
-                ...clip,
-                LabelEntityRef: entityId || clip.LabelEntityRef,
-                LabelTrackRef: labelTrackRef || clip.LabelTrackRef,
-                provider: clip.provider as
-                  | ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE
-                  | ProcessingProvider.GOOGLE_SPEECH,
-              });
-            clipIds.push(created.id);
-            insertedCount++;
-          }
-        } catch (error) {
-          // Check if this is a unique constraint error (race condition)
-          if (this.isUniqueConstraintError(error)) {
-            // Try to fetch the existing record
-            try {
-              const existing =
-                await this.pocketBaseService.labelClipMutator.getList(
-                  1,
-                  1,
-                  `labelHash = "${clip.labelHash}"`
-                );
-              if (existing.items.length > 0) {
-                clipIds.push(existing.items[0].id);
-                skippedCount++;
-                this.logger.debug(
-                  `Resolved duplicate label clip with hash ${clip.labelHash} (race condition)`
-                );
-              } else {
-                // Shouldn't happen, but log it
-                this.logger.warn(
-                  `Unique constraint error for labelHash ${clip.labelHash} but record not found`
-                );
-                errorCount++;
-              }
-            } catch (fetchError) {
-              this.logger.error(
-                `Failed to fetch existing label clip after unique constraint error: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`
-              );
-              errorCount++;
-            }
-          } else {
-            // Some other error occurred
-            this.logger.error(
-              `Failed to insert label clip: ${error instanceof Error ? error.message : String(error)}`
-            );
-            errorCount++;
-          }
-        }
-      }
-
-      this.logger.debug(
-        `Batch ${Math.floor(i / batchSize) + 1}: Inserted ${insertedCount}, skipped ${skippedCount} duplicate clips, ${errorCount} errors`
-      );
-    }
-
-    return clipIds;
   }
 
   /**

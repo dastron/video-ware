@@ -4,11 +4,15 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { usePocketBase } from '@/contexts/pocketbase-context';
 import {
-  ClipType,
+  LabelType,
   type LabelFace,
   type LabelTrack,
   type Media,
 } from '@project/shared';
+import {
+  MediaClipMutator,
+  type ActualizableLabel,
+} from '@project/shared/mutator';
 import { TracksAnimator } from '@/components/labels/tracks-animator';
 import {
   Card,
@@ -44,29 +48,12 @@ export default function LabelFacesPage() {
     if (!selectedFace || !selectedFace.expand?.MediaRef) return;
     setIsCreating(true);
     try {
-      const media = selectedFace.expand.MediaRef;
-      await pb.collection('MediaClips').create({
-        WorkspaceRef: media.WorkspaceRef,
-        MediaRef: media.id,
-        type: ClipType.FACE,
-        start: selectedFace.start,
-        end: selectedFace.end,
-        duration: selectedFace.duration,
-        clipData: {
-          faceId: selectedFace.faceId,
-          faceHash: selectedFace.faceHash,
-          joyLikelihood: selectedFace.joyLikelihood,
-          sorrowLikelihood: selectedFace.sorrowLikelihood,
-          angerLikelihood: selectedFace.angerLikelihood,
-          surpriseLikelihood: selectedFace.surpriseLikelihood,
-          headwearLikelihood: selectedFace.headwearLikelihood,
-          blurredLikelihood: selectedFace.blurredLikelihood,
-          lookingAtCameraLikelihood: selectedFace.lookingAtCameraLikelihood,
-          labelId: selectedFace.id,
-        },
-        processor: 'google_video_intelligence',
-      });
-      toast.success('Clip created successfully');
+      const mediaClipMutator = new MediaClipMutator(pb);
+      await mediaClipMutator.createFromLabel(
+        selectedFace as ActualizableLabel,
+        LabelType.FACE
+      );
+      toast.success('Clip created and recommended');
     } catch (err) {
       console.error(err);
       toast.error('Failed to create clip');

@@ -3,7 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { usePocketBase } from '@/contexts/pocketbase-context';
-import { ClipType, type LabelShot, type Media } from '@project/shared';
+import { LabelType, type LabelShot, type Media } from '@project/shared';
+import {
+  MediaClipMutator,
+  type ActualizableLabel,
+} from '@project/shared/mutator';
 import { FilmstripViewer } from '@/components/filmstrip/filmstrip-viewer';
 import { useTimeAnimation } from '@/hooks/use-time-animation';
 import {
@@ -39,21 +43,11 @@ export default function LabelShotsPage() {
     if (!selectedShot || !selectedShot.expand?.MediaRef) return;
     setIsCreating(true);
     try {
-      const media = selectedShot.expand.MediaRef;
-      await pb.collection('MediaClips').create({
-        WorkspaceRef: media.WorkspaceRef,
-        MediaRef: media.id,
-        type: ClipType.SHOT,
-        start: selectedShot.start,
-        end: selectedShot.end,
-        duration: selectedShot.duration,
-        clipData: {
-          label: selectedShot.entity,
-          confidence: selectedShot.confidence,
-          labelId: selectedShot.id,
-        },
-        processor: 'google_video_intelligence',
-      });
+      const mediaClipMutator = new MediaClipMutator(pb);
+      await mediaClipMutator.createFromLabel(
+        selectedShot as ActualizableLabel,
+        LabelType.SHOT
+      );
       toast.success('Clip created successfully');
     } catch (err) {
       console.error(err);

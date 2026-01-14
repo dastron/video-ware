@@ -7,9 +7,7 @@ import type {
   NormalizerOutput,
   LabelEntityData,
   LabelTrackData,
-  LabelClipData,
   LabelObjectData,
-  LabelMediaData,
   KeyframeData,
 } from '../types';
 
@@ -19,7 +17,6 @@ import type {
  * Transforms GCVI Object Tracking API responses into database entities:
  * - LabelEntity: Unique object types (e.g., "Car", "Person", "Dog")
  * - LabelTrack: Tracked objects with keyframe data (bounding boxes over time)
- * - LabelClip: Significant object appearances (filtered by duration/confidence)
  * - LabelMedia: Aggregated object counts
  *
  * This normalizer handles:
@@ -161,6 +158,7 @@ export class ObjectTrackingNormalizer {
         labelObjects.push({
           WorkspaceRef: workspaceRef,
           MediaRef: mediaId,
+          labelType: LabelType.OBJECT,
           entity: obj.entity,
           originalTrackId: uniqueTrackId,
           objectHash,

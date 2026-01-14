@@ -5,8 +5,10 @@ import {
   NumberField,
   JSONField,
   baseSchema,
+  SelectField,
 } from 'pocketbase-zod-schema/schema';
 import { z } from 'zod';
+import { LabelType } from '../enums';
 
 // Define the Zod schema for LabelShot
 export const LabelSegmentSchema = z
@@ -14,9 +16,12 @@ export const LabelSegmentSchema = z
     // --- Relations ---
     WorkspaceRef: RelationField({ collection: 'Workspaces' }),
     MediaRef: RelationField({ collection: 'Media' }),
-
-    // Links to the centralized entity definition
     LabelEntityRef: RelationField({ collection: 'LabelEntity' }).optional(),
+    labelType: SelectField([
+      LabelType.OBJECT,
+      LabelType.PERSON,
+      LabelType.FACE,
+    ]),
 
     // --- Identification ---
     // The text label (e.g., "wilderness", "outdoor recreation")

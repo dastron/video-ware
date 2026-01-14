@@ -1,7 +1,16 @@
 import { RecordService } from 'pocketbase';
 import type { ListResult } from 'pocketbase';
+import { createHash } from 'crypto';
 import { LabelClipInputSchema } from '../schema';
-import type { LabelClip, LabelClipInput } from '../schema';
+import type {
+  LabelClip,
+  LabelClipInput,
+  LabelShot,
+  LabelPerson,
+  LabelObject,
+  LabelFace,
+  MediaRecommendation,
+} from '../schema';
 import type { TypedPocketBase } from '../types';
 import { BaseMutator, type MutatorOptions } from './base';
 import { LabelType } from '../enums';
@@ -153,5 +162,151 @@ export class LabelClipMutator extends BaseMutator<LabelClip, LabelClipInput> {
       '-created', // Sort by most recent first
       ['MediaRef', 'WorkspaceRef']
     );
+  }
+
+  /**
+   * Generate a deterministic hash for a label clip
+   */
+  generateLabelHash(
+    mediaId: string,
+    start: number,
+    end: number,
+    labelType: LabelType
+  ): string {
+    const hashInput = `${mediaId}:${start.toFixed(1)}:${end.toFixed(1)}:${labelType}`;
+    return createHash('sha256').update(hashInput).digest('hex');
+  }
+
+  /**
+   * Find a label clip by its hash
+   */
+  async getByHash(labelHash: string): Promise<LabelClip | null> {
+    return this.getFirstByFilter(`labelHash = "${labelHash}"`);
+  }
+
+  /**
+   * Type guards for label sources
+   */
+  private hasProperty<T extends string>(
+    obj: unknown,
+    prop: T
+  ): obj is { [K in T]: unknown } {
+    return typeof obj === 'object' && obj !== null && prop in obj;
+  }
+
+  isLabelShot(source: unknown): source is LabelShot {
+    return (
+      this.hasProperty(source, 'entity') &&
+      !this.hasProperty(source, 'personId') &&
+      !this.hasProperty(source, 'faceId')
+    );
+  }
+
+  isLabelPerson(source: unknown): source is LabelPerson {
+    return this.hasProperty(source, 'personId');
+  }
+
+  isLabelFace(source: unknown): source is LabelFace {
+    return (
+      this.hasProperty(source, 'faceId') ||
+      this.hasProperty(source, 'avgConfidence')
+    );
+  }
+
+  isLabelObject(source: unknown): source is LabelObject {
+    return (
+      this.hasProperty(source, 'entity') &&
+      this.hasProperty(source, 'originalTrackId')
+    );
+  }
+
+  isMediaRecommendation(source: unknown): source is MediaRecommendation {
+    return (
+      this.hasProperty(source, 'strategy') &&
+      this.hasProperty(source, 'reason') &&
+      this.hasProperty(source, 'score')
+    );
+  }
+
+  /**
+   * Actualize a label (Shot, Person, Object, or Face) into a LabelClip
+   */
+  async createFromSource(
+    source:
+      | LabelShot
+      | LabelPerson
+      | LabelObject
+      | LabelFace
+      | MediaRecommendation,
+    labelType: LabelType
+  ): Promise<LabelClip> {
+    const labelHash = this.generateLabelHash(
+      source.MediaRef,
+      source.start,
+      source.end,
+      labelType
+    );
+
+    // Prepare label data based on source type
+    let labelData: Record<string, unknown> = {};
+
+    if (this.hasProperty(source, 'metadata')) {
+      labelData = { ...(source.metadata as Record<string, unknown>) };
+    }
+
+    if (this.isLabelShot(source)) {
+      labelData.entity = source.entity;
+    } else if (this.isLabelPerson(source)) {
+      labelData.personId = source.personId;
+      labelData.upperBodyColor = source.upperBodyColor;
+      labelData.lowerBodyColor = source.lowerBodyColor;
+    } else if (this.isLabelFace(source)) {
+      labelData.faceId = source.faceId;
+    } else if (this.isLabelObject(source)) {
+      labelData.entity = source.entity;
+    } else if (this.isMediaRecommendation(source)) {
+      labelData.reason = source.reason;
+      labelData.reasonData = source.reasonData;
+      labelData.strategy = source.strategy;
+    }
+
+    // Safely extract confidence and version
+    let confidence = 0;
+    if (this.isLabelFace(source)) {
+      confidence = source.avgConfidence;
+    } else if (this.isMediaRecommendation(source)) {
+      confidence = source.score;
+    } else if (
+      'confidence' in source &&
+      typeof source.confidence === 'number'
+    ) {
+      confidence = source.confidence;
+    }
+
+    const version =
+      'version' in source && typeof source.version === 'number'
+        ? source.version
+        : 1;
+
+    const input: LabelClipInput = {
+      WorkspaceRef: source.WorkspaceRef,
+      MediaRef: source.MediaRef,
+      labelId: (source as any).id,
+      labelHash,
+      labelType,
+      start: source.start,
+      end: source.end,
+      duration:
+        'duration' in source && typeof source.duration === 'number'
+          ? source.duration
+          : source.end - source.start,
+      confidence: confidence,
+      version: version || 1,
+      processor: 'manual',
+      provider: 'manual',
+      labelData,
+    };
+
+    return this.create(input);
   }
 }

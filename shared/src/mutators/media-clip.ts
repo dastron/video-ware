@@ -1,10 +1,28 @@
 import { RecordService } from 'pocketbase';
 import type { ListResult } from 'pocketbase';
 import { MediaClipInputSchema } from '../schema';
-import type { MediaClip, MediaClipInput, LabelClip } from '../schema';
+import type {
+  MediaClip,
+  MediaClipInput,
+  LabelClip,
+  LabelShot,
+  LabelPerson,
+  LabelObject,
+  LabelFace,
+  MediaRecommendation,
+} from '../schema';
+import { LabelClipMutator } from './label-clip';
 import type { TypedPocketBase } from '../types';
 import { BaseMutator, type MutatorOptions } from './base';
 import { ClipType, LabelType } from '../enums';
+
+export type ActualizableLabel =
+  | LabelShot
+  | LabelPerson
+  | LabelObject
+  | LabelFace
+  | MediaRecommendation
+  | LabelClip;
 
 /**
  * Options for filtering media clips by workspace
@@ -123,15 +141,44 @@ export class MediaClipMutator extends BaseMutator<MediaClip, MediaClipInput> {
   }
 
   /**
-   * Create a MediaClip from a LabelClip
-   * @param labelClip The source label_clip
+   * Create a MediaClip from a LabelClip or a source label
+   * @param source The source label_clip or source label (Shot, Person, Object, Face)
+   * @param labelType The label type (required if source is NOT a LabelClip)
    * @param processor The processor version to set on the clip
    * @returns The created or existing MediaClip
    */
   async createFromLabel(
-    labelClip: LabelClip,
+    source: ActualizableLabel,
+    labelType?: LabelType,
     processor?: string
   ): Promise<MediaClip> {
+    let labelClip: LabelClip;
+
+    // Type guard for LabelClip
+    const isLabelClip = (val: ActualizableLabel): val is LabelClip => {
+      return (val as any).labelHash !== undefined;
+    };
+
+    if (isLabelClip(source)) {
+      labelClip = source;
+    } else {
+      let effectiveLabelType = labelType || (source as any).labelType;
+
+      if (Array.isArray(effectiveLabelType)) {
+        effectiveLabelType = effectiveLabelType[0];
+      }
+
+      if (!effectiveLabelType) {
+        throw new Error('labelType is required when actualizing from source');
+      }
+      // It's a source label (Shot, Person, Object, Face, Recommendation), actualize it first
+      const labelClipMutator = new LabelClipMutator(this.pb);
+      labelClip = await labelClipMutator.createFromSource(
+        source as any,
+        effectiveLabelType
+      );
+    }
+
     // Check for existing derived clip (deduplication)
     const existingClip = await this.findDerivedClip(
       labelClip.MediaRef,
@@ -148,7 +195,7 @@ export class MediaClipMutator extends BaseMutator<MediaClip, MediaClipInput> {
       [LabelType.SHOT]: ClipType.SHOT,
       [LabelType.PERSON]: ClipType.PERSON,
       [LabelType.SPEECH]: ClipType.SPEECH,
-      [LabelType.FACE]: ClipType.PERSON,
+      [LabelType.FACE]: ClipType.FACE,
       [LabelType.SEGMENT]: ClipType.RANGE,
       [LabelType.TEXT]: ClipType.SPEECH,
     };
@@ -170,10 +217,12 @@ export class MediaClipMutator extends BaseMutator<MediaClip, MediaClipInput> {
         labelType: labelClip.labelType,
         confidence: labelClip.confidence,
         provider: labelClip.provider,
+        labelHash: labelClip.labelHash, // Include labelHash in clipData for easier mapping
+        ...labelClip.labelData, // Clone labelData to clipData
       },
     };
 
     // Create and return the clip
-    return this.create(clipInput);
+    return await this.create(clipInput);
   }
 }

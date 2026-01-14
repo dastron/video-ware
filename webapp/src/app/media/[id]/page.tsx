@@ -26,8 +26,8 @@ import {
   Tag,
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import type { MediaClip, MediaRecommendation } from '@project/shared';
-import { ClipType } from '@project/shared/enums';
+import { MediaClip, MediaRecommendation } from '@project/shared';
+import { ClipType } from '@project/shared';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { MediaClipMutator } from '@project/shared/mutator';
 import pb from '@/lib/pocketbase-client';
@@ -196,18 +196,7 @@ function MediaDetailsPageContentWithRecommendations() {
 
     try {
       const clipMutator = new MediaClipMutator(pb);
-      const duration = recommendation.end - recommendation.start;
-
-      // Create the clip
-      await clipMutator.create({
-        WorkspaceRef: currentWorkspace.id,
-        MediaRef: media.id,
-        type: ClipType.RECOMMENDATION,
-        start: recommendation.start,
-        end: recommendation.end,
-        duration,
-        version: 1,
-      });
+      await clipMutator.createFromLabel(recommendation);
 
       toast.success('Clip created from recommendation');
       refresh(); // Refresh clips list
@@ -525,18 +514,6 @@ function MediaDetailsPageContentWithRecommendations() {
                     onInlineEdit={handleStartEditClip}
                   />
                 </TabsContent>
-
-                {/* <TabsContent
-                  value="labels"
-                  className="flex-1 overflow-hidden mt-0 h-full"
-                >
-                  <LabelSearchPanel
-                    media={media}
-                    onJumpToTime={handleJumpToTime}
-                    onClipCreated={refresh}
-                    onViewClip={handleViewClip}
-                  />
-                </TabsContent> */}
 
                 <TabsContent
                   value="recommendations"

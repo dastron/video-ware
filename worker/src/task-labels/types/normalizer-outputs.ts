@@ -26,6 +26,7 @@ export interface LabelFaceData {
   WorkspaceRef: string;
   MediaRef: string;
   LabelEntityRef?: string; // Will be set by processor
+  labelType: LabelType;
   trackId: string;
   faceId?: string;
 
@@ -61,6 +62,7 @@ export interface LabelSpeechData {
   MediaRef: string;
   LabelEntityRef?: string; // Link to LabelEntity
   LabelTrackRef?: string; // Link to LabelTrack
+  labelType: LabelType;
 
   transcript: string;
 
@@ -135,6 +137,7 @@ export interface LabelClipData {
   TaskRef?: string;
   LabelEntityRef?: string; // Optional - will be set by step processor
   LabelTrackRef?: string;
+  MediaClipRef?: string; // Link to the derived MediaClip
   labelHash: string;
   labelType: LabelType;
   type: string; // Deprecated, use LabelEntityRef instead
@@ -155,6 +158,7 @@ export interface LabelSegmentData {
   WorkspaceRef: string;
   MediaRef: string;
   LabelEntityRef?: string;
+  labelType: LabelType;
   entity: string;
   segmentHash: string;
   start: number;
@@ -172,6 +176,7 @@ export interface LabelShotData {
   WorkspaceRef: string;
   MediaRef: string;
   LabelEntityRef?: string;
+  labelType: LabelType;
   entity: string;
   shotHash: string;
   start: number;
@@ -190,6 +195,7 @@ export interface LabelObjectData {
   MediaRef: string;
   LabelEntityRef?: string;
   LabelTrackRef?: string;
+  labelType: LabelType;
   entity: string;
   originalTrackId: string;
   objectHash: string;
@@ -209,6 +215,7 @@ export interface LabelPersonData {
   MediaRef: string;
   LabelEntityRef?: string;
   LabelTrackRef?: string;
+  labelType: LabelType;
   personId: string;
   personHash: string;
   start: number;

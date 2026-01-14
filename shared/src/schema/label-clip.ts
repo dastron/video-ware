@@ -8,16 +8,15 @@ import {
   baseSchema,
 } from 'pocketbase-zod-schema/schema';
 import { z } from 'zod';
-import { LabelType, ProcessingProvider } from '../enums';
+import { LabelType } from '../enums';
 
 // Define the Zod schema
 export const LabelClipSchema = z
   .object({
     WorkspaceRef: RelationField({ collection: 'Workspaces' }),
     MediaRef: RelationField({ collection: 'Media' }),
-    TaskRef: RelationField({ collection: 'Tasks' }).optional(),
-    LabelEntityRef: RelationField({ collection: 'LabelEntity' }).optional(), // NEW: Reference to LabelEntity
-    LabelTrackRef: RelationField({ collection: 'LabelTrack' }).optional(), // NEW: Reference to LabelTrack (optional)
+    MediaClipRef: RelationField({ collection: 'MediaClips' }).optional(),
+    labelId: TextField({ min: 1 }),
     labelHash: TextField({ min: 1 }),
     labelType: SelectField([
       LabelType.OBJECT,
@@ -28,18 +27,14 @@ export const LabelClipSchema = z
       LabelType.SEGMENT,
       LabelType.TEXT,
     ]),
-    type: TextField(), // DEPRECATED: Use LabelEntityRef instead (kept for backward compatibility)
     start: NumberField({ min: 0 }), // seconds (float)
     end: NumberField({ min: 0 }), // seconds (float)
     duration: NumberField({ min: 0 }), // seconds (float)
     confidence: NumberField({ min: 0, max: 1 }),
     version: NumberField().default(1).optional(),
-    processor: TextField(), // e.g., "label-normalizer:1.0.0"
-    provider: SelectField([
-      ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
-      ProcessingProvider.GOOGLE_SPEECH,
-    ]),
-    labelData: JSONField(), // Normalized label data (compact)
+    processor: TextField().optional(), // e.g., "label-normalizer:1.0.0"
+    provider: TextField().optional(),
+    labelData: JSONField().optional(), // Normalized label data (compact)
   })
   .extend(baseSchema);
 
@@ -47,9 +42,8 @@ export const LabelClipSchema = z
 export const LabelClipInputSchema = z.object({
   WorkspaceRef: z.string().min(1, 'Workspace is required'),
   MediaRef: z.string().min(1, 'Media is required'),
-  TaskRef: z.string().optional(),
-  LabelEntityRef: z.string().optional(), // NEW: Reference to LabelEntity
-  LabelTrackRef: z.string().optional(), // NEW: Reference to LabelTrack
+  MediaClipRef: z.string().optional(),
+  labelId: z.string().min(1, 'Label ID is required'),
   labelHash: z.string().min(1, 'Label hash is required'),
   labelType: z.enum([
     LabelType.OBJECT,
@@ -60,18 +54,14 @@ export const LabelClipInputSchema = z.object({
     LabelType.SEGMENT,
     LabelType.TEXT,
   ]),
-  type: z.string().min(1, 'Type is required'), // DEPRECATED: Use LabelEntityRef instead
   start: z.number().min(0),
   end: z.number().min(0),
   duration: z.number().min(0),
   confidence: z.number().min(0).max(1),
   version: z.number().default(1).optional(),
-  processor: z.string(),
-  provider: z.enum([
-    ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
-    ProcessingProvider.GOOGLE_SPEECH,
-  ]),
-  labelData: z.record(z.unknown()), // JSON object
+  processor: z.string().optional(),
+  provider: z.string().optional(),
+  labelData: z.record(z.unknown()).optional(), // JSON object
 });
 
 // Define the collection with workspace-scoped permissions

@@ -10,7 +10,7 @@ export { UploadMutator } from './upload';
 export { FileMutator } from './file';
 export { MediaMutator } from './media';
 export { LabelTrackMutator } from './label-track';
-export { MediaClipMutator } from './media-clip';
+export { MediaClipMutator, type ActualizableLabel } from './media-clip';
 export { LabelClipMutator } from './label-clip';
 export { LabelFaceMutator } from './label-face';
 export { LabelSpeechMutator } from './label-speech';

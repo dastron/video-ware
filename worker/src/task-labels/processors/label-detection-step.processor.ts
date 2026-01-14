@@ -12,7 +12,6 @@ import type { LabelDetectionStepInput } from '../types/step-inputs';
 import type { LabelDetectionStepOutput } from '../types/step-outputs';
 import type {
   LabelDetectionResponse,
-  LabelClipData,
   LabelSegmentData,
   LabelShotData,
 } from '../types';
@@ -124,11 +123,6 @@ export class LabelDetectionStepProcessor extends BaseStepProcessor<
         normalizedData.labelShots || []
       );
 
-      // Step 6: Batch insert LabelClip records (legacy/compatible)
-      const clipIds = await this.batchInsertLabelClips(
-        normalizedData.labelClips || []
-      );
-
       // Clear entity cache
       this.labelEntityService.clearCache();
 
@@ -146,7 +140,7 @@ export class LabelDetectionStepProcessor extends BaseStepProcessor<
           shotCount: normalizedData.labelMediaUpdate.shotCount || 0,
           labelEntityCount: entityIds.length,
           labelTrackCount: 0,
-          labelClipCount: clipIds.length,
+          labelClipCount: 0,
           labelObjectCount: 0,
           labelFaceCount: 0,
           labelPersonCount: 0,
@@ -248,58 +242,5 @@ export class LabelDetectionStepProcessor extends BaseStepProcessor<
       }
     }
     return ids;
-  }
-
-  private async batchInsertLabelClips(
-    clips: LabelClipData[]
-  ): Promise<string[]> {
-    const validClips = clips.filter((clip) => this.isValidLabelClip(clip));
-    const clipIds: string[] = [];
-
-    for (const clip of validClips) {
-      try {
-        const existing =
-          await this.pocketBaseService.labelClipMutator.getFirstByFilter(
-            `labelHash = "${clip.labelHash}"`
-          );
-        if (existing) {
-          clipIds.push(existing.id);
-        } else {
-          const created = await this.pocketBaseService.labelClipMutator.create({
-            ...clip,
-            labelType: clip.labelType as any,
-            provider: clip.provider as any,
-          });
-          clipIds.push(created.id);
-        }
-      } catch (e) {
-        if (this.isUniqueConstraintError(e)) {
-          const existing =
-            await this.pocketBaseService.labelClipMutator.getFirstByFilter(
-              `labelHash = "${clip.labelHash}"`
-            );
-          if (existing) clipIds.push(existing.id);
-        } else {
-          this.logger.error(`Failed to insert clip: ${e}`);
-        }
-      }
-    }
-    return clipIds;
-  }
-
-  private isValidLabelClip(clip: LabelClipData): boolean {
-    if (!clip.labelHash || !clip.WorkspaceRef || !clip.MediaRef) return false;
-    if (clip.start < 0 || clip.end <= clip.start) return false;
-    if (clip.duration <= 0) return false;
-    if (clip.confidence < 0.2) return false; // Lowered from 0.7
-    return true;
-  }
-
-  private isUniqueConstraintError(error: unknown): boolean {
-    const message = error instanceof Error ? error.message : String(error);
-    return (
-      message.includes('unique constraint') ||
-      message.includes('validation_not_unique')
-    );
   }
 }

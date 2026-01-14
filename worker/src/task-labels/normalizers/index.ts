@@ -6,7 +6,6 @@
  * Normalizers transform GCVI API responses into database entities:
  * - LabelEntity: Unique labels/entities
  * - LabelTrack: Tracked objects/persons/faces with keyframes
- * - LabelClip: Time-bounded label occurrences
  * - LabelMedia: Aggregated metadata
  */
 
