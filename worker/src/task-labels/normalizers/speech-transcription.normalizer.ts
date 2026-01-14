@@ -8,7 +8,6 @@ import type {
   LabelEntityData,
   LabelSpeechData,
   LabelTrackData,
-  LabelClipData,
   LabelMediaData,
 } from '../types';
 
@@ -18,7 +17,6 @@ import type {
  * Transforms GCVI Speech Transcription API responses into database entities:
  * - LabelEntity: Significant words/phrases from the transcript
  * - LabelSpeech: Detailed speech segments with timing and speaker info
- * - LabelClip: Speech segments (sentences or time-bounded chunks)
  * - LabelMedia: Full transcript and word counts
  *
  * This normalizer handles:
@@ -150,6 +148,7 @@ export class SpeechTranscriptionNormalizer {
         labelSpeech.push({
           WorkspaceRef: workspaceRef,
           MediaRef: mediaId,
+          labelType: LabelType.SPEECH,
           transcript: segment.text,
           start: segment.start,
           end: segment.end,
@@ -346,7 +345,7 @@ export class SpeechTranscriptionNormalizer {
     end: number,
     processor: string
   ): string {
-    const hashInput = `${mediaId}:${start.toFixed(3)}:${end.toFixed(3)}:${processor}:speech`;
+    const hashInput = `${mediaId}:${start.toFixed(1)}:${end.toFixed(1)}:${processor}:speech`;
     return createHash('sha256').update(hashInput).digest('hex');
   }
 

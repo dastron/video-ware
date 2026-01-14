@@ -17,7 +17,6 @@ import type {
  *
  * Transforms GCVI Label Detection API responses into database entities:
  * - LabelEntity: Unique labels (segment labels and shot labels)
- * - LabelClip: Time-bounded label occurrences and shots
  * - LabelMedia: Aggregated label counts and shot counts
  *
  * This normalizer handles:
@@ -98,6 +97,7 @@ export class LabelDetectionNormalizer {
           MediaRef: mediaId,
           entity: segmentLabel.entity,
           segmentHash,
+          labelType: LabelType.SEGMENT,
           start: segment.startTime,
           end: segment.endTime,
           duration: segment.endTime - segment.startTime,
@@ -179,6 +179,7 @@ export class LabelDetectionNormalizer {
           MediaRef: mediaId,
           entity: shotLabel.entity,
           shotHash,
+          labelType: LabelType.SHOT,
           start: segment.startTime,
           end: segment.endTime,
           duration: segment.endTime - segment.startTime,
@@ -291,7 +292,7 @@ export class LabelDetectionNormalizer {
     };
 
     this.logger.debug(
-      `Normalized ${labelEntities.length} entities, ${labelClips.length} clips, ${labelSegments.length} segments, ${labelShots.length} shots`
+      `Normalized ${labelEntities.length} entities, ${labelSegments.length} segments, ${labelShots.length} shots`
     );
 
     return {
@@ -327,7 +328,7 @@ export class LabelDetectionNormalizer {
     end: number,
     labelType: LabelType
   ): string {
-    const hashInput = `${mediaId}:${start.toFixed(3)}:${end.toFixed(3)}:${labelType}`;
+    const hashInput = `${mediaId}:${start.toFixed(1)}:${end.toFixed(1)}:${labelType}`;
     return createHash('sha256').update(hashInput).digest('hex');
   }
 
@@ -341,7 +342,7 @@ export class LabelDetectionNormalizer {
     entity: string
   ): string {
     const normalizedEntity = entity.trim().toLowerCase();
-    const hashInput = `${mediaId}:${start.toFixed(3)}:${end.toFixed(3)}:segment:${normalizedEntity}`;
+    const hashInput = `${mediaId}:${start.toFixed(1)}:${end.toFixed(1)}:segment:${normalizedEntity}`;
     return createHash('sha256').update(hashInput).digest('hex');
   }
 
@@ -355,7 +356,7 @@ export class LabelDetectionNormalizer {
     entity: string
   ): string {
     const normalizedEntity = entity.trim().toLowerCase();
-    const hashInput = `${mediaId}:${start.toFixed(3)}:${end.toFixed(3)}:shot:${normalizedEntity}`;
+    const hashInput = `${mediaId}:${start.toFixed(1)}:${end.toFixed(1)}:shot:${normalizedEntity}`;
     return createHash('sha256').update(hashInput).digest('hex');
   }
 }

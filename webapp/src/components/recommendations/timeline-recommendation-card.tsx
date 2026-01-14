@@ -100,15 +100,18 @@ export function TimelineRecommendationCard({
   const scorePercentage = Math.round(recommendation.score * 100);
 
   const mediaClip = recommendation.expand?.MediaClipRef as
-    | (MediaClip & { expand?: { MediaRef?: Media } })
+    | (MediaClip & {
+        expand?: {
+          MediaRef?: Media;
+        };
+      })
     | undefined;
   const media = mediaClip?.expand?.MediaRef as Media | undefined;
   const clipStart = mediaClip?.start;
   const clipEnd = mediaClip?.end;
 
   const mediaName =
-    (mediaClip as Record<string, any>)?.expand?.MediaRef?.expand?.UploadRef
-      ?.name || 'Recommended Clip';
+    mediaClip?.expand?.MediaRef?.expand?.UploadRef?.name || 'Recommended Clip';
 
   return (
     <MediaBaseCard

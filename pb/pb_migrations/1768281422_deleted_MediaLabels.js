@@ -3,6 +3,8 @@ migrate((app) => {
   const collection = app.findCollectionByNameOrId("pb_8jvvwmsbjqsb3bd");
 
   return app.delete(collection);
+  // const collection_LabelMedia = app.findCollectionByNameOrId("MediaLabels");
+  // return app.delete(collection_LabelMedia);
 }, (app) => {
   const collection = new Collection({
     "createRule": "@request.auth.id != \"\"",

@@ -3,7 +3,16 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { usePocketBase } from '@/contexts/pocketbase-context';
-import type { LabelPerson, LabelTrack, Media } from '@project/shared';
+import {
+  LabelType,
+  type LabelPerson,
+  type LabelTrack,
+  type Media,
+} from '@project/shared';
+import {
+  MediaClipMutator,
+  type ActualizableLabel,
+} from '@project/shared/mutator';
 import { TracksAnimator } from '@/components/labels/tracks-animator';
 import {
   Card,
@@ -15,6 +24,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 type ExtendedLabelPerson = LabelPerson & {
   expand?: {
@@ -31,6 +41,26 @@ export default function LabelPeoplePage() {
   const [selectedPerson, setSelectedPerson] =
     useState<ExtendedLabelPerson | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isCreating, setIsCreating] = useState(false);
+
+  async function handleCreateClip() {
+    if (!selectedPerson || !selectedPerson.expand?.MediaRef) return;
+    setIsCreating(true);
+    try {
+      const mediaClipMutator = new MediaClipMutator(pb);
+      await mediaClipMutator.createFromLabel(
+        selectedPerson as ActualizableLabel,
+        LabelType.PERSON,
+        'inspector'
+      );
+      toast.success('Clip created successfully');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to create clip');
+    } finally {
+      setIsCreating(false);
+    }
+  }
 
   useEffect(() => {
     async function fetchPeople() {
@@ -103,13 +133,28 @@ export default function LabelPeoplePage() {
       </Card>
 
       <Card className="md:col-span-2 flex flex-col h-full">
-        <CardHeader>
-          <CardTitle>Person Details</CardTitle>
-          <CardDescription>
-            {selectedPerson?.personId || 'No person ID'}
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <div className="flex flex-col space-y-1.5">
+            <CardTitle>Person Details</CardTitle>
+            <CardDescription>
+              {selectedPerson?.personId || 'No person ID'}
+            </CardDescription>
+          </div>
+          {selectedPerson && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCreateClip}
+              disabled={isCreating}
+            >
+              {isCreating ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              Create Clip
+            </Button>
+          )}
         </CardHeader>
-        <CardContent className="flex-1 overflow-auto">
+        <CardContent className="flex-1 overflow-auto pt-6">
           {selectedPerson &&
           selectedPerson.expand?.LabelTrackRef &&
           selectedPerson.expand.MediaRef ? (

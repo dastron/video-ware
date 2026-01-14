@@ -4,7 +4,6 @@ import {
   NumberField,
   JSONField,
   TextField,
-  SelectField,
   baseSchema,
 } from 'pocketbase-zod-schema/schema';
 import { z } from 'zod';
@@ -37,24 +36,8 @@ export const MediaRecommendationSchema = z
     reasonData: JSONField(), // Structured explanation data
 
     // Strategy and source
-    strategy: SelectField([
-      RecommendationStrategy.SAME_ENTITY,
-      RecommendationStrategy.ADJACENT_SHOT,
-      RecommendationStrategy.TEMPORAL_NEARBY,
-      RecommendationStrategy.CONFIDENCE_DURATION,
-    ]),
-    labelType: SelectField(
-      [
-        LabelType.OBJECT,
-        LabelType.SHOT,
-        LabelType.PERSON,
-        LabelType.FACE,
-        LabelType.SPEECH,
-        LabelType.SEGMENT,
-        LabelType.TEXT,
-      ],
-      { maxSelect: 1 }
-    ),
+    strategy: TextField(),
+    labelType: TextField(),
 
     // Deduplication
     queryHash: TextField({ min: 1 }), // Deterministic hash for upsert behavior

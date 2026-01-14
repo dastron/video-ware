@@ -8,7 +8,6 @@ import type {
   LabelEntityData,
   LabelFaceData,
   LabelTrackData,
-  LabelClipData,
   LabelMediaData,
   KeyframeData,
 } from '../types';
@@ -20,7 +19,6 @@ import type {
  * - LabelEntity: Single "Face" entity (or per-person if identity available)
  * - LabelFace: Specific face instance data
  * - LabelTrack: Tracked faces with keyframe data (bounding boxes and attributes)
- * - LabelClip: Significant face appearances
  * - LabelMedia: Aggregated face counts
  *
  * This normalizer handles:
@@ -62,7 +60,6 @@ export class FaceDetectionNormalizer {
     const labelEntities: LabelEntityData[] = [];
     const labelFaces: LabelFaceData[] = [];
     const labelTracks: LabelTrackData[] = [];
-    const labelClips: LabelClipData[] = [];
     const seenLabels = new Set<string>();
 
     // Create single "Face" entity (we don't have identity information)
@@ -154,6 +151,7 @@ export class FaceDetectionNormalizer {
       labelFaces.push({
         WorkspaceRef: workspaceRef,
         MediaRef: mediaId,
+        labelType: LabelType.FACE,
         trackId: trackId,
         faceId: face.faceId,
         start: start,
@@ -207,49 +205,13 @@ export class FaceDetectionNormalizer {
         trackHash,
         // LabelEntityRef will be set by step processor
       });
-
-      // Create LabelClip if track meets minimum criteria
-      if (
-        duration >= this.MIN_CLIP_DURATION &&
-        avgConfidence >= this.MIN_CLIP_CONFIDENCE
-      ) {
-        const clipHash = this.generateClipHash(
-          mediaId,
-          start,
-          end,
-          LabelType.FACE
-        );
-
-        labelClips.push({
-          WorkspaceRef: workspaceRef,
-          MediaRef: mediaId,
-          TaskRef: taskRef,
-          labelHash: clipHash,
-          labelType: LabelType.FACE,
-          type: 'Face', // Deprecated field
-          start,
-          end,
-          duration,
-          confidence: avgConfidence,
-          version,
-          processor: processorVersion,
-          provider: ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
-          labelData: {
-            entity: 'Face',
-            trackId: trackId,
-            frameCount: face.frames.length,
-            attributes: attributesSummary,
-          },
-          // LabelEntityRef and LabelTrackRef will be set by step processor
-        });
-      }
     }
 
     // Create LabelMedia update with aggregated counts
     const labelMediaUpdate: Partial<LabelMediaData> = {
       faceDetectionProcessedAt: new Date().toISOString(),
       faceDetectionProcessor: processorVersion,
-      faceCount: labelClips.length, // Count of significant face appearances
+      faceCount: labelFaces.length, // Count of significant face appearances
       faceTrackCount: labelTracks.length, // Total number of face tracks
       // Add processor to processors array
       processors: ['face_detection'],
@@ -259,7 +221,6 @@ export class FaceDetectionNormalizer {
     const validTracks = labelTracks.filter((track) =>
       this.isValidLabelTrack(track)
     );
-    const validClips = labelClips.filter((clip) => this.isValidLabelClip(clip));
 
     if (validTracks.length < labelTracks.length) {
       this.logger.warn(
@@ -267,25 +228,18 @@ export class FaceDetectionNormalizer {
       );
     }
 
-    if (validClips.length < labelClips.length) {
-      this.logger.warn(
-        `Filtered out ${labelClips.length - validClips.length} invalid label clips`
-      );
-    }
-
     // Update counts based on valid data
-    labelMediaUpdate.faceCount = validClips.length;
+    labelMediaUpdate.faceCount = labelFaces.length;
     labelMediaUpdate.faceTrackCount = validTracks.length;
 
     this.logger.debug(
-      `Normalized ${labelEntities.length} entities, ${validTracks.length} tracks, ${validClips.length} clips`
+      `Normalized ${labelEntities.length} entities, ${validTracks.length} tracks, ${labelFaces.length} faces`
     );
 
     return {
       labelEntities,
       labelFaces,
       labelTracks: validTracks,
-      labelClips: validClips,
       labelMediaUpdate,
     };
   }
@@ -409,7 +363,7 @@ export class FaceDetectionNormalizer {
     end: number,
     labelType: LabelType
   ): string {
-    const hashInput = `${mediaId}:${start.toFixed(3)}:${end.toFixed(3)}:${labelType}`;
+    const hashInput = `${mediaId}:${start.toFixed(1)}:${end.toFixed(1)}:${labelType}`;
     return createHash('sha256').update(hashInput).digest('hex');
   }
 
@@ -515,80 +469,6 @@ export class FaceDetectionNormalizer {
         kf.confidence < 0 ||
         kf.confidence > 1 ||
         !Number.isFinite(kf.confidence)
-      ) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  /**
-   * Check if a label clip is valid before insertion
-   *
-   * @param clip The clip to validate
-   * @returns True if the clip is valid
-   */
-  private isValidLabelClip(clip: LabelClipData): boolean {
-    // Check required fields
-    if (!clip.labelHash || clip.labelHash.trim().length === 0) {
-      return false;
-    }
-    if (!clip.WorkspaceRef || clip.WorkspaceRef.trim().length === 0) {
-      return false;
-    }
-    if (!clip.MediaRef || clip.MediaRef.trim().length === 0) {
-      return false;
-    }
-
-    // Check time values
-    if (
-      typeof clip.start !== 'number' ||
-      clip.start < 0 ||
-      !Number.isFinite(clip.start)
-    ) {
-      return false;
-    }
-    if (
-      typeof clip.end !== 'number' ||
-      clip.end < 0 ||
-      !Number.isFinite(clip.end)
-    ) {
-      return false;
-    }
-
-    // End must be greater than start
-    if (clip.end <= clip.start) {
-      return false;
-    }
-
-    // Check duration (should be positive and match end - start)
-    // Must be at least MIN_CLIP_DURATION seconds
-    if (
-      typeof clip.duration !== 'number' ||
-      clip.duration < this.MIN_CLIP_DURATION ||
-      !Number.isFinite(clip.duration)
-    ) {
-      return false;
-    }
-
-    // Check confidence (must be between 0 and 1, and at least MIN_CLIP_CONFIDENCE)
-    if (
-      typeof clip.confidence !== 'number' ||
-      clip.confidence < this.MIN_CLIP_CONFIDENCE ||
-      clip.confidence > 1 ||
-      !Number.isFinite(clip.confidence)
-    ) {
-      return false;
-    }
-
-    // Check that trackId is not empty (if present in labelData)
-    if (clip.labelData && typeof clip.labelData === 'object') {
-      const labelData = clip.labelData as Record<string, unknown>;
-      const trackId = labelData.trackId;
-      if (
-        trackId !== undefined &&
-        (!trackId || String(trackId).trim().length === 0)
       ) {
         return false;
       }

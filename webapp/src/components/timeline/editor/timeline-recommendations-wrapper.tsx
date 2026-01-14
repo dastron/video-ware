@@ -7,7 +7,8 @@ import { TimelineRecommendationsPanel } from '@/components/recommendations/timel
 import type { TimelineRecommendation } from '@project/shared';
 
 export function TimelineRecommendationsPanelWrapper() {
-  const { selectedClipId, removeClip, timeline } = useTimeline();
+  const { selectedClipId, removeClip, timeline, refreshTimeline } =
+    useTimeline();
   const {
     recommendations,
     isLoading,
@@ -30,6 +31,8 @@ export function TimelineRecommendationsPanelWrapper() {
   const handleAdd = async (recommendation: TimelineRecommendation) => {
     try {
       await acceptRecommendation(recommendation.id);
+      // Ensure the timeline editor immediately reflects the newly added clip
+      await refreshTimeline();
     } catch (error) {
       console.error('Failed to add recommendation:', error);
       alert(error instanceof Error ? error.message : 'Failed to add clip');
@@ -44,6 +47,8 @@ export function TimelineRecommendationsPanelWrapper() {
     try {
       await removeClip(effectiveClipId);
       await acceptRecommendation(recommendation.id);
+      // Ensure the timeline editor immediately reflects the newly added replacement clip
+      await refreshTimeline();
     } catch (error) {
       console.error('Failed to replace clip:', error);
       alert(error instanceof Error ? error.message : 'Failed to replace clip');

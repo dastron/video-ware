@@ -28,7 +28,6 @@ export type { ObjectTrackingStepInput, ObjectTrackingStepOutput };
  * 3. Calls ObjectTrackingNormalizer to transform response
  * 4. Batch inserts LabelEntity records
  * 5. Batch inserts LabelTrack records (with keyframes)
- * 6. Batch inserts LabelClip records (with track references)
  * 7. Updates LabelMedia with aggregated data
  * 8. Stores normalized response to cache
  *

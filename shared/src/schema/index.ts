@@ -1,5 +1,4 @@
 export * from './file.js';
-export * from './label-clip.js';
 export * from './label-entity.js';
 export * from './label-face.js';
 export * from './label-objects.js';

@@ -18,7 +18,6 @@ import type {
  * Transforms GCVI Person Detection API responses into database entities:
  * - LabelEntity: Single "Person" entity
  * - LabelTrack: Tracked persons with keyframe data (bounding boxes, landmarks, attributes)
- * - LabelClip: Significant person appearances
  * - LabelMedia: Aggregated person counts
  *
  * This normalizer handles:
@@ -191,6 +190,7 @@ export class PersonDetectionNormalizer {
         labelPeople.push({
           WorkspaceRef: workspaceRef,
           MediaRef: mediaId,
+          labelType: LabelType.PERSON,
           personId: person.trackId,
           personHash,
           start,

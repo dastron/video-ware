@@ -13,7 +13,6 @@ import {
   File,
   // Mutator classes
   FileMutator,
-  LabelClipMutator,
   LabelEntityMutator,
   LabelFaceMutator,
   LabelSpeechMutator,
@@ -44,7 +43,6 @@ export class PocketBaseService implements OnModuleInit {
 
   // Mutators for data operations
   public fileMutator!: FileMutator;
-  public labelClipMutator!: LabelClipMutator;
   public labelEntityMutator!: LabelEntityMutator;
   public mediaClipMutator!: MediaClipMutator;
   public mediaMutator!: MediaMutator;
@@ -112,7 +110,6 @@ export class PocketBaseService implements OnModuleInit {
 
   private initializeMutators() {
     this.fileMutator = new FileMutator(this.pb);
-    this.labelClipMutator = new LabelClipMutator(this.pb);
     this.labelEntityMutator = new LabelEntityMutator(this.pb);
     this.labelTrackMutator = new LabelTrackMutator(this.pb);
     this.labelFaceMutator = new LabelFaceMutator(this.pb);

@@ -3,7 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { usePocketBase } from '@/contexts/pocketbase-context';
-import type { LabelShot, Media } from '@project/shared';
+import { LabelType, type LabelShot, type Media } from '@project/shared';
+import {
+  MediaClipMutator,
+  type ActualizableLabel,
+} from '@project/shared/mutator';
 import { FilmstripViewer } from '@/components/filmstrip/filmstrip-viewer';
 import { useTimeAnimation } from '@/hooks/use-time-animation';
 import {
@@ -16,6 +20,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 type ExtendedLabelShot = LabelShot & {
   expand?: {
@@ -32,6 +37,26 @@ export default function LabelShotsPage() {
     null
   );
   const [loading, setLoading] = useState(true);
+  const [isCreating, setIsCreating] = useState(false);
+
+  async function handleCreateClip() {
+    if (!selectedShot || !selectedShot.expand?.MediaRef) return;
+    setIsCreating(true);
+    try {
+      const mediaClipMutator = new MediaClipMutator(pb);
+      await mediaClipMutator.createFromLabel(
+        selectedShot as ActualizableLabel,
+        LabelType.SHOT,
+        'inspector'
+      );
+      toast.success('Clip created successfully');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to create clip');
+    } finally {
+      setIsCreating(false);
+    }
+  }
 
   useEffect(() => {
     async function fetchShots() {
@@ -102,13 +127,30 @@ export default function LabelShotsPage() {
       </Card>
 
       <Card className="md:col-span-2 flex flex-col h-full">
-        <CardHeader>
-          <CardTitle className="capitalize">
-            {selectedShot?.entity || 'Select a shot'}
-          </CardTitle>
-          <CardDescription>{selectedShot?.entity || 'No shot'}</CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <div className="flex flex-col space-y-1.5">
+            <CardTitle className="capitalize">
+              {selectedShot?.entity || 'Select a shot'}
+            </CardTitle>
+            <CardDescription>
+              {selectedShot?.entity || 'No shot'}
+            </CardDescription>
+          </div>
+          {selectedShot && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCreateClip}
+              disabled={isCreating}
+            >
+              {isCreating ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              Create Clip
+            </Button>
+          )}
         </CardHeader>
-        <CardContent className="flex-1 overflow-auto">
+        <CardContent className="flex-1 overflow-auto pt-6">
           {selectedShot && selectedShot.expand?.MediaRef ? (
             <div className="space-y-4">
               <div className="relative aspect-video bg-black rounded-lg overflow-hidden">

@@ -4,12 +4,21 @@ import { MediaClipInputSchema } from '../schema';
 import type {
   MediaClip,
   MediaClipInput,
-  LabelClip,
+  LabelShot,
+  LabelPerson,
+  LabelObject,
+  LabelFace,
   MediaRecommendation,
 } from '../schema';
 import type { TypedPocketBase } from '../types';
 import { BaseMutator, type MutatorOptions } from './base';
 import { ClipType, LabelType } from '../enums';
+
+export type ActualizableLabel =
+  | LabelShot
+  | LabelPerson
+  | LabelObject
+  | LabelFace;
 
 /**
  * Options for filtering media clips by workspace
@@ -128,58 +137,62 @@ export class MediaClipMutator extends BaseMutator<MediaClip, MediaClipInput> {
   }
 
   /**
-   * Create a MediaClip from a LabelClip
-   * @param labelClip The source label_clip
+   * Create a MediaClip from a LabelClip or a source label
+   * @param source The source label_clip or source label (Shot, Person, Object, Face)
+   * @param labelType The label type (required if source is NOT a LabelClip)
    * @param processor The processor version to set on the clip
    * @returns The created or existing MediaClip
    */
   async createFromLabel(
-    labelClip: LabelClip,
-    processor?: string
+    labelInput: ActualizableLabel,
+    labelType: LabelType,
+    processor: string
   ): Promise<MediaClip> {
-    // Check for existing derived clip (deduplication)
-    const existingClip = await this.findDerivedClip(
-      labelClip.MediaRef,
-      labelClip.id
-    );
-
-    if (existingClip) {
-      return existingClip;
-    }
-
     // Map labelType to ClipType
     const typeMapping: Record<LabelType, ClipType> = {
       [LabelType.OBJECT]: ClipType.OBJECT,
       [LabelType.SHOT]: ClipType.SHOT,
       [LabelType.PERSON]: ClipType.PERSON,
       [LabelType.SPEECH]: ClipType.SPEECH,
-      [LabelType.FACE]: ClipType.PERSON,
+      [LabelType.FACE]: ClipType.FACE,
       [LabelType.SEGMENT]: ClipType.RANGE,
       [LabelType.TEXT]: ClipType.SPEECH,
     };
 
-    const clipType = typeMapping[labelClip.labelType as LabelType];
+    const clipType = typeMapping[labelType];
+
+    // Extract confidence (LabelFace uses avgConfidence, others use confidence)
+    const confidence =
+      'confidence' in labelInput
+        ? labelInput.confidence
+        : 'avgConfidence' in labelInput
+          ? labelInput.avgConfidence
+          : 0;
+
+    // Extract version (only LabelObject and LabelFace have version)
+    const version =
+      'version' in labelInput && labelInput.version ? labelInput.version : 1;
 
     // Create the MediaClip input
     const clipInput: MediaClipInput = {
-      WorkspaceRef: labelClip.WorkspaceRef,
-      MediaRef: labelClip.MediaRef,
+      WorkspaceRef: labelInput.WorkspaceRef,
+      MediaRef: labelInput.MediaRef,
       type: clipType,
-      start: labelClip.start,
-      end: labelClip.end,
-      duration: labelClip.duration,
-      version: labelClip.version || 1,
-      processor: processor || labelClip.processor,
+      start: labelInput.start,
+      end: labelInput.end,
+      duration: labelInput.duration,
+      version: version,
+      processor: processor,
       clipData: {
-        sourceLabel: labelClip.id,
-        labelType: labelClip.labelType,
-        confidence: labelClip.confidence,
-        provider: labelClip.provider,
+        sourceId: labelInput.id,
+        sourceType: 'label',
+        labelType: labelType,
+        confidence: confidence,
       },
     };
 
     // Create and return the clip
-    return this.create(clipInput);
+    return await this.create(clipInput);
   }
 
   /**
@@ -190,7 +203,7 @@ export class MediaClipMutator extends BaseMutator<MediaClip, MediaClipInput> {
    */
   async createFromRecommendation(
     recommendation: MediaRecommendation,
-    processor?: string
+    processor: string
   ): Promise<MediaClip> {
     const duration = recommendation.end - recommendation.start;
 
@@ -203,12 +216,12 @@ export class MediaClipMutator extends BaseMutator<MediaClip, MediaClipInput> {
       end: recommendation.end,
       duration,
       version: recommendation.version || 1,
-      processor: processor || recommendation.processor,
+      processor: processor,
       clipData: {
         sourceId: recommendation.id,
         sourceType: 'recommendation',
-        strategy: recommendation.strategy,
         labelType: recommendation.labelType,
+        strategy: recommendation.strategy,
         score: recommendation.score,
         rank: recommendation.rank,
       },
