@@ -37,10 +37,8 @@ export const LabelSegmentSchema = z
     // Use the confidence from the specific segment object
     confidence: NumberField({ min: 0, max: 1 }),
 
-    // --- System ---
+    // --- Metadata ---
     version: NumberField().default(1).optional(),
-
-    // Store original JSON or extra attributes if needed
     metadata: JSONField(),
   })
   .extend(baseSchema);

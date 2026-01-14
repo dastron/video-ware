@@ -1,6 +1,6 @@
 import { defineConfig } from 'tsup';
 
-export default defineConfig({
+export default defineConfig((options) => ({
   entry: {
     index: 'src/index.ts',
     schema: 'src/schema.ts',
@@ -15,9 +15,9 @@ export default defineConfig({
   },
   format: ['esm', 'cjs'],
   dts: true,
-  clean: true,
+  clean: !options.watch, // Only clean when not in watch mode
   sourcemap: true,
   minify: false,
   splitting: false,
   treeshake: true,
-});
+}));

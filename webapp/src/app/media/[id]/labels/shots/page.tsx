@@ -46,7 +46,8 @@ export default function LabelShotsPage() {
       const mediaClipMutator = new MediaClipMutator(pb);
       await mediaClipMutator.createFromLabel(
         selectedShot as ActualizableLabel,
-        LabelType.SHOT
+        LabelType.SHOT,
+        'inspector'
       );
       toast.success('Clip created successfully');
     } catch (err) {

@@ -50,7 +50,8 @@ export default function LabelObjectsPage() {
       const mediaClipMutator = new MediaClipMutator(pb);
       await mediaClipMutator.createFromLabel(
         selectedObject as ActualizableLabel,
-        LabelType.OBJECT
+        LabelType.OBJECT,
+        'inspector'
       );
       toast.success('Clip created successfully');
     } catch (err) {

@@ -60,6 +60,7 @@ describe('RecommendationService', () => {
         labelObjects: [],
         labelShots: [],
         labelTracks: [],
+        labelSpeech: [],
         labelEntities: [{ id: 'e1', canonicalName: 'John Doe' }],
         existingClips: [],
         filterParams: {},
@@ -130,6 +131,7 @@ describe('RecommendationService', () => {
         ],
         labelShots: [],
         labelTracks: [],
+        labelSpeech: [],
         labelEntities: [{ id: 'e1', canonicalName: 'Car' }],
         searchParams: {},
       });

@@ -50,7 +50,8 @@ export default function LabelPeoplePage() {
       const mediaClipMutator = new MediaClipMutator(pb);
       await mediaClipMutator.createFromLabel(
         selectedPerson as ActualizableLabel,
-        LabelType.PERSON
+        LabelType.PERSON,
+        'inspector'
       );
       toast.success('Clip created successfully');
     } catch (err) {

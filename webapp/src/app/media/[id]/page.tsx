@@ -196,7 +196,10 @@ function MediaDetailsPageContentWithRecommendations() {
 
     try {
       const clipMutator = new MediaClipMutator(pb);
-      await clipMutator.createFromLabel(recommendation);
+      await clipMutator.createFromRecommendation(
+        recommendation,
+        'recommendation'
+      );
 
       toast.success('Clip created from recommendation');
       refresh(); // Refresh clips list

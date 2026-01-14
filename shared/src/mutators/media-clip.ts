@@ -4,14 +4,12 @@ import { MediaClipInputSchema } from '../schema';
 import type {
   MediaClip,
   MediaClipInput,
-  LabelClip,
   LabelShot,
   LabelPerson,
   LabelObject,
   LabelFace,
   MediaRecommendation,
 } from '../schema';
-import { LabelClipMutator } from './label-clip';
 import type { TypedPocketBase } from '../types';
 import { BaseMutator, type MutatorOptions } from './base';
 import { ClipType, LabelType } from '../enums';
@@ -20,9 +18,7 @@ export type ActualizableLabel =
   | LabelShot
   | LabelPerson
   | LabelObject
-  | LabelFace
-  | MediaRecommendation
-  | LabelClip;
+  | LabelFace;
 
 /**
  * Options for filtering media clips by workspace
@@ -148,47 +144,10 @@ export class MediaClipMutator extends BaseMutator<MediaClip, MediaClipInput> {
    * @returns The created or existing MediaClip
    */
   async createFromLabel(
-    source: ActualizableLabel,
-    labelType?: LabelType,
-    processor?: string
+    labelInput: ActualizableLabel,
+    labelType: LabelType,
+    processor: string
   ): Promise<MediaClip> {
-    let labelClip: LabelClip;
-
-    // Type guard for LabelClip
-    const isLabelClip = (val: ActualizableLabel): val is LabelClip => {
-      return (val as any).labelHash !== undefined;
-    };
-
-    if (isLabelClip(source)) {
-      labelClip = source;
-    } else {
-      let effectiveLabelType = labelType || (source as any).labelType;
-
-      if (Array.isArray(effectiveLabelType)) {
-        effectiveLabelType = effectiveLabelType[0];
-      }
-
-      if (!effectiveLabelType) {
-        throw new Error('labelType is required when actualizing from source');
-      }
-      // It's a source label (Shot, Person, Object, Face, Recommendation), actualize it first
-      const labelClipMutator = new LabelClipMutator(this.pb);
-      labelClip = await labelClipMutator.createFromSource(
-        source as any,
-        effectiveLabelType
-      );
-    }
-
-    // Check for existing derived clip (deduplication)
-    const existingClip = await this.findDerivedClip(
-      labelClip.MediaRef,
-      labelClip.id
-    );
-
-    if (existingClip) {
-      return existingClip;
-    }
-
     // Map labelType to ClipType
     const typeMapping: Record<LabelType, ClipType> = {
       [LabelType.OBJECT]: ClipType.OBJECT,
@@ -200,29 +159,75 @@ export class MediaClipMutator extends BaseMutator<MediaClip, MediaClipInput> {
       [LabelType.TEXT]: ClipType.SPEECH,
     };
 
-    const clipType = typeMapping[labelClip.labelType as LabelType];
+    const clipType = typeMapping[labelType];
+
+    // Extract confidence (LabelFace uses avgConfidence, others use confidence)
+    const confidence =
+      'confidence' in labelInput
+        ? labelInput.confidence
+        : 'avgConfidence' in labelInput
+          ? labelInput.avgConfidence
+          : 0;
+
+    // Extract version (only LabelObject and LabelFace have version)
+    const version =
+      'version' in labelInput && labelInput.version ? labelInput.version : 1;
 
     // Create the MediaClip input
     const clipInput: MediaClipInput = {
-      WorkspaceRef: labelClip.WorkspaceRef,
-      MediaRef: labelClip.MediaRef,
+      WorkspaceRef: labelInput.WorkspaceRef,
+      MediaRef: labelInput.MediaRef,
       type: clipType,
-      start: labelClip.start,
-      end: labelClip.end,
-      duration: labelClip.duration,
-      version: labelClip.version || 1,
-      processor: processor || labelClip.processor,
+      start: labelInput.start,
+      end: labelInput.end,
+      duration: labelInput.duration,
+      version: version,
+      processor: processor,
       clipData: {
-        sourceLabel: labelClip.id,
-        labelType: labelClip.labelType,
-        confidence: labelClip.confidence,
-        provider: labelClip.provider,
-        labelHash: labelClip.labelHash, // Include labelHash in clipData for easier mapping
-        ...labelClip.labelData, // Clone labelData to clipData
+        sourceId: labelInput.id,
+        sourceType: 'label',
+        labelType: labelType,
+        confidence: confidence,
       },
     };
 
     // Create and return the clip
     return await this.create(clipInput);
+  }
+
+  /**
+   * Create a MediaClip from a MediaRecommendation
+   * @param recommendation The source media recommendation
+   * @param processor The processor version to set on the clip
+   * @returns The created MediaClip
+   */
+  async createFromRecommendation(
+    recommendation: MediaRecommendation,
+    processor: string
+  ): Promise<MediaClip> {
+    const duration = recommendation.end - recommendation.start;
+
+    // Create the MediaClip input
+    const clipInput: MediaClipInput = {
+      WorkspaceRef: recommendation.WorkspaceRef,
+      MediaRef: recommendation.MediaRef,
+      type: ClipType.RECOMMENDATION,
+      start: recommendation.start,
+      end: recommendation.end,
+      duration,
+      version: recommendation.version || 1,
+      processor: processor,
+      clipData: {
+        sourceId: recommendation.id,
+        sourceType: 'recommendation',
+        labelType: recommendation.labelType,
+        strategy: recommendation.strategy,
+        score: recommendation.score,
+        rank: recommendation.rank,
+      },
+    };
+
+    // Create and return the clip
+    return this.create(clipInput);
   }
 }

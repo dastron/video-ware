@@ -14,10 +14,6 @@ export const LabelTrackSchema = z
     // --- Relations ---
     WorkspaceRef: RelationField({ collection: 'Workspaces' }),
     MediaRef: RelationField({ collection: 'Media' }),
-    TaskRef: RelationField({ collection: 'Tasks' }).optional(),
-
-    // Optional: Useful for debugging, but technically redundant if
-    // LabelObjects/LabelFaces already point TO this track.
     LabelEntityRef: RelationField({ collection: 'LabelEntity' }).optional(),
 
     // --- Identification ---
@@ -48,13 +44,16 @@ export const LabelTrackSchema = z
 
 // Define input schema for creating label tracks
 export const LabelTrackInputSchema = z.object({
+  // --- Relations ---
   WorkspaceRef: z.string().min(1, 'Workspace is required'),
   MediaRef: z.string().min(1, 'Media is required'),
-  TaskRef: z.string().optional(),
   LabelEntityRef: z.string().optional(),
+
+  // --- Identification ---
   trackId: z.string().min(1, 'Track ID is required'),
   trackHash: z.string().min(1, 'Track hash is required'),
 
+  // --- Timing ---
   start: z.number().min(0),
   end: z.number().min(0),
   duration: z.number().min(0),

@@ -51,7 +51,8 @@ export default function LabelFacesPage() {
       const mediaClipMutator = new MediaClipMutator(pb);
       await mediaClipMutator.createFromLabel(
         selectedFace as ActualizableLabel,
-        LabelType.FACE
+        LabelType.FACE,
+        'inspector'
       );
       toast.success('Clip created and recommended');
     } catch (err) {
