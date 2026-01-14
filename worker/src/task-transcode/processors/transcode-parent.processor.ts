@@ -12,6 +12,12 @@ import {
   type TaskTranscodeTranscodeStep,
   type TaskTranscodeAudioStep,
 } from '@project/shared/jobs';
+import {
+  ProcessingProvider,
+  TaskType,
+  type DetectLabelsPayload,
+  type ProcessUploadPayload,
+} from '@project/shared';
 import { PocketBaseService } from '../../shared/services/pocketbase.service';
 import { StorageService } from '../../shared/services/storage.service';
 import { ProbeStepProcessor } from './probe-step.processor';
@@ -92,18 +98,82 @@ export class TranscodeParentProcessor extends BaseFlowProcessor {
       throw new Error(`Task failed with ${failedSteps.length} failed steps`);
     }
 
-    // Clean up temporary files (input file downloaded from S3)
-    // Use uploadId if available (it should be set by TranscodeFlowBuilder)
-    const { uploadId } = job.data;
-    if (uploadId) {
-      this.logger.debug(
-        `Cleaning up temporary files for upload ${uploadId} (task ${taskId})`
-      );
-      await this.storageService.cleanupTemp(uploadId);
-    }
+    await this.enqueueLabelsIfConfigured(taskId);
 
     // Task succeeded - base class will handle the status update on completion
     this.logger.log(`Task ${taskId} completed successfully`);
+  }
+
+  private async enqueueLabelsIfConfigured(taskId: string): Promise<void> {
+    const task = await this.pocketbaseService.taskMutator.getById(taskId);
+    if (!task) return;
+
+    const payload = task.payload as ProcessUploadPayload;
+    if (!payload.labels) return;
+
+    const uploadId = payload.uploadId;
+    const [upload, media] = await Promise.all([
+      this.pocketbaseService.uploadMutator.getById(uploadId),
+      this.pocketbaseService.getMediaByUpload(uploadId),
+    ]);
+
+    if (!upload) {
+      this.logger.warn(
+        `Skipping label enqueue: upload ${uploadId} not found for task ${taskId}`
+      );
+      return;
+    }
+
+    if (!media) {
+      this.logger.warn(
+        `Skipping label enqueue: media not found for upload ${uploadId}`
+      );
+      return;
+    }
+
+    if (!upload.externalPath) {
+      this.logger.warn(
+        `Skipping label enqueue: upload ${uploadId} has no externalPath`
+      );
+      return;
+    }
+
+    const existing = await this.pocketbaseService.taskMutator.getList(
+      1,
+      1,
+      `sourceId = "${media.id}" && type = "${TaskType.DETECT_LABELS}"`
+    );
+    if (existing.items.length > 0) {
+      this.logger.log(
+        `Detect labels task already exists for media ${media.id}; skipping`
+      );
+      return;
+    }
+
+    const labelsPayload: DetectLabelsPayload = {
+      mediaId: media.id,
+      fileRef: upload.externalPath,
+      provider: ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
+      config: payload.labels,
+    };
+
+    const userId = (task.UserRef as string) || (upload.UserRef as string);
+    if (!userId) {
+      this.logger.warn(
+        `Skipping label enqueue: missing user for upload ${uploadId}`
+      );
+      return;
+    }
+    await this.pocketbaseService.taskMutator.createDetectLabelsTask(
+      task.WorkspaceRef as string,
+      userId,
+      media.id,
+      labelsPayload
+    );
+
+    this.logger.log(
+      `Queued detect labels task for media ${media.id} (upload ${uploadId})`
+    );
   }
 
   protected async processStepJob(job: Job<StepJobData>): Promise<StepResult> {

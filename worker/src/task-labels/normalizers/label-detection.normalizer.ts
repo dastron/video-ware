@@ -107,6 +107,7 @@ export class LabelDetectionNormalizer {
             processor: processorVersion,
             provider: ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
             taskRef,
+            entityHash,
           },
         });
 
@@ -189,6 +190,7 @@ export class LabelDetectionNormalizer {
             processor: processorVersion,
             provider: ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE,
             taskRef,
+            entityHash,
           },
         });
 

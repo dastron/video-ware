@@ -1,10 +1,13 @@
 import { RecordService } from 'pocketbase';
 import type { ListResult } from 'pocketbase';
 import { UploadInputSchema } from '../schema';
-import { UploadStatus } from '../enums';
-import type { Upload, UploadInput } from '../schema';
+import { ProcessingProvider, UploadStatus } from '../enums';
+import type { Upload, UploadInput, Task } from '../schema';
 import type { TypedPocketBase } from '../types';
+import type { LabelsFlowConfig, TranscodeFlowConfig } from '../jobs';
+import type { ProcessUploadPayload } from '../types';
 import { BaseMutator, type MutatorOptions } from './base';
+import { TaskMutator } from './task';
 
 export class UploadMutator extends BaseMutator<Upload, UploadInput> {
   constructor(pb: TypedPocketBase, options?: Partial<MutatorOptions>) {
@@ -98,6 +101,90 @@ export class UploadMutator extends BaseMutator<Upload, UploadInput> {
     } catch (error) {
       return this.errorWrapper(error);
     }
+  }
+
+  /**
+   * Create a processing task that will transcode and then enqueue label detection
+   * @param uploadId The upload ID
+   * @param userId Optional user ID override
+   * @param transcodeConfig Optional transcode config overrides
+   * @param labelsConfig Optional labels config overrides
+   * @returns The created processing task
+   */
+  async processUploadAndDetectLabels(
+    uploadId: string,
+    userId?: string,
+    transcodeConfig?: TranscodeFlowConfig,
+    labelsConfig?: LabelsFlowConfig
+  ): Promise<Task> {
+    const upload = await this.getById(uploadId);
+    if (!upload) {
+      throw new Error(`Upload not found: ${uploadId}`);
+    }
+
+    const currentUserId =
+      userId || (upload.UserRef as string) || this.pb.authStore.record?.id;
+    if (!currentUserId) {
+      throw new Error('User context required for task creation');
+    }
+
+    const defaultTranscode: TranscodeFlowConfig = {
+      provider: ProcessingProvider.FFMPEG,
+      sprite: {
+        fps: 1,
+        cols: 10,
+        rows: 10,
+        tileWidth: 320,
+        tileHeight: 180,
+      },
+      thumbnail: {
+        timestamp: 'midpoint',
+        width: 640,
+        height: 360,
+      },
+      filmstrip: {
+        cols: 100,
+        rows: 1,
+        tileWidth: 320,
+        tileHeight: 180,
+      },
+      transcode: {
+        enabled: true,
+        codec: 'h265',
+        resolution: '720p',
+      },
+      audio: {
+        enabled: true,
+        bitrate: '128k',
+      },
+    };
+
+    const defaultLabels: LabelsFlowConfig = {
+      confidenceThreshold: 0.5,
+      detectObjects: true,
+      detectLabels: true,
+      detectFaces: true,
+      detectPersons: true,
+      detectSpeech: true,
+    };
+
+    const payload: ProcessUploadPayload = {
+      uploadId,
+      ...defaultTranscode,
+      ...transcodeConfig,
+      labels: {
+        ...defaultLabels,
+        ...labelsConfig,
+      },
+    };
+
+    const taskMutator = new TaskMutator(this.pb);
+    return taskMutator.createProcessUploadTask(
+      upload.WorkspaceRef as string,
+      currentUserId,
+      uploadId,
+      payload
+    );
   }
 
   /**

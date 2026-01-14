@@ -74,6 +74,8 @@ export interface ProcessUploadPayload {
   uploadId: string;
   /** Processing provider to use (FFmpeg, Google Cloud, etc.) */
   provider?: ProcessingProvider;
+  /** Optional label detection configuration to enqueue after transcode */
+  labels?: DetectLabelsConfig;
   /** Configuration for sprite sheet generation */
   sprite?: SpriteConfig;
   /** Configuration for filmstrip generation */
