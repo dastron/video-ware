@@ -111,17 +111,41 @@ export class LabelDetectionStepProcessor extends BaseStepProcessor<
       });
 
       // Step 4: Batch insert LabelEntity records
-      const entityIds = await this.batchInsertLabelEntities(
+      const entityIdMap = await this.batchInsertLabelEntities(
         normalizedData.labelEntities
       );
+      const entityIds = Object.values(entityIdMap);
 
       // Step 5: Batch insert specialized records (Segments and Shots)
-      const segmentIds = await this.batchInsertLabelSegments(
-        normalizedData.labelSegments || []
+      const segmentsWithRefs = (normalizedData.labelSegments || []).map(
+        (segment) => ({
+          ...segment,
+          LabelEntityRef:
+            segment.LabelEntityRef ||
+            this.getEntityRefForLabel(
+              segment.WorkspaceRef,
+              segment.labelType,
+              segment.entity,
+              segment.metadata,
+              entityIdMap
+            ),
+        })
       );
-      const shotIds = await this.batchInsertLabelShots(
-        normalizedData.labelShots || []
-      );
+      const shotsWithRefs = (normalizedData.labelShots || []).map((shot) => ({
+        ...shot,
+        LabelEntityRef:
+          shot.LabelEntityRef ||
+          this.getEntityRefForLabel(
+            shot.WorkspaceRef,
+            shot.labelType,
+            shot.entity,
+            shot.metadata,
+            entityIdMap
+          ),
+      }));
+
+      const segmentIds = await this.batchInsertLabelSegments(segmentsWithRefs);
+      const shotIds = await this.batchInsertLabelShots(shotsWithRefs);
 
       // Clear entity cache
       this.labelEntityService.clearCache();
@@ -180,20 +204,40 @@ export class LabelDetectionStepProcessor extends BaseStepProcessor<
     }
   }
 
-  private async batchInsertLabelEntities(entities: any[]): Promise<string[]> {
-    const entityIds: string[] = [];
+  private async batchInsertLabelEntities(
+    entities: Array<{
+      WorkspaceRef: string;
+      labelType: LabelType;
+      canonicalName: string;
+      provider: ProcessingProvider;
+      processor: string;
+      metadata?: Record<string, unknown>;
+      entityHash?: string;
+    }>
+  ): Promise<Record<string, string>> {
+    const entityIdMap: Record<string, string> = {};
     for (const entity of entities) {
       const entityId = await this.labelEntityService.getOrCreateLabelEntity(
         entity.WorkspaceRef,
         entity.labelType,
         entity.canonicalName,
-        entity.provider,
+        entity.provider as
+          | ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE
+          | ProcessingProvider.GOOGLE_SPEECH,
         entity.processor,
         entity.metadata
       );
-      entityIds.push(entityId);
+      const entityHash =
+        entity.entityHash ||
+        this.labelEntityService.generateEntityHash(
+          entity.WorkspaceRef,
+          entity.labelType,
+          entity.canonicalName,
+          entity.provider
+        );
+      entityIdMap[entityHash] = entityId;
     }
-    return entityIds;
+    return entityIdMap;
   }
 
   private async batchInsertLabelSegments(
@@ -242,5 +286,29 @@ export class LabelDetectionStepProcessor extends BaseStepProcessor<
       }
     }
     return ids;
+  }
+
+  private getEntityRefForLabel(
+    workspaceRef: string,
+    labelType: LabelType,
+    canonicalName: string,
+    metadata: Record<string, unknown> | undefined,
+    entityIdMap: Record<string, string>
+  ): string | undefined {
+    const entityHash = metadata?.entityHash as string | undefined;
+    if (entityHash && entityIdMap[entityHash]) {
+      return entityIdMap[entityHash];
+    }
+
+    const provider =
+      (metadata?.provider as ProcessingProvider | undefined) ??
+      ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE;
+    const generatedHash = this.labelEntityService.generateEntityHash(
+      workspaceRef,
+      labelType,
+      canonicalName,
+      provider as ProcessingProvider.GOOGLE_VIDEO_INTELLIGENCE
+    );
+    return entityIdMap[generatedHash];
   }
 }
