@@ -9,6 +9,7 @@ import {
   LabelObjectMutator,
   LabelShotMutator,
   LabelTrackMutator,
+  LabelSpeechMutator,
   LabelEntityMutator,
   MediaRecommendationMutator,
   TimelineRecommendationMutator,
@@ -45,6 +46,7 @@ export class RecommendationService {
   private labelObjectMutator: LabelObjectMutator;
   private labelShotMutator: LabelShotMutator;
   private labelTrackMutator: LabelTrackMutator;
+  private labelSpeechMutator: LabelSpeechMutator;
   private labelEntityMutator: LabelEntityMutator;
   private mediaRecommendationMutator: MediaRecommendationMutator;
   private timelineRecommendationMutator: TimelineRecommendationMutator;
@@ -61,6 +63,7 @@ export class RecommendationService {
     this.labelObjectMutator = new LabelObjectMutator(pb);
     this.labelShotMutator = new LabelShotMutator(pb);
     this.labelTrackMutator = new LabelTrackMutator(pb);
+    this.labelSpeechMutator = new LabelSpeechMutator(pb);
     this.labelEntityMutator = new LabelEntityMutator(pb);
     this.mediaRecommendationMutator = new MediaRecommendationMutator(pb);
     this.timelineRecommendationMutator = new TimelineRecommendationMutator(pb);
@@ -81,14 +84,21 @@ export class RecommendationService {
     mediaId: string,
     filterParams: FilterParams = {},
     maxResults: number = 10,
-    forceRefresh: boolean = false
+    forceRefresh: boolean = false,
+    requestedStrategies?: RecommendationStrategy[]
   ): Promise<MediaRecommendation[]> {
     const context = await this.loadMediaContext(
       workspaceId,
       mediaId,
       filterParams
     );
-    const strategies = this.registry.getAll();
+
+    let strategies = this.registry.getAll();
+    if (requestedStrategies && requestedStrategies.length > 0) {
+      strategies = strategies.filter((s) =>
+        requestedStrategies.includes(s.name)
+      );
+    }
 
     const queryHash = buildMediaQueryHash({
       workspaceId,
@@ -166,7 +176,8 @@ export class RecommendationService {
     seedClipId?: string,
     searchParams: SearchParams = {},
     maxResults: number = 10,
-    forceRefresh: boolean = false
+    forceRefresh: boolean = false,
+    requestedStrategies?: RecommendationStrategy[]
   ): Promise<TimelineRecommendation[]> {
     const context = await this.loadTimelineContext(
       workspaceId,
@@ -174,7 +185,13 @@ export class RecommendationService {
       seedClipId,
       searchParams
     );
-    const strategies = this.registry.getAll();
+
+    let strategies = this.registry.getAll();
+    if (requestedStrategies && requestedStrategies.length > 0) {
+      strategies = strategies.filter((s) =>
+        requestedStrategies.includes(s.name)
+      );
+    }
 
     // Calculate query hash for caching
     const queryHash = buildTimelineQueryHash({
@@ -212,12 +229,43 @@ export class RecommendationService {
       this.combiner.combineTimelineCandidates(candidatesByStrategy);
 
     // Filter out duplicates (clips already in timeline)
-    const timelineClipIds = new Set(
-      context.timelineClips.map((tc) => tc.MediaClipRef)
-    );
-    const uniqueCandidates = combined.filter(
-      (c) => !timelineClipIds.has(c.clipId)
-    );
+    // AND clips that overlap with existing timeline content from the same media
+    const timelineClips = context.timelineClips;
+
+    const uniqueCandidates = combined.filter((c) => {
+      // 1. Exact clip ID check
+      if (timelineClips.some((tc) => tc.MediaClipRef === c.clipId))
+        return false;
+
+      // 2. Source Media overlap check
+      const candidateClip = context.availableClips.find(
+        (ac) => ac.id === c.clipId
+      );
+      if (!candidateClip) return false;
+
+      for (const tc of timelineClips) {
+        // Look up timeline clip's media clip
+        const tcMediaClip = context.availableClips.find(
+          (ac) => ac.id === tc.MediaClipRef
+        );
+        if (!tcMediaClip) continue;
+
+        if (tcMediaClip.MediaRef === candidateClip.MediaRef) {
+          // Same source media. Check for overlap.
+          const tcStart = tcMediaClip.start;
+          const tcEnd = tcMediaClip.end;
+
+          const cStart = candidateClip.start;
+          const cEnd = candidateClip.end;
+
+          if (Math.max(tcStart, cStart) < Math.min(tcEnd, cEnd)) {
+            // Overlap found
+            return false;
+          }
+        }
+      }
+      return true;
+    });
 
     const ranked = uniqueCandidates
       .sort((a, b) => b.score - a.score)
@@ -288,12 +336,17 @@ export class RecommendationService {
     const labelShots = (await this.labelShotMutator.getByMedia(mediaId)).items;
     const labelTracks = (await this.labelTrackMutator.getByMedia(mediaId))
       .items;
+    const labelSpeech = (await this.labelSpeechMutator.getByMedia(mediaId))
+      .items;
 
     const entityIds = new Set([
       ...labelFaces.map((f) => f.LabelEntityRef),
       ...labelPeople.map((p) => p.LabelEntityRef),
       ...labelObjects.map((o) => o.LabelEntityRef),
       ...labelShots
+        .map((s) => s.LabelEntityRef)
+        .filter((id): id is string => !!id),
+      ...labelSpeech
         .map((s) => s.LabelEntityRef)
         .filter((id): id is string => !!id),
     ]);
@@ -314,6 +367,7 @@ export class RecommendationService {
       labelObjects,
       labelShots,
       labelTracks,
+      labelSpeech,
       labelEntities,
       existingClips,
       filterParams,
@@ -349,12 +403,13 @@ export class RecommendationService {
     );
 
     // Fetch from all specialized collections
-    const [faces, people, objects, shots, tracks] = await Promise.all([
+    const [faces, people, objects, shots, tracks, speech] = await Promise.all([
       Promise.all(mediaIds.map((id) => this.labelFaceMutator.getByMedia(id))),
       Promise.all(mediaIds.map((id) => this.labelPersonMutator.getByMedia(id))),
       Promise.all(mediaIds.map((id) => this.labelObjectMutator.getByMedia(id))),
       Promise.all(mediaIds.map((id) => this.labelShotMutator.getByMedia(id))),
       Promise.all(mediaIds.map((id) => this.labelTrackMutator.getByMedia(id))),
+      Promise.all(mediaIds.map((id) => this.labelSpeechMutator.getByMedia(id))),
     ]);
 
     const labelFaces = faces.flatMap((r) => r.items);
@@ -362,12 +417,16 @@ export class RecommendationService {
     const labelObjects = objects.flatMap((r) => r.items);
     const labelShots = shots.flatMap((r) => r.items);
     const labelTracks = tracks.flatMap((r) => r.items);
+    const labelSpeech = speech.flatMap((r) => r.items);
 
     const entityIds = new Set([
       ...labelFaces.map((f) => f.LabelEntityRef),
       ...labelPeople.map((p) => p.LabelEntityRef),
       ...labelObjects.map((o) => o.LabelEntityRef),
       ...labelShots
+        .map((s) => s.LabelEntityRef)
+        .filter((id): id is string => !!id),
+      ...labelSpeech
         .map((s) => s.LabelEntityRef)
         .filter((id): id is string => !!id),
     ]);
@@ -387,6 +446,7 @@ export class RecommendationService {
       labelObjects,
       labelShots,
       labelTracks,
+      labelSpeech,
       labelEntities,
       searchParams,
     };

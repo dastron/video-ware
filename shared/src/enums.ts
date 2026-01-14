@@ -106,6 +106,8 @@ export enum RecommendationStrategy {
   ADJACENT_SHOT = 'adjacent_shot',
   TEMPORAL_NEARBY = 'temporal_nearby',
   CONFIDENCE_DURATION = 'confidence_duration',
+  DIALOG_CLUSTER = 'dialog_cluster',
+  OBJECT_POSITION_MATCHER = 'object_position_matcher',
 }
 
 export enum RecommendationTargetMode {
