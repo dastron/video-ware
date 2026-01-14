@@ -30,7 +30,7 @@ describe('TranscodeFlowBuilder - Flow Definition Compliance', () => {
       filmstrip: {
         cols: 100,
         rows: 1,
-        tileWidth: 160,
+        tileWidth: 320,
       },
       transcode: {
         enabled: true,

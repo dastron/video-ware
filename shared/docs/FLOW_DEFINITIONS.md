@@ -73,7 +73,7 @@ const payload: ProcessUploadPayload = {
   provider: ProcessingProvider.FFMPEG,
   thumbnail: { timestamp: 1, width: 320, height: 240 },
   sprite: { fps: 1, cols: 10, rows: 10, tileWidth: 160, tileHeight: 120 },
-  filmstrip: { cols: 100, rows: 1, tileWidth: 160 },
+  filmstrip: { cols: 100, rows: 1, tileWidth: 320 },
   transcode: { enabled: true, codec: 'h264', resolution: '720p' },
   audio: {
     enabled: true,
