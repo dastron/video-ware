@@ -88,6 +88,11 @@ export class ProbeStepProcessor extends BaseStepProcessor<
         ? probeOutput.width / probeOutput.height
         : undefined;
 
+    // Determine if audio is present
+    const hasAudio =
+      !!probeOutput.audio &&
+      (probeOutput.audio.channels > 0 || !!probeOutput.audio.codec);
+
     // Create Media record
     const mediaData: MediaInput = {
       WorkspaceRef: upload.WorkspaceRef,
@@ -99,6 +104,7 @@ export class ProbeStepProcessor extends BaseStepProcessor<
       height: probeOutput.height,
       aspectRatio,
       mediaData: probeOutput,
+      hasAudio,
       version: 1,
     };
 

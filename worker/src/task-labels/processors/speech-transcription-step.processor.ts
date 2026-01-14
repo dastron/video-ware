@@ -64,6 +64,33 @@ export class SpeechTranscriptionStepProcessor extends BaseStepProcessor<
     );
 
     try {
+      // Step 0: Check if media has audio
+      const media = await this.pocketBaseService.getMedia(input.mediaId);
+      if (media.hasAudio === false) {
+        this.logger.log(
+          `Media ${input.mediaId} has no audio track, skipping speech transcription`
+        );
+        return {
+          success: true,
+          cacheHit: false,
+          processorVersion: this.processorVersion,
+          processingTimeMs: Date.now() - startTime,
+          counts: {
+            transcriptLength: 0,
+            wordCount: 0,
+            labelEntityCount: 0,
+            labelTrackCount: 0,
+            labelClipCount: 0,
+            labelObjectCount: 0,
+            labelFaceCount: 0,
+            labelPersonCount: 0,
+            labelSpeechCount: 0,
+            labelSegmentCount: 0,
+            labelShotCount: 0,
+          },
+        };
+      }
+
       // Step 1: Check cache before calling executor
       const cached = await this.labelCacheService.getCachedLabels(
         input.workspaceRef,

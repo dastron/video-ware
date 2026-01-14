@@ -8,6 +8,7 @@ import {
   TextField,
   baseSchema,
   DateField,
+  BoolField,
 } from 'pocketbase-zod-schema/schema';
 import { z } from 'zod';
 import { MediaType } from '../enums';
@@ -29,6 +30,7 @@ export const MediaSchema = z
     filmstripFileRefs: RelationsField({ collection: 'Files' }).optional(),
     proxyFileRef: RelationField({ collection: 'Files' }).optional(),
     audioFileRef: RelationField({ collection: 'Files' }).optional(),
+    hasAudio: BoolField().optional().default(true),
     version: NumberField().default(1).optional(),
     processor: TextField().optional(),
   })
@@ -50,6 +52,7 @@ export const MediaInputSchema = z.object({
   filmstripFileRef: z.string().optional(),
   proxyFileRef: z.string().optional(),
   audioFileRef: z.string().optional(),
+  hasAudio: z.boolean().optional(),
   version: NumberField().default(1).optional(),
   processor: z.string().optional(),
 });
