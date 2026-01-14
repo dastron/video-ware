@@ -89,9 +89,10 @@ export class FinalizeRenderStepProcessor extends BaseStepProcessor<
         const fs = await import('fs');
         const fileStream = fs.createReadStream(localPath);
         // Convert Node stream to Web Stream for storage service
-        // @ts-ignore - types might be slightly incompatible but runtime works for Readable.toWeb
-        const webStream = Readable.toWeb(fileStream);
-        await this.storageService.upload(storagePath, webStream as any);
+        const webStream = Readable.toWeb(
+          fileStream
+        ) as unknown as ReadableStream;
+        await this.storageService.upload(storagePath, webStream);
         this.logger.log(`Successfully uploaded render to S3: ${storagePath}`);
 
         // Try to create File record with S3 source
@@ -115,9 +116,7 @@ export class FinalizeRenderStepProcessor extends BaseStepProcessor<
           fallbackError instanceof Error
             ? fallbackError.message
             : String(fallbackError);
-        this.logger.error(
-          `S3 fallback upload failed: ${fallbackErrorMessage}`
-        );
+        this.logger.error(`S3 fallback upload failed: ${fallbackErrorMessage}`);
         throw error; // Throw the original error
       }
     }
