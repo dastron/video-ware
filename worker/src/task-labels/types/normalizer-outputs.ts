@@ -158,7 +158,11 @@ export interface LabelSegmentData {
   WorkspaceRef: string;
   MediaRef: string;
   LabelEntityRef?: string;
-  labelType: LabelType;
+  labelType:
+    | LabelType.SEGMENT
+    | LabelType.OBJECT
+    | LabelType.PERSON
+    | LabelType.FACE;
   entity: string;
   segmentHash: string;
   start: number;

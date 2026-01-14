@@ -8,6 +8,7 @@ import {
   UploadStatus,
   ProcessingProvider,
   type ProcessUploadPayload,
+  type LabelsFlowConfig,
   type TranscodeFlowConfig,
 } from '@project/shared';
 import type { Upload, Task, UploadInput } from '@project/shared';
@@ -375,6 +376,30 @@ export class UploadService {
     userId: string
   ): Promise<Task> {
     return await this.enqueueProcessingTask(workspaceId, uploadId, userId);
+  }
+
+  async processUploadAndDetectLabels(
+    workspaceId: string,
+    uploadId: string,
+    userId: string,
+    transcodeConfig?: TranscodeFlowConfig,
+    labelsConfig?: LabelsFlowConfig
+  ): Promise<Task> {
+    const upload = await this.uploadMutator.getById(uploadId);
+    if (!upload) {
+      throw new Error(`Upload not found: ${uploadId}`);
+    }
+
+    if (upload.WorkspaceRef !== workspaceId) {
+      throw new Error(`Upload ${uploadId} does not belong to workspace`);
+    }
+
+    return this.uploadMutator.processUploadAndDetectLabels(
+      uploadId,
+      userId,
+      transcodeConfig,
+      labelsConfig
+    );
   }
 
   /**

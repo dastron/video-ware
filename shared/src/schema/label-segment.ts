@@ -18,6 +18,7 @@ export const LabelSegmentSchema = z
     MediaRef: RelationField({ collection: 'Media' }),
     LabelEntityRef: RelationField({ collection: 'LabelEntity' }).optional(),
     labelType: SelectField([
+      LabelType.SEGMENT,
       LabelType.OBJECT,
       LabelType.PERSON,
       LabelType.FACE,
@@ -48,6 +49,12 @@ export const LabelSegmentInputSchema = z.object({
   WorkspaceRef: z.string().min(1, 'Workspace is required'),
   MediaRef: z.string().min(1, 'Media is required'),
   LabelEntityRef: z.string().optional(),
+  labelType: z.enum([
+    LabelType.SEGMENT,
+    LabelType.OBJECT,
+    LabelType.PERSON,
+    LabelType.FACE,
+  ]),
   entity: z.string(),
   segmentHash: z.string().min(1, 'Segment hash is required'),
   start: z.number().min(0),

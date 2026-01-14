@@ -187,7 +187,11 @@ export async function PUT(req: Request) {
 
       try {
         const uploadService = new UploadService(pb);
-        await uploadService.processUpload(workspaceId, uploadId, userId);
+        await uploadService.processUploadAndDetectLabels(
+          workspaceId,
+          uploadId,
+          userId
+        );
 
         console.log(`Processing task created for upload ${uploadId}`);
       } catch (taskError) {
