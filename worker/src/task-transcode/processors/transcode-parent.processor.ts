@@ -13,6 +13,7 @@ import {
   type TaskTranscodeAudioStep,
 } from '@project/shared/jobs';
 import { PocketBaseService } from '../../shared/services/pocketbase.service';
+import { StorageService } from '../../shared/services/storage.service';
 import { ProbeStepProcessor } from './probe-step.processor';
 import { ThumbnailStepProcessor } from './thumbnail-step.processor';
 import { SpriteStepProcessor } from './sprite-step.processor';
@@ -39,6 +40,7 @@ export class TranscodeParentProcessor extends BaseFlowProcessor {
     @InjectQueue(QUEUE_NAMES.TRANSCODE)
     private readonly transcodeQueue: Queue,
     pocketbaseService: PocketBaseService,
+    private readonly storageService: StorageService,
     private readonly probeStepProcessor: ProbeStepProcessor,
     private readonly thumbnailStepProcessor: ThumbnailStepProcessor,
     private readonly spriteStepProcessor: SpriteStepProcessor,
@@ -88,6 +90,16 @@ export class TranscodeParentProcessor extends BaseFlowProcessor {
         `Task ${taskId} has ${failedSteps.length} failed steps`
       );
       throw new Error(`Task failed with ${failedSteps.length} failed steps`);
+    }
+
+    // Clean up temporary files (input file downloaded from S3)
+    // Use uploadId if available (it should be set by TranscodeFlowBuilder)
+    const { uploadId } = job.data;
+    if (uploadId) {
+      this.logger.debug(
+        `Cleaning up temporary files for upload ${uploadId} (task ${taskId})`
+      );
+      await this.storageService.cleanupTemp(uploadId);
     }
 
     // Task succeeded - base class will handle the status update on completion

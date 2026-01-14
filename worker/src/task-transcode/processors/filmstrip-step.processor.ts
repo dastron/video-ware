@@ -137,6 +137,9 @@ export class FilmstripStepProcessor extends BaseStepProcessor<
         },
       });
 
+      // Clean up local file if using S3
+      await this.storageService.cleanup(filmstripPath);
+
       filmstripFileIds.push(filmstripFile.id);
     }
 

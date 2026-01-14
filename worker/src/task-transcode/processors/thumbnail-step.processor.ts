@@ -95,6 +95,9 @@ export class ThumbnailStepProcessor extends BaseStepProcessor<
       mimeType: 'image/jpeg',
     });
 
+    // Clean up local file if using S3
+    await this.storageService.cleanup(thumbnailPath);
+
     // Update Media record
     const media = await this.pocketbaseService.findMediaByUpload(
       input.uploadId

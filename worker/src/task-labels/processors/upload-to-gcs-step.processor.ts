@@ -83,6 +83,7 @@ export class UploadToGcsStepProcessor extends BaseStepProcessor<
       this.logger.log(`Resolving local file path for: ${input.fileRef}`);
       const localPath = await this.storageService.resolveFilePath({
         storagePath: input.fileRef,
+        recordId: input.mediaId,
       });
 
       // Upload to GCS with deterministic temp path
@@ -94,6 +95,9 @@ export class UploadToGcsStepProcessor extends BaseStepProcessor<
       );
 
       this.logger.log(`Successfully uploaded to GCS: ${gcsUri}`);
+
+      // Clean up local file if using S3 (cleanupTemp deletes the temp directory for the mediaId)
+      await this.storageService.cleanupTemp(input.mediaId);
 
       return {
         gcsUri,

@@ -428,6 +428,27 @@ export class StorageService implements OnModuleInit {
   }
 
   /**
+   * Cleanup local file if storage backend is S3
+   * If backend is LOCAL, this is a no-op (to preserve files in local storage)
+   */
+  async cleanup(localPath: string): Promise<void> {
+    // Only cleanup if we are using S3 backend
+    // If using Local backend, the "localPath" is likely the actual storage path, so we keep it
+    if (this.backend.type === StorageBackendType.S3) {
+      try {
+        if (fs.existsSync(localPath)) {
+          await fs.promises.unlink(localPath);
+          this.logger.debug(`Cleaned up local file: ${localPath}`);
+        }
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        this.logger.warn(`Failed to cleanup ${localPath}: ${errorMessage}`);
+      }
+    }
+  }
+
+  /**
    * Get URL for file access
    */
   async getUrl(storagePath: string, expirySeconds?: number): Promise<string> {

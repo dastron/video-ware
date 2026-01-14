@@ -23,6 +23,7 @@ export class TranscodeFlowBuilder {
     const baseJobData = {
       taskId: task.id,
       workspaceId: task.WorkspaceRef,
+      uploadId,
     };
 
     // Create parent job with children
