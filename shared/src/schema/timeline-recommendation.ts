@@ -4,7 +4,6 @@ import {
   NumberField,
   JSONField,
   TextField,
-  SelectField,
   DateField,
   baseSchema,
 } from 'pocketbase-zod-schema/schema';
@@ -26,11 +25,11 @@ export const TimelineRecommendationSchema = z
     // Scoping
     WorkspaceRef: RelationField({ collection: 'Workspaces' }),
     TimelineRef: RelationField({ collection: 'Timelines' }),
+    MediaClipRef: RelationField({ collection: 'MediaClips' }), // The suggested clip
 
     // Context
     TimelineClipRef: RelationField({ collection: 'TimelineClips' }).optional(),
     SeedClipRef: RelationField({ collection: 'TimelineClips' }).optional(), // Context clip for recommendations
-    MediaClipRef: RelationField({ collection: 'MediaClips' }), // The suggested clip
 
     // Scoring
     score: NumberField({ min: 0, max: 1 }), // 0-1 relevance score
@@ -41,16 +40,8 @@ export const TimelineRecommendationSchema = z
     reasonData: JSONField(), // Structured explanation data
 
     // Strategy and target mode
-    strategy: SelectField([
-      RecommendationStrategy.SAME_ENTITY,
-      RecommendationStrategy.ADJACENT_SHOT,
-      RecommendationStrategy.TEMPORAL_NEARBY,
-      RecommendationStrategy.CONFIDENCE_DURATION,
-    ]),
-    targetMode: SelectField([
-      RecommendationTargetMode.APPEND,
-      RecommendationTargetMode.REPLACE,
-    ]),
+    strategy: TextField(),
+    targetMode: TextField(),
 
     // Deduplication
     queryHash: TextField({ min: 1 }), // Deterministic hash for upsert behavior

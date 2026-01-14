@@ -30,18 +30,16 @@ export const LabelSpeechSchema = z
     languageCode: TextField().optional(), // e.g. "en-US"
 
     // --- Timing (Standardized) ---
-    // Changed from startTime/endTime to match LabelFaces/LabelObjects
     start: NumberField({ min: 0 }),
     end: NumberField({ min: 0 }),
     duration: NumberField({ min: 0 }),
-
-    confidence: NumberField({ min: 0, max: 1 }),
 
     // --- Details ---
     speakerTag: NumberField().optional(), // Raw integer tag from Google
     words: JSONField(), // Stores array of WordTimingSchema
 
-    // --- System ---
+    // --- Metadata ---
+    confidence: NumberField({ min: 0, max: 1 }),
     metadata: JSONField().optional(),
     speechHash: TextField({ min: 1 }), // Unique constraint
   })

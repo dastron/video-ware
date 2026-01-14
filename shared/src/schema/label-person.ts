@@ -15,11 +15,7 @@ export const LabelPersonSchema = z
     // --- Relations ---
     WorkspaceRef: RelationField({ collection: 'Workspaces' }),
     MediaRef: RelationField({ collection: 'Media' }),
-
-    // Links to the "Person" entity in your central dictionary
     LabelEntityRef: RelationField({ collection: 'LabelEntity' }),
-
-    // Reference to the heavy geometric data (bboxes + landmarks)
     LabelTrackRef: RelationField({ collection: 'LabelTrack' }),
 
     // --- Identification ---

@@ -196,18 +196,7 @@ function MediaDetailsPageContentWithRecommendations() {
 
     try {
       const clipMutator = new MediaClipMutator(pb);
-      const duration = recommendation.end - recommendation.start;
-
-      // Create the clip
-      await clipMutator.create({
-        WorkspaceRef: currentWorkspace.id,
-        MediaRef: media.id,
-        type: ClipType.RECOMMENDATION,
-        start: recommendation.start,
-        end: recommendation.end,
-        duration,
-        version: 1,
-      });
+      await clipMutator.createFromRecommendation(recommendation);
 
       toast.success('Clip created from recommendation');
       refresh(); // Refresh clips list

@@ -58,7 +58,10 @@ export class ScoreCombiner {
           const existing = combined.get(key)!;
           // Weighted average or max (simplified for now)
           existing.score = (existing.score + cand.score) / 2;
-          existing.reason += `; ${cand.reason}`;
+          existing.reason = `${existing.reason}; ${cand.reason}`.substring(
+            0,
+            2000
+          );
         }
       }
     }
@@ -78,7 +81,10 @@ export class ScoreCombiner {
         } else {
           const existing = combined.get(cand.clipId)!;
           existing.score = (existing.score + cand.score) / 2;
-          existing.reason += `; ${cand.reason}`;
+          existing.reason = `${existing.reason}; ${cand.reason}`.substring(
+            0,
+            2000
+          );
         }
       }
     }

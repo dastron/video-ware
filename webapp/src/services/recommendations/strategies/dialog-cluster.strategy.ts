@@ -128,7 +128,9 @@ export class DialogClusterStrategy extends BaseRecommendationStrategy {
       // Find speech labels overlapping this clip
       const clipSpeech = labelSpeech.filter(
         (l) =>
-          l.MediaRef === clip.MediaRef && l.start < clip.end && l.end > clip.start
+          l.MediaRef === clip.MediaRef &&
+          l.start < clip.end &&
+          l.end > clip.start
       );
 
       if (clipSpeech.length === 0) continue;

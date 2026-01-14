@@ -1,7 +1,12 @@
 import { RecordService } from 'pocketbase';
 import type { ListResult } from 'pocketbase';
 import { MediaClipInputSchema } from '../schema';
-import type { MediaClip, MediaClipInput, LabelClip } from '../schema';
+import type {
+  MediaClip,
+  MediaClipInput,
+  LabelClip,
+  MediaRecommendation,
+} from '../schema';
 import type { TypedPocketBase } from '../types';
 import { BaseMutator, type MutatorOptions } from './base';
 import { ClipType, LabelType } from '../enums';
@@ -170,6 +175,42 @@ export class MediaClipMutator extends BaseMutator<MediaClip, MediaClipInput> {
         labelType: labelClip.labelType,
         confidence: labelClip.confidence,
         provider: labelClip.provider,
+      },
+    };
+
+    // Create and return the clip
+    return this.create(clipInput);
+  }
+
+  /**
+   * Create a MediaClip from a MediaRecommendation
+   * @param recommendation The source media recommendation
+   * @param processor The processor version to set on the clip
+   * @returns The created MediaClip
+   */
+  async createFromRecommendation(
+    recommendation: MediaRecommendation,
+    processor?: string
+  ): Promise<MediaClip> {
+    const duration = recommendation.end - recommendation.start;
+
+    // Create the MediaClip input
+    const clipInput: MediaClipInput = {
+      WorkspaceRef: recommendation.WorkspaceRef,
+      MediaRef: recommendation.MediaRef,
+      type: ClipType.RECOMMENDATION,
+      start: recommendation.start,
+      end: recommendation.end,
+      duration,
+      version: recommendation.version || 1,
+      processor: processor || recommendation.processor,
+      clipData: {
+        sourceId: recommendation.id,
+        sourceType: 'recommendation',
+        strategy: recommendation.strategy,
+        labelType: recommendation.labelType,
+        score: recommendation.score,
+        rank: recommendation.rank,
       },
     };
 

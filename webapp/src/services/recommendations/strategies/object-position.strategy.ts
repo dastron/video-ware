@@ -1,8 +1,4 @@
-import {
-  RecommendationStrategy,
-  LabelType,
-  type LabelTrack,
-} from '@project/shared';
+import { RecommendationStrategy, LabelType } from '@project/shared';
 import { BaseRecommendationStrategy } from './base-strategy';
 import type {
   MediaStrategyContext,
@@ -35,16 +31,16 @@ export class ObjectPositionStrategy extends BaseRecommendationStrategy {
       // Apply filters
       if (
         !this.passesFilters(
-            {
-                start: track.start,
-                end: track.end,
-                confidence: track.confidence,
-                labelType: LabelType.OBJECT
-            },
-            filterParams
+          {
+            start: track.start,
+            end: track.end,
+            confidence: track.confidence,
+            labelType: LabelType.OBJECT,
+          },
+          filterParams
         )
       ) {
-          continue;
+        continue;
       }
 
       candidates.push({
@@ -53,9 +49,9 @@ export class ObjectPositionStrategy extends BaseRecommendationStrategy {
         score: this.normalizeScore(score, 0, 1.1),
         reason,
         reasonData: {
-            trackId: track.trackId,
-            labelEntityRef: track.LabelEntityRef,
-            duration: track.duration
+          trackId: track.trackId,
+          labelEntityRef: track.LabelEntityRef,
+          duration: track.duration,
         },
         labelType: LabelType.OBJECT,
       });
@@ -84,12 +80,16 @@ export class ObjectPositionStrategy extends BaseRecommendationStrategy {
     if (seedTracks.length === 0) return [];
 
     // Select the most prominent track (highest confidence)
-    const targetTrack = seedTracks.sort((a, b) => b.confidence - a.confidence)[0];
+    const targetTrack = seedTracks.sort(
+      (a, b) => b.confidence - a.confidence
+    )[0];
 
     // Attempt to get the bounding box.
     // Uses the track summary boundingBox if available, or first keyframe as fallback logic
     // (Actual logic relies on data availability)
-    const targetBox = targetTrack.boundingBox as Record<string, number> | undefined;
+    const targetBox = targetTrack.boundingBox as
+      | Record<string, number>
+      | undefined;
 
     if (!targetBox) return [];
 
@@ -109,7 +109,9 @@ export class ObjectPositionStrategy extends BaseRecommendationStrategy {
       );
 
       for (const track of candidateTracks) {
-        const trackBox = track.boundingBox as Record<string, number> | undefined;
+        const trackBox = track.boundingBox as
+          | Record<string, number>
+          | undefined;
         if (!trackBox) continue;
 
         // Calculate spatial similarity (center distance)
@@ -120,7 +122,11 @@ export class ObjectPositionStrategy extends BaseRecommendationStrategy {
             clipId: clip.id,
             score,
             reason: `Spatial match with seed object (${(score * 100).toFixed(0)}%)`,
-            reasonData: { score, targetTrackId: targetTrack.trackId, matchTrackId: track.trackId },
+            reasonData: {
+              score,
+              targetTrackId: targetTrack.trackId,
+              matchTrackId: track.trackId,
+            },
           });
         }
       }
@@ -136,12 +142,16 @@ export class ObjectPositionStrategy extends BaseRecommendationStrategy {
     // Expects { top, left, bottom, right } normalized 0-1
     // If undefined properties, return 0
     if (
-        box1.left === undefined || box1.right === undefined ||
-        box1.top === undefined || box1.bottom === undefined ||
-        box2.left === undefined || box2.right === undefined ||
-        box2.top === undefined || box2.bottom === undefined
+      box1.left === undefined ||
+      box1.right === undefined ||
+      box1.top === undefined ||
+      box1.bottom === undefined ||
+      box2.left === undefined ||
+      box2.right === undefined ||
+      box2.top === undefined ||
+      box2.bottom === undefined
     ) {
-        return 0;
+      return 0;
     }
 
     const c1x = (box1.left + box1.right) / 2;

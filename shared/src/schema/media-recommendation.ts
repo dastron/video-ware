@@ -22,13 +22,11 @@ export const MediaRecommendationSchema = z
     // Scoping
     WorkspaceRef: RelationField({ collection: 'Workspaces' }),
     MediaRef: RelationField({ collection: 'Media' }),
+    MediaClipRef: RelationField({ collection: 'MediaClips' }).optional(),
 
     // Segment targeting
     start: NumberField({ min: 0 }), // seconds (float)
     end: NumberField({ min: 0 }), // seconds (float)
-
-    // Optional link to existing clip
-    MediaClipRef: RelationField({ collection: 'MediaClips' }).optional(),
 
     // Scoring
     score: NumberField({ min: 0, max: 1 }), // 0-1 relevance score
@@ -73,9 +71,9 @@ export const MediaRecommendationSchema = z
 export const MediaRecommendationInputSchema = z.object({
   WorkspaceRef: z.string().min(1, 'Workspace is required'),
   MediaRef: z.string().min(1, 'Media is required'),
+  MediaClipRef: z.string().optional(),
   start: z.number().min(0, 'Start time must be non-negative'),
   end: z.number().min(0, 'End time must be non-negative'),
-  MediaClipRef: z.string().optional(),
   score: z.number().min(0).max(1, 'Score must be between 0 and 1'),
   rank: z.number().int().min(0, 'Rank must be a non-negative integer'),
   reason: z.string().min(1).max(500, 'Reason must be 1-500 characters'),
