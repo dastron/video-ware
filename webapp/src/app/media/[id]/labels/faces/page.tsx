@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { usePocketBase } from '@/contexts/pocketbase-context';
-import type { LabelFace, LabelTrack, Media } from '@project/shared';
+import { ClipType, type LabelFace, type LabelTrack, type Media } from '@project/shared';
 import { TracksAnimator } from '@/components/labels/tracks-animator';
 import {
   Card,
@@ -15,6 +15,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 type ExtendedLabelFace = LabelFace & {
   expand?: {
@@ -32,6 +33,42 @@ export default function LabelFacesPage() {
     null
   );
   const [loading, setLoading] = useState(true);
+  const [isCreating, setIsCreating] = useState(false);
+
+  async function handleCreateClip() {
+    if (!selectedFace || !selectedFace.expand?.MediaRef) return;
+    setIsCreating(true);
+    try {
+      const media = selectedFace.expand.MediaRef;
+      await pb.collection('MediaClips').create({
+        WorkspaceRef: media.WorkspaceRef,
+        MediaRef: media.id,
+        type: ClipType.FACE,
+        start: selectedFace.start,
+        end: selectedFace.end,
+        duration: selectedFace.duration,
+        clipData: {
+          faceId: selectedFace.faceId,
+          faceHash: selectedFace.faceHash,
+          joyLikelihood: selectedFace.joyLikelihood,
+          sorrowLikelihood: selectedFace.sorrowLikelihood,
+          angerLikelihood: selectedFace.angerLikelihood,
+          surpriseLikelihood: selectedFace.surpriseLikelihood,
+          headwearLikelihood: selectedFace.headwearLikelihood,
+          blurredLikelihood: selectedFace.blurredLikelihood,
+          lookingAtCameraLikelihood: selectedFace.lookingAtCameraLikelihood,
+          labelId: selectedFace.id,
+        },
+        processor: 'google_video_intelligence',
+      });
+      toast.success('Clip created successfully');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to create clip');
+    } finally {
+      setIsCreating(false);
+    }
+  }
 
   useEffect(() => {
     async function fetchFaces() {
@@ -104,13 +141,28 @@ export default function LabelFacesPage() {
       </Card>
 
       <Card className="md:col-span-2 flex flex-col h-full">
-        <CardHeader>
-          <CardTitle>Face Details</CardTitle>
-          <CardDescription>
-            {selectedFace?.faceHash || 'No face hash'}
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <div className="flex flex-col space-y-1.5">
+            <CardTitle>Face Details</CardTitle>
+            <CardDescription>
+              {selectedFace?.faceHash || 'No face hash'}
+            </CardDescription>
+          </div>
+          {selectedFace && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCreateClip}
+              disabled={isCreating}
+            >
+              {isCreating ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              Create Clip
+            </Button>
+          )}
         </CardHeader>
-        <CardContent className="flex-1 overflow-auto">
+        <CardContent className="flex-1 overflow-auto pt-6">
           {selectedFace &&
           selectedFace.expand?.LabelTrackRef &&
           selectedFace.expand.MediaRef ? (
