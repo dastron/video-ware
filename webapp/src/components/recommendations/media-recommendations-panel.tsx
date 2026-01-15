@@ -5,8 +5,7 @@ import { Media, MediaRecommendation } from '@project/shared';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { ScoredMediaCandidate } from '@/services/recommendations/types';
 import { MediaRecommendationCard } from './media-recommendation-card';
-import { Button } from '@/components/ui/button';
-import { Sparkles, RefreshCw, LayoutGrid } from 'lucide-react';
+import { Sparkles, LayoutGrid } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface MediaRecommendationsPanelProps {
@@ -15,7 +14,6 @@ interface MediaRecommendationsPanelProps {
   isLoading?: boolean;
   onCreateClip?: (recommendation: MediaRecommendation) => void;
   onPreview?: (recommendation: MediaRecommendation) => void;
-  onRefresh?: () => void;
   className?: string;
 }
 
@@ -38,7 +36,6 @@ export function MediaRecommendationsPanel({
   isLoading = false,
   onCreateClip,
   onPreview,
-  onRefresh,
   className,
 }: MediaRecommendationsPanelProps) {
   const [selectedRecommendation, setSelectedRecommendation] =
@@ -79,19 +76,6 @@ export function MediaRecommendationsPanel({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <div className="flex items-center gap-2"></div>
-          {onRefresh && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-primary transition-colors"
-              onClick={onRefresh}
-              disabled={isLoading}
-            >
-              <RefreshCw
-                className={cn('h-4 w-4', isLoading && 'animate-spin')}
-              />
-            </Button>
-          )}
         </div>
 
         {/* Empty state */}
@@ -103,18 +87,9 @@ export function MediaRecommendationsPanel({
             No suggestions yet
           </h3>
           <p className="text-sm text-muted-foreground max-w-[240px] leading-relaxed mb-8">
-            Click refresh to generate intelligent clip suggestions based on your
-            media content.
+            Recommendations will be generated automatically when you view this
+            tab.
           </p>
-          {onRefresh && (
-            <Button
-              variant="default"
-              className="rounded-full px-8 shadow-lg shadow-primary/20"
-              onClick={onRefresh}
-            >
-              Refresh Recommendations
-            </Button>
-          )}
         </div>
       </div>
     );
@@ -138,22 +113,7 @@ export function MediaRecommendationsPanel({
           </div>
         </div>
 
-        <div className="flex items-center gap-1">
-          {onRefresh && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-primary transition-colors hover:bg-primary/5"
-              onClick={onRefresh}
-              disabled={isLoading}
-              title="Refresh suggestions"
-            >
-              <RefreshCw
-                className={cn('h-4 w-4', isLoading && 'animate-spin')}
-              />
-            </Button>
-          )}
-        </div>
+        <div className="flex items-center gap-1"></div>
       </div>
 
       {/* Recommendations Grid - Single Column for Sidebar/Panel feel */}
