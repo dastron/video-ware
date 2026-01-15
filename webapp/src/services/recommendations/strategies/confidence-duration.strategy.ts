@@ -38,7 +38,6 @@ export class ConfidenceDurationStrategy extends BaseRecommendationStrategy {
         ...o,
         labelType: LabelType.OBJECT,
       })),
-      ...context.labelShots.map((s) => ({ ...s, labelType: LabelType.SHOT })),
     ];
 
     const highConfidenceDetections = allDetections.filter(
@@ -102,7 +101,6 @@ export class ConfidenceDurationStrategy extends BaseRecommendationStrategy {
         ...o,
         labelType: LabelType.OBJECT,
       })),
-      ...context.labelShots.map((s) => ({ ...s, labelType: LabelType.SHOT })),
     ];
 
     for (const clip of context.availableClips) {

@@ -108,6 +108,7 @@ export enum RecommendationStrategy {
   CONFIDENCE_DURATION = 'confidence_duration',
   DIALOG_CLUSTER = 'dialog_cluster',
   OBJECT_POSITION_MATCHER = 'object_position_matcher',
+  ACTIVITY_STRATEGY = 'activity_strategy',
 }
 
 export enum RecommendationTargetMode {

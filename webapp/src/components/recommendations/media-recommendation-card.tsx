@@ -1,16 +1,14 @@
 'use client';
 
-import { LabelType, Media, MediaRecommendation } from '@project/shared';
+import {
+  Media,
+  MediaRecommendation,
+  RecommendationStrategy,
+} from '@project/shared';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Clock, Play, Plus, Info } from 'lucide-react';
+import { Clock, Play, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 
 interface MediaRecommendationCardProps {
   recommendation: MediaRecommendation;
@@ -47,39 +45,24 @@ export function MediaRecommendationCard({
   // Calculate duration
   const duration = recommendation.end - recommendation.start;
 
-  // Normalize labelType to single value
-  const labelType = Array.isArray(recommendation.labelType)
-    ? (recommendation.labelType[0] as LabelType)
-    : (recommendation.labelType as LabelType);
+  // Normalize strategy to single value
+  const strategy = Array.isArray(recommendation.strategy)
+    ? recommendation.strategy[0]
+    : recommendation.strategy;
 
-  // Get label type display name
-  const getLabelTypeDisplay = (type: LabelType): string => {
-    const displayMap: Record<LabelType, string> = {
-      [LabelType.OBJECT]: 'Object',
-      [LabelType.SHOT]: 'Shot',
-      [LabelType.PERSON]: 'Person',
-      [LabelType.SPEECH]: 'Speech',
-      [LabelType.FACE]: 'Face',
-      [LabelType.SEGMENT]: 'Segment',
-      [LabelType.TEXT]: 'Text',
+  const getStrategyDisplay = (value?: RecommendationStrategy): string => {
+    const displayMap: Record<RecommendationStrategy, string> = {
+      [RecommendationStrategy.SAME_ENTITY]: 'Same Entity',
+      [RecommendationStrategy.ADJACENT_SHOT]: 'Adjacent Shot',
+      [RecommendationStrategy.TEMPORAL_NEARBY]: 'Nearby',
+      [RecommendationStrategy.CONFIDENCE_DURATION]: 'High Confidence',
+      [RecommendationStrategy.DIALOG_CLUSTER]: 'Dialog Cluster',
+      [RecommendationStrategy.OBJECT_POSITION_MATCHER]:
+        'Object Position Matcher',
+      [RecommendationStrategy.ACTIVITY_STRATEGY]: 'Activity',
     };
-    return displayMap[type] || type;
-  };
-
-  // Get label type color variant
-  const getLabelTypeVariant = (
-    type: LabelType
-  ): 'default' | 'secondary' | 'outline' => {
-    const variantMap: Record<LabelType, 'default' | 'secondary' | 'outline'> = {
-      [LabelType.OBJECT]: 'default',
-      [LabelType.SHOT]: 'secondary',
-      [LabelType.PERSON]: 'outline',
-      [LabelType.SPEECH]: 'outline',
-      [LabelType.FACE]: 'outline',
-      [LabelType.SEGMENT]: 'outline',
-      [LabelType.TEXT]: 'outline',
-    };
-    return variantMap[type] || 'outline';
+    if (!value) return 'Recommendation';
+    return displayMap[value] || value;
   };
 
   const formatTime = (seconds: number): string => {
@@ -102,10 +85,10 @@ export function MediaRecommendationCard({
       title={
         <div className="flex items-center gap-2">
           <Badge
-            variant={getLabelTypeVariant(labelType)}
+            variant="default"
             className="uppercase text-[10px] font-bold h-5 px-1.5 bg-background/80 backdrop-blur-sm"
           >
-            {getLabelTypeDisplay(labelType)}
+            {getStrategyDisplay(strategy)}
           </Badge>
           <div className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground bg-background/80 backdrop-blur-sm px-1.5 h-5 rounded-md">
             <Clock className="h-3 w-3" />
@@ -123,23 +106,9 @@ export function MediaRecommendationCard({
               {formatTime(recommendation.start)} —{' '}
               {formatTime(recommendation.end)}
             </span>
-            <div className="flex items-center gap-1">
-              <span className="text-[10px] font-bold text-primary">
-                {Math.round(recommendation.score * 100)}%
-              </span>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-3 w-3 text-muted-foreground/30 hover:text-muted-foreground cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p className="text-[10px]">
-                      Confidence: {Math.round(recommendation.score * 100)}%
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
+            <span className="text-[10px] font-bold text-primary">
+              {Math.round(recommendation.score * 100)}%
+            </span>
           </div>
         </div>
       }

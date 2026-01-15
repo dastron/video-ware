@@ -7,6 +7,7 @@ import {
   baseSchema,
 } from 'pocketbase-zod-schema/schema';
 import { z } from 'zod';
+import { TimelineMetadataSchema } from '../types/metadata';
 
 // Zod schema for EditListEntry validation (types are in types/video-ware.ts)
 export const TimeOffsetSchema = z.object({
@@ -20,7 +21,7 @@ export const TimelineSchema = z
     name: TextField().min(1).max(200),
     WorkspaceRef: RelationField({ collection: 'Workspaces' }),
     duration: NumberField({ min: 0 }).default(0), // computed total duration in seconds
-    timelineData: JSONField().optional(),
+    timelineData: JSONField(TimelineMetadataSchema).optional(),
     UserRef: RelationField({ collection: 'Users' }).optional(),
     version: NumberField().default(1).optional(),
     processor: TextField().optional(),
@@ -32,7 +33,7 @@ export const TimelineInputSchema = z.object({
   name: z.string().min(1).max(200),
   WorkspaceRef: z.string().min(1, 'Workspace is required'),
   duration: z.number().min(0).default(0),
-  timelineData: z.array(z.any()).optional(), // Using any for tracks structure to simplify input schema
+  timelineData: TimelineMetadataSchema.optional(),
   UserRef: z.string().optional(),
   version: z.number().default(1).optional(),
   processor: z.string().optional(),

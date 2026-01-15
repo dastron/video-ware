@@ -2,6 +2,7 @@ import { OnWorkerEvent } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 import { TaskStatus } from '@project/shared';
 import { BaseProcessor } from './base.processor';
+import { TaskResult } from './base-flow.processor';
 
 /**
  * Job data structure for simple (non-flow) jobs
@@ -64,7 +65,7 @@ export abstract class BaseSimpleProcessor<
     this.logger.log(`Job ${job.id} completed for task ${job.data.taskId}`);
     await this.updateTask(job.data.taskId, {
       status: TaskStatus.SUCCESS,
-      result,
+      result: result as TaskResult,
     });
   }
 

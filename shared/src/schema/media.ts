@@ -12,7 +12,7 @@ import {
 } from 'pocketbase-zod-schema/schema';
 import { z } from 'zod';
 import { MediaType } from '../enums';
-
+import { MediaMetadataSchema } from '../types';
 // Define the Zod schema
 export const MediaSchema = z
   .object({
@@ -24,7 +24,7 @@ export const MediaSchema = z
     width: NumberField(), // video width in pixels
     height: NumberField(), // video height in pixels
     aspectRatio: NumberField(), // calculated aspect ratio (width/height)
-    mediaData: JSONField(), // full probe output
+    mediaData: JSONField(MediaMetadataSchema), // full probe output
     thumbnailFileRef: RelationField({ collection: 'Files' }).optional(),
     spriteFileRef: RelationField({ collection: 'Files' }).optional(),
     filmstripFileRefs: RelationsField({ collection: 'Files' }).optional(),
@@ -46,7 +46,7 @@ export const MediaInputSchema = z.object({
   width: NumberField({ min: 0 }).optional(),
   height: NumberField({ min: 0 }).optional(),
   aspectRatio: NumberField({ min: 0 }).optional(),
-  mediaData: JSONField(),
+  mediaData: JSONField(MediaMetadataSchema),
   thumbnailFileRef: z.string().optional(),
   spriteFileRef: z.string().optional(),
   filmstripFileRef: z.string().optional(),

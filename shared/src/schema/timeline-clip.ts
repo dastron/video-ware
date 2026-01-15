@@ -6,6 +6,7 @@ import {
   baseSchema,
 } from 'pocketbase-zod-schema/schema';
 import { z } from 'zod';
+import { TimelineClipMetadataSchema } from '../types/metadata';
 
 // Define the Zod schema
 export const TimelineClipSchema = z
@@ -17,7 +18,7 @@ export const TimelineClipSchema = z
     start: NumberField({ min: 0 }).default(0), // absolute start time in source media (seconds)
     end: NumberField({ min: 0 }).default(0), // absolute end time in source media (seconds)
     duration: NumberField({ min: 0 }).default(0), // computed as end - start (seconds)
-    meta: JSONField().optional(), // future: transitions, effects
+    meta: JSONField(TimelineClipMetadataSchema).optional(), // title, color, transitions, effects
   })
   .extend(baseSchema);
 
@@ -30,7 +31,7 @@ export const TimelineClipInputSchema = z.object({
   start: z.number().min(0).default(0),
   end: z.number().min(0).default(0),
   duration: z.number().min(0).default(0),
-  meta: z.record(z.unknown()).optional(),
+  meta: JSONField(TimelineClipMetadataSchema).optional(),
 });
 
 // Define the collection with workspace-scoped permissions

@@ -125,7 +125,7 @@ export const envSchema = z.object({
  */
 export function validateEnv(
   env: Record<string, string | undefined> = process.env
-): z.SafeParseReturnType<z.input<typeof envSchema>, Env> {
+): ReturnType<typeof envSchema.safeParse> {
   return envSchema.safeParse(env);
 }
 
@@ -138,7 +138,7 @@ export function parseEnvOrThrow(
 ): Env {
   const result = envSchema.safeParse(env);
   if (!result.success) {
-    const errors = result.error.errors
+    const errors = result.error.issues
       .map((e) => `  - ${e.path.join('.')}: ${e.message}`)
       .join('\n');
     throw new Error(`Environment validation failed:\n${errors}`);

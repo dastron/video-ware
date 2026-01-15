@@ -81,6 +81,7 @@ export interface ScoredMediaCandidate {
   reason: string;
   reasonData: Record<string, unknown>;
   labelType: LabelType;
+  strategy?: RecommendationStrategy;
 }
 
 /**
@@ -91,6 +92,7 @@ export interface ScoredTimelineCandidate {
   score: number;
   reason: string;
   reasonData: Record<string, unknown>;
+  strategy?: RecommendationStrategy;
 }
 
 /**

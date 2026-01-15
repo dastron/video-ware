@@ -71,7 +71,7 @@ export const LabelPersonInputSchema = z.object({
   hasLandmarks: z.boolean().optional(),
 
   // --- Extra Data ---
-  metadata: z.record(z.unknown()),
+  metadata: JSONField(),
 });
 
 // Define the collection

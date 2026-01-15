@@ -57,7 +57,7 @@ export const LabelObjectInputSchema = z.object({
 
   // --- System ---
   version: z.number().optional(),
-  metadata: z.record(z.unknown()),
+  metadata: JSONField(),
 });
 
 // Define the collection

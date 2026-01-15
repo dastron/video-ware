@@ -51,7 +51,7 @@ export const LabelEntityInputSchema = z.object({
     ProcessingProvider.GOOGLE_SPEECH,
   ]),
   processor: z.string().min(1, 'Processor is required'),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: JSONField().optional(),
   entityHash: z.string().min(1, 'Entity hash is required'),
 });
 

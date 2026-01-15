@@ -67,12 +67,15 @@ export const TimelineRecommendationInputSchema = z.object({
   score: z.number().min(0).max(1, 'Score must be between 0 and 1'),
   rank: z.number().int().min(0, 'Rank must be a non-negative integer'),
   reason: z.string().min(1).max(500, 'Reason must be 1-500 characters'),
-  reasonData: z.record(z.unknown()),
+  reasonData: JSONField(),
   strategy: z.enum([
     RecommendationStrategy.SAME_ENTITY,
     RecommendationStrategy.ADJACENT_SHOT,
     RecommendationStrategy.TEMPORAL_NEARBY,
     RecommendationStrategy.CONFIDENCE_DURATION,
+    RecommendationStrategy.DIALOG_CLUSTER,
+    RecommendationStrategy.OBJECT_POSITION_MATCHER,
+    RecommendationStrategy.ACTIVITY_STRATEGY,
   ]),
   targetMode: z.enum([
     RecommendationTargetMode.APPEND,
@@ -153,6 +156,11 @@ export interface TimelineReasonData {
   // For confidence_duration strategy
   confidence?: number;
   durationDelta?: number;
+
+  // For activity_strategy
+  activeCount?: number;
+  activeLabelTypes?: string[];
+  averageConfidence?: number;
 
   // For score combiner (when multiple strategies contribute)
   combinedStrategies?: RecommendationStrategy[];

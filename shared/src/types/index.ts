@@ -31,7 +31,7 @@ export * from './task-contracts.js';
 export * from './processor.js';
 export * from './label-data.js';
 export * from './raw-label-cache.js';
-
+export * from './metadata.js';
 // Typed PocketBase interface
 export interface TypedPocketBase extends PocketBase {
   collection(idOrName: 'Files'): RecordService<File>;

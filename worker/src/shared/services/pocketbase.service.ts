@@ -35,6 +35,7 @@ import {
   WorkspaceMutator,
 } from '@project/shared';
 import { PocketBaseClientService } from './pocketbase-client.service';
+import { TaskResult } from '@/queue/processors';
 
 @Injectable()
 export class PocketBaseService implements OnModuleInit {
@@ -282,7 +283,7 @@ export class PocketBaseService implements OnModuleInit {
     updates: {
       status?: TaskStatus;
       progress?: number;
-      result?: unknown;
+      result?: TaskResult;
       error?: string;
     }
   ) {

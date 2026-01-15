@@ -58,8 +58,16 @@ export function ClipEditModal({
   // Reset state when clip changes
   useEffect(() => {
     if (clip) {
-      setTitle(clip.meta?.title || '');
-      setColor(clip.meta?.color || 'bg-blue-600');
+      setTitle(
+        (clip.meta && typeof clip.meta === 'object' && 'title' in clip.meta
+          ? (clip.meta as { title?: string }).title
+          : '') || ''
+      );
+      setColor(
+        (clip.meta && typeof clip.meta === 'object' && 'color' in clip.meta
+          ? (clip.meta as { color?: string }).color
+          : '') || 'bg-blue-600'
+      );
       setStart(clip.start);
       setEnd(clip.end);
     }
@@ -74,7 +82,9 @@ export function ClipEditModal({
         start,
         end,
         meta: {
-          ...clip.meta,
+          ...(typeof clip.meta === 'object' && clip.meta !== null
+            ? clip.meta
+            : {}),
           title,
           color,
         },

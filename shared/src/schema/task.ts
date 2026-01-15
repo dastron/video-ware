@@ -9,6 +9,7 @@ import {
 } from 'pocketbase-zod-schema/schema';
 import { z } from 'zod';
 import { TaskStatus, TaskType, ProcessingProvider } from '../enums';
+import { TaskPayloadSchema, TaskResultSchema } from '../types/metadata';
 
 // Define the Zod schema
 export const TaskSchema = z
@@ -26,8 +27,8 @@ export const TaskSchema = z
     progress: NumberField({ min: 0, max: 100 }).default(1),
     attempts: NumberField({ min: 0 }).default(1),
     priority: NumberField().default(0),
-    payload: JSONField(),
-    result: JSONField().optional(),
+    payload: JSONField(TaskPayloadSchema),
+    result: JSONField(TaskResultSchema).optional(),
     errorLog: TextField().optional(),
     WorkspaceRef: RelationField({ collection: 'Workspaces' }),
     UserRef: RelationField({ collection: 'Users' }),
@@ -65,8 +66,8 @@ export const TaskInputSchema = z.object({
   progress: NumberField({ min: 0, max: 100 }).default(1).optional(),
   attempts: NumberField({ min: 0 }).default(1).optional(),
   priority: NumberField().default(0).optional(),
-  payload: JSONField(),
-  result: JSONField().optional(),
+  payload: TaskPayloadSchema,
+  result: TaskResultSchema.optional(),
   errorLog: TextField().optional(),
   WorkspaceRef: z.string().min(1, 'Workspace is required'),
   UserRef: z.string().min(1, 'User is required'),
