@@ -23,7 +23,7 @@ import {
   X,
   Check,
   Sparkles,
-  Tag,
+  Info,
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { MediaClip, MediaRecommendation } from '@project/shared';
@@ -33,15 +33,13 @@ import { MediaClipMutator } from '@project/shared/mutator';
 import pb from '@/lib/pocketbase-client';
 import { toast } from 'sonner';
 import { useWorkspace } from '@/hooks/use-workspace';
-import { MediaService } from '@/services';
 
 function MediaDetailsPageContentWithRecommendations() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
   const id = params.id as string;
-  const { media, clips, isLoading, error, refresh, hasActiveLabelTask } =
-    useMediaDetails(id);
+  const { media, clips, isLoading, error, refresh } = useMediaDetails(id);
   const { currentWorkspace } = useWorkspace();
   const {
     recommendations,
@@ -50,7 +48,6 @@ function MediaDetailsPageContentWithRecommendations() {
   } = useMediaRecommendations();
   const [isInlineCreateMode, setIsInlineCreateMode] = useState(false);
   const [editingClipId, setEditingClipId] = useState<string | null>(null);
-  const [isDetectingLabels, setIsDetectingLabels] = useState(false);
   const [activeTab, setActiveTab] = useState('clips');
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -159,32 +156,6 @@ function MediaDetailsPageContentWithRecommendations() {
     router.push(`/media/${id}?${newSearchParams.toString()}`, {
       scroll: false,
     });
-  };
-
-  const handleDetectLabels = async () => {
-    if (!media) return;
-
-    setIsDetectingLabels(true);
-
-    try {
-      const mediaService = new MediaService(pb);
-      const task = await mediaService.createTaskForLabel(media.id);
-
-      toast.success('Label Detection Started', {
-        description: `Task ${task.id} has been queued. Labels will be detected automatically.`,
-      });
-
-      // Refresh to update the button state
-      refresh();
-    } catch (error) {
-      console.error('Failed to start label detection:', error);
-      toast.error('Failed to start label detection', {
-        description:
-          error instanceof Error ? error.message : 'An unknown error occurred',
-      });
-    } finally {
-      setIsDetectingLabels(false);
-    }
   };
 
   const handleCreateClipFromRecommendation = async (
@@ -298,18 +269,6 @@ function MediaDetailsPageContentWithRecommendations() {
             variant="outline"
             size="sm"
             className="flex-1 sm:flex-initial"
-            onClick={handleDetectLabels}
-            disabled={isDetectingLabels || hasActiveLabelTask}
-          >
-            <Sparkles className="h-4 w-4 mr-2" />
-            {isDetectingLabels || hasActiveLabelTask
-              ? 'Detecting...'
-              : 'Detect Labels'}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex-1 sm:flex-initial"
             onClick={() => {
               // Remove clip parameter from URL
               const newSearchParams = new URLSearchParams(
@@ -329,10 +288,10 @@ function MediaDetailsPageContentWithRecommendations() {
             variant="outline"
             size="sm"
             className="flex-1 sm:flex-initial"
-            onClick={() => router.push(`/media/${id}/labels/objects`)}
+            onClick={() => router.push(`/media/${id}/details`)}
           >
-            <Tag className="h-4 w-4 mr-2" />
-            Inspector
+            <Info className="h-4 w-4 mr-2" />
+            Details
           </Button>
         </div>
       </div>
@@ -506,7 +465,7 @@ function MediaDetailsPageContentWithRecommendations() {
                     className="flex-1 gap-1.5"
                   >
                     <Sparkles className="h-4 w-4" />
-                    Recommendations
+                    Recs
                   </TabsTrigger>
                 </TabsList>
               </CardHeader>

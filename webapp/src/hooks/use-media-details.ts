@@ -29,7 +29,8 @@ export function useMediaDetails(mediaId: string): UseMediaDetailsResult {
 
       // Fetch media details
       const mediaRecord = await pb.collection('Media').getOne<Media>(mediaId, {
-        expand: 'thumbnailFileRef,spriteFileRef,proxyFileRef,UploadRef',
+        expand:
+          'thumbnailFileRef,spriteFileRef,proxyFileRef,audioFileRef,filmstripFileRefs,UploadRef',
       });
 
       // Fetch associated clips
