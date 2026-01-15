@@ -54,6 +54,7 @@ function MediaDetailsPageContentWithRecommendations() {
   const [isInlineCreateMode, setIsInlineCreateMode] = useState(false);
   const [editingClipId, setEditingClipId] = useState<string | null>(null);
   const [isDetectingLabels, setIsDetectingLabels] = useState(false);
+  const [activeTab, setActiveTab] = useState('clips');
   const videoRef = useRef<HTMLVideoElement>(null);
 
   // Get clip ID from URL query parameter
@@ -223,10 +224,19 @@ function MediaDetailsPageContentWithRecommendations() {
     // For now, just jumping to the start time
   };
 
-  const handleGenerateRecommendations = async () => {
-    if (!media || !currentWorkspace) return;
+  // Handle tab change - generate recommendations when recommendations tab becomes active
+  const handleTabChange = async (value: string) => {
+    setActiveTab(value);
 
-    await generateRecommendations(media.id, currentWorkspace.id);
+    // If switching to recommendations tab and no recommendations exist, generate them
+    if (
+      value === 'recommendations' &&
+      (!recommendations || recommendations.length === 0)
+    ) {
+      if (media && currentWorkspace) {
+        await generateRecommendations(media.id, currentWorkspace.id);
+      }
+    }
   };
 
   if (isLoading) {
@@ -479,7 +489,11 @@ function MediaDetailsPageContentWithRecommendations() {
         {/* Sidebar - Clips and Labels */}
         <div className="lg:col-span-1">
           <Card className="lg:h-[calc(100vh-12rem)] lg:min-h-[500px] flex flex-col">
-            <Tabs defaultValue="clips" className="flex flex-col h-full">
+            <Tabs
+              value={activeTab}
+              onValueChange={handleTabChange}
+              className="flex flex-col h-full"
+            >
               <CardHeader className="pb-3">
                 <TabsList className="w-full">
                   <TabsTrigger value="clips" className="flex-1 gap-1.5">
@@ -535,7 +549,6 @@ function MediaDetailsPageContentWithRecommendations() {
                     isLoading={isLoadingRecommendations}
                     onCreateClip={handleCreateClipFromRecommendation}
                     onPreview={handlePreviewRecommendation}
-                    onRefresh={handleGenerateRecommendations}
                   />
                 </TabsContent>
 
