@@ -99,6 +99,7 @@ function createMockPocketBase(): TypedPocketBase {
       height: 1080,
       aspectRatio: 16 / 9,
       mediaData: {},
+      hasAudio: true,
       expand: {},
     };
     mediaCollection._storage.set(id, media);
