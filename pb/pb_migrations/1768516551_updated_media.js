@@ -2,7 +2,7 @@
 migrate((app) => {
   const collection_Media_add_hasAudio_0 = app.findCollectionByNameOrId("Media");
 
-  collection_Media_add_hasAudio_0.fields.add(new TextField({
+  collection_Media_add_hasAudio_0.fields.add(new BoolField({
     name: "hasAudio",
     required: false
   }));
