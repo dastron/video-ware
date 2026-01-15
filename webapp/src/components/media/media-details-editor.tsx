@@ -71,11 +71,7 @@ export function MediaDetailsEditor({
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={date}
-                  onSelect={setDate}
-                />
+                <Calendar mode="single" selected={date} onSelect={setDate} />
               </PopoverContent>
             </Popover>
           </div>
@@ -100,7 +96,7 @@ export function MediaDetailsEditor({
             <Input value={media.mediaType} className="capitalize" disabled />
           </div>
 
-           <div className="space-y-2">
+          <div className="space-y-2">
             <Label>Created At</Label>
             <Input value={new Date(media.created).toLocaleString()} disabled />
           </div>

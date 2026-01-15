@@ -74,26 +74,43 @@ export function MediaPreviewFiles({ media, onUpdate }: MediaPreviewFilesProps) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const renderFileRow = (label: string, type: string, file?: File, files?: File[]) => {
+  const renderFileRow = (
+    label: string,
+    type: string,
+    file?: File,
+    files?: File[]
+  ) => {
     const isPresent = !!file || (files && files.length > 0);
-    const size = file ? file.size : files?.reduce((acc, f) => acc + f.size, 0) || 0;
+    const size = file
+      ? file.size
+      : files?.reduce((acc, f) => acc + f.size, 0) || 0;
     const status = file ? file.fileStatus : files?.[0]?.fileStatus || 'N/A';
 
     return (
       <TableRow key={type}>
         <TableCell className="font-medium">{label}</TableCell>
         <TableCell>
-            {isPresent ? (
-                <span className={status === FileStatus.AVAILABLE ? "text-green-600" : "text-yellow-600"}>
-                    {status}
-                </span>
-            ) : (
-                <span className="text-muted-foreground">Missing</span>
-            )}
+          {isPresent ? (
+            <span
+              className={
+                status === FileStatus.AVAILABLE
+                  ? 'text-green-600'
+                  : 'text-yellow-600'
+              }
+            >
+              {status}
+            </span>
+          ) : (
+            <span className="text-muted-foreground">Missing</span>
+          )}
         </TableCell>
         <TableCell>{isPresent ? formatSize(size) : '-'}</TableCell>
         <TableCell>
-            {files && files.length > 0 ? `${files.length} files` : file ? '1 file' : '-'}
+          {files && files.length > 0
+            ? `${files.length} files`
+            : file
+              ? '1 file'
+              : '-'}
         </TableCell>
         <TableCell className="text-right">
           <Button
@@ -102,7 +119,9 @@ export function MediaPreviewFiles({ media, onUpdate }: MediaPreviewFilesProps) {
             onClick={() => handleRegenerate(type)}
             disabled={regenerating[type]}
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${regenerating[type] ? 'animate-spin' : ''}`} />
+            <RefreshCw
+              className={`h-4 w-4 mr-2 ${regenerating[type] ? 'animate-spin' : ''}`}
+            />
             Regenerate
           </Button>
         </TableCell>
