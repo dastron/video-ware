@@ -10,6 +10,8 @@ import { InlineClipEditor } from '@/components/clip/inline-clip-editor';
 import { MediaRecommendationsPanel } from '@/components/recommendations/media-recommendations-panel';
 import { MediaRecommendationProvider } from '@/contexts/media-recommendation-context';
 import { useMediaRecommendations } from '@/hooks/use-media-recommendations';
+import { MediaDetailsEditor } from '@/components/media/media-details-editor';
+import { MediaPreviewFiles } from '@/components/media/media-preview-files';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -24,6 +26,7 @@ import {
   Check,
   Sparkles,
   Tag,
+  Info,
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { MediaClip, MediaRecommendation } from '@project/shared';
@@ -492,7 +495,11 @@ function MediaDetailsPageContentWithRecommendations() {
                     className="flex-1 gap-1.5"
                   >
                     <Sparkles className="h-4 w-4" />
-                    Recommendations
+                    Recs
+                  </TabsTrigger>
+                  <TabsTrigger value="details" className="flex-1 gap-1.5">
+                    <Info className="h-4 w-4" />
+                    Details
                   </TabsTrigger>
                 </TabsList>
               </CardHeader>
@@ -530,6 +537,14 @@ function MediaDetailsPageContentWithRecommendations() {
                     onPreview={handlePreviewRecommendation}
                     onRefresh={handleGenerateRecommendations}
                   />
+                </TabsContent>
+
+                <TabsContent
+                  value="details"
+                  className="flex-1 overflow-y-auto px-3 sm:px-6 max-h-[400px] lg:max-h-none mt-0 space-y-4"
+                >
+                  <MediaDetailsEditor media={media} onUpdate={refresh} />
+                  <MediaPreviewFiles media={media} onUpdate={refresh} />
                 </TabsContent>
               </CardContent>
             </Tabs>

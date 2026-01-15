@@ -13,6 +13,7 @@ import type {
   Task,
   LabelsFlowConfig,
   DetectLabelsPayload,
+  ProcessUploadPayload,
 } from '@project/shared';
 import { ProcessingProvider } from '@project/shared';
 
@@ -216,6 +217,96 @@ export class MediaService {
       media.WorkspaceRef,
       currentUserId,
       mediaId,
+      payload
+    );
+  }
+
+  /**
+   * Regenerate preview assets for a media item
+   * @param mediaId The media ID
+   * @param config Configuration for what to regenerate
+   * @param userId Optional user ID
+   * @returns The created task
+   */
+  async regeneratePreviews(
+    mediaId: string,
+    config: {
+      thumbnail?: boolean;
+      sprite?: boolean;
+      filmstrip?: boolean;
+      transcode?: boolean;
+      audio?: boolean;
+    },
+    userId?: string
+  ): Promise<Task> {
+    const media = await this.mediaMutator.getById(mediaId);
+    if (!media) {
+      throw new Error(`Media not found: ${mediaId}`);
+    }
+
+    const upload = await this.uploadMutator.getById(media.UploadRef);
+    if (!upload) {
+      throw new Error(`Upload not found for media ${mediaId}`);
+    }
+
+    const currentUserId = userId || upload.UserRef;
+    if (!currentUserId) {
+      throw new Error('User context required for task creation');
+    }
+
+    // Base payload
+    const payload: ProcessUploadPayload = {
+      uploadId: upload.id,
+      provider: ProcessingProvider.FFMPEG,
+    };
+
+    // Add configurations based on what is requested
+    if (config.thumbnail) {
+      payload.thumbnail = {
+        timestamp: 'midpoint',
+        width: 320,
+        height: 180,
+      };
+    }
+
+    if (config.sprite) {
+      payload.sprite = {
+        fps: 1,
+        cols: 5,
+        rows: 5,
+        tileWidth: 160,
+        tileHeight: 90,
+      };
+    }
+
+    if (config.filmstrip) {
+      payload.filmstrip = {
+        cols: 100,
+        rows: 1,
+        tileWidth: 160,
+      };
+    }
+
+    if (config.transcode) {
+      payload.transcode = {
+        enabled: true,
+        codec: 'h264',
+        resolution: '720p',
+      };
+    }
+
+    if (config.audio) {
+      payload.audio = {
+        enabled: true,
+        format: 'mp3',
+        bitrate: '128k',
+      };
+    }
+
+    return this.taskMutator.createProcessUploadTask(
+      media.WorkspaceRef,
+      currentUserId,
+      upload.id,
       payload
     );
   }
