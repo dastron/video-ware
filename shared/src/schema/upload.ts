@@ -9,6 +9,7 @@ import {
 } from 'pocketbase-zod-schema/schema';
 import { z } from 'zod';
 import { UploadStatus, StorageBackendType } from '../enums';
+import { UploadMetadataSchema } from '../types/metadata';
 
 // Define the Zod schema
 export const UploadSchema = z
@@ -31,7 +32,7 @@ export const UploadSchema = z
     // External file path (filesystem path or S3 key)
     externalPath: TextField().optional(),
     // Storage-specific metadata (bucket, region, etc.)
-    storageConfig: JSONField().optional(),
+    storageConfig: JSONField(UploadMetadataSchema).optional(),
     // Upload progress tracking
     bytesUploaded: NumberField().optional(),
     WorkspaceRef: RelationField({ collection: 'Workspaces' }),
@@ -58,7 +59,7 @@ export const UploadInputSchema = z.object({
     .enum([StorageBackendType.LOCAL, StorageBackendType.S3])
     .optional(),
   externalPath: TextField().optional(),
-  storageConfig: JSONField().optional(),
+  storageConfig: UploadMetadataSchema.optional(),
   bytesUploaded: NumberField().optional(),
   WorkspaceRef: z.string().min(1, 'Workspace is required'),
   UserRef: z.string().min(1, 'User is required'),

@@ -60,7 +60,7 @@ export const MediaRecommendationInputSchema = z.object({
   score: z.number().min(0).max(1, 'Score must be between 0 and 1'),
   rank: z.number().int().min(0, 'Rank must be a non-negative integer'),
   reason: z.string().min(1).max(500, 'Reason must be 1-500 characters'),
-  reasonData: z.record(z.unknown()),
+  reasonData: JSONField(),
   strategy: z.enum([
     RecommendationStrategy.SAME_ENTITY,
     RecommendationStrategy.ADJACENT_SHOT,

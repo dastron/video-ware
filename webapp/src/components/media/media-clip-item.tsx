@@ -75,7 +75,7 @@ export function MediaClipItem({
               isActive && 'text-primary'
             )}
           >
-            {clip.clipData?.label || 'Clip'}
+            {clip.clipData?.labelType || 'Clip'}
           </div>
 
           <div className="text-xs text-muted-foreground flex items-center gap-1.5">

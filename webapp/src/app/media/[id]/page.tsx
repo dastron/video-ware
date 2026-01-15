@@ -436,7 +436,7 @@ function MediaDetailsPageContentWithRecommendations() {
               <div>
                 <span className="text-muted-foreground block mb-1">Type</span>
                 <span className="font-medium capitalize">
-                  {media.mediaType}
+                  {media.mediaType || 'N/A'}
                 </span>
               </div>
               <div>

@@ -63,7 +63,7 @@ export const LabelSpeechInputSchema = z.object({
 
   words: z.array(WordTimingSchema),
 
-  metadata: z.record(z.unknown()).optional(),
+  metadata: JSONField().optional(),
   speechHash: z.string().min(1, 'Speech hash is required'),
 });
 
