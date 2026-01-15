@@ -2,6 +2,7 @@ import { WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { PocketBaseService } from '../../shared/services/pocketbase.service';
 import { TaskStatus } from '@project/shared';
+import { TaskResult } from './base-flow.processor';
 
 /**
  * Abstract base class for all BullMQ processors
@@ -49,7 +50,7 @@ export abstract class BaseProcessor extends WorkerHost {
     updates: {
       status?: TaskStatus;
       progress?: number;
-      result?: unknown;
+      result?: TaskResult;
       errorLog?: string;
     }
   ): Promise<void> {
@@ -57,7 +58,7 @@ export abstract class BaseProcessor extends WorkerHost {
       const updatePayload: {
         status?: TaskStatus;
         progress?: number;
-        result?: unknown;
+        result?: TaskResult;
         errorLog?: string;
       } = {};
 

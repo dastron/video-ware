@@ -58,10 +58,10 @@ export const LabelTrackInputSchema = z.object({
   end: z.number().min(0),
   duration: z.number().min(0),
 
-  boundingBox: z.record(z.unknown()).optional(),
+  boundingBox: JSONField().optional(),
   keyframes: z.array(z.unknown()),
   confidence: z.number().min(0).max(1),
-  trackData: z.record(z.unknown()),
+  trackData: JSONField(),
 });
 
 // Define the collection with workspace-scoped permissions

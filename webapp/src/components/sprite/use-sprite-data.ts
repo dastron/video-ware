@@ -12,7 +12,7 @@ export interface SpriteConfig {
 
 export function useSpriteData(media: Media, initialSpriteFile?: File) {
   const [spriteFile, setSpriteFile] = useState<File | null>(
-    initialSpriteFile || (media.expand as any)?.spriteFileRef || null
+    initialSpriteFile || media.expand?.spriteFileRef || null
   );
   const [isLoading, setIsLoading] = useState(
     !spriteFile && !!media.spriteFileRef
@@ -42,12 +42,11 @@ export function useSpriteData(media: Media, initialSpriteFile?: File) {
     fetchSpriteFile();
   }, [media.spriteFileRef, spriteFile, isLoading]);
 
-  const config: SpriteConfig = spriteFile?.meta?.spriteConfig ||
-    media.mediaData?.spriteConfig || {
-      cols: 10,
-      rows: 10,
-      fps: 1,
-    };
+  const config: SpriteConfig = spriteFile?.meta?.spriteConfig || {
+    cols: 10,
+    rows: 10,
+    fps: 1,
+  };
 
   const url = spriteFile?.file
     ? pb.files.getURL(spriteFile, spriteFile.file)

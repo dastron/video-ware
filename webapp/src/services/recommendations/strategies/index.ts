@@ -10,6 +10,7 @@ import { TemporalNearbyStrategy } from './temporal-nearby.strategy';
 import { ConfidenceDurationStrategy } from './confidence-duration.strategy';
 import { DialogClusterStrategy } from './dialog-cluster.strategy';
 import { ObjectPositionStrategy } from './object-position.strategy';
+import { ActivityStrategy } from './activity.strategy';
 
 /**
  * Strategy Registry
@@ -25,6 +26,7 @@ export class StrategyRegistry {
     this.register(new ConfidenceDurationStrategy());
     this.register(new DialogClusterStrategy());
     this.register(new ObjectPositionStrategy());
+    this.register(new ActivityStrategy());
   }
 
   register(strategy: IRecommendationStrategy) {
@@ -49,11 +51,19 @@ export class ScoreCombiner {
   ): ScoredMediaCandidate[] {
     const combined = new Map<string, ScoredMediaCandidate>();
 
-    for (const candidates of candidatesByStrategy.values()) {
+    for (const [strategy, candidates] of candidatesByStrategy.entries()) {
       for (const cand of candidates) {
         const key = `${cand.start}-${cand.end}`;
         if (!combined.has(key)) {
-          combined.set(key, { ...cand });
+          combined.set(key, {
+            ...cand,
+            strategy,
+            reasonData: {
+              ...cand.reasonData,
+              combinedStrategies: [strategy],
+              individualScores: { [strategy]: cand.score },
+            },
+          });
         } else {
           const existing = combined.get(key)!;
           // Weighted average or max (simplified for now)
@@ -62,6 +72,32 @@ export class ScoreCombiner {
             0,
             2000
           );
+          const combinedStrategies = new Set(
+            (existing.reasonData
+              .combinedStrategies as RecommendationStrategy[]) || []
+          );
+          combinedStrategies.add(strategy);
+
+          const individualScores = {
+            ...(existing.reasonData.individualScores as Record<string, number>),
+            [strategy]: cand.score,
+          };
+
+          let bestStrategy = existing.strategy;
+          const bestScore = bestStrategy
+            ? individualScores[bestStrategy]
+            : undefined;
+
+          if (bestScore === undefined || cand.score > bestScore) {
+            bestStrategy = strategy;
+          }
+
+          existing.strategy = bestStrategy;
+          existing.reasonData = {
+            ...existing.reasonData,
+            combinedStrategies: Array.from(combinedStrategies),
+            individualScores,
+          };
         }
       }
     }
@@ -74,10 +110,18 @@ export class ScoreCombiner {
   ): ScoredTimelineCandidate[] {
     const combined = new Map<string, ScoredTimelineCandidate>();
 
-    for (const candidates of candidatesByStrategy.values()) {
+    for (const [strategy, candidates] of candidatesByStrategy.entries()) {
       for (const cand of candidates) {
         if (!combined.has(cand.clipId)) {
-          combined.set(cand.clipId, { ...cand });
+          combined.set(cand.clipId, {
+            ...cand,
+            strategy,
+            reasonData: {
+              ...cand.reasonData,
+              combinedStrategies: [strategy],
+              individualScores: { [strategy]: cand.score },
+            },
+          });
         } else {
           const existing = combined.get(cand.clipId)!;
           existing.score = (existing.score + cand.score) / 2;
@@ -85,6 +129,32 @@ export class ScoreCombiner {
             0,
             2000
           );
+          const combinedStrategies = new Set(
+            (existing.reasonData
+              .combinedStrategies as RecommendationStrategy[]) || []
+          );
+          combinedStrategies.add(strategy);
+
+          const individualScores = {
+            ...(existing.reasonData.individualScores as Record<string, number>),
+            [strategy]: cand.score,
+          };
+
+          let bestStrategy = existing.strategy;
+          const bestScore = bestStrategy
+            ? individualScores[bestStrategy]
+            : undefined;
+
+          if (bestScore === undefined || cand.score > bestScore) {
+            bestStrategy = strategy;
+          }
+
+          existing.strategy = bestStrategy;
+          existing.reasonData = {
+            ...existing.reasonData,
+            combinedStrategies: Array.from(combinedStrategies),
+            individualScores,
+          };
         }
       }
     }
@@ -100,3 +170,4 @@ export * from './temporal-nearby.strategy';
 export * from './confidence-duration.strategy';
 export * from './dialog-cluster.strategy';
 export * from './object-position.strategy';
+export * from './activity.strategy';

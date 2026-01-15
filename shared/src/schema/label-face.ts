@@ -94,7 +94,7 @@ export const LabelFaceInputSchema = z.object({
   qualityScore: z.number().optional(),
   visualHash: z.string().optional(),
 
-  metadata: z.record(z.unknown()),
+  metadata: JSONField(),
   version: z.number().optional(),
 });
 

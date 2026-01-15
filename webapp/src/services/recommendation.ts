@@ -7,7 +7,6 @@ import {
   LabelFaceMutator,
   LabelPersonMutator,
   LabelObjectMutator,
-  LabelShotMutator,
   LabelTrackMutator,
   LabelSpeechMutator,
   LabelEntityMutator,
@@ -47,7 +46,6 @@ export class RecommendationService {
   private labelFaceMutator: LabelFaceMutator;
   private labelPersonMutator: LabelPersonMutator;
   private labelObjectMutator: LabelObjectMutator;
-  private labelShotMutator: LabelShotMutator;
   private labelTrackMutator: LabelTrackMutator;
   private labelSpeechMutator: LabelSpeechMutator;
   private labelEntityMutator: LabelEntityMutator;
@@ -64,7 +62,6 @@ export class RecommendationService {
     this.labelFaceMutator = new LabelFaceMutator(pb);
     this.labelPersonMutator = new LabelPersonMutator(pb);
     this.labelObjectMutator = new LabelObjectMutator(pb);
-    this.labelShotMutator = new LabelShotMutator(pb);
     this.labelTrackMutator = new LabelTrackMutator(pb);
     this.labelSpeechMutator = new LabelSpeechMutator(pb);
     this.labelEntityMutator = new LabelEntityMutator(pb);
@@ -177,7 +174,7 @@ export class RecommendationService {
           rank: index,
           reason: RecommendationService.sanitizeReason(c.reason),
           reasonData: c.reasonData,
-          strategy: RecommendationStrategy.SAME_ENTITY, // Default for combined
+          strategy: c.strategy ?? RecommendationStrategy.SAME_ENTITY,
           labelType: c.labelType,
           queryHash,
           version: 1,
@@ -325,7 +322,7 @@ export class RecommendationService {
           rank: index,
           reason: RecommendationService.sanitizeReason(c.reason),
           reasonData: c.reasonData,
-          strategy: RecommendationStrategy.SAME_ENTITY, // Default for combined
+          strategy: c.strategy ?? RecommendationStrategy.SAME_ENTITY,
           targetMode: RecommendationTargetMode.APPEND,
           queryHash,
           version: 1,
@@ -375,7 +372,6 @@ export class RecommendationService {
       .items;
     const labelObjects = (await this.labelObjectMutator.getByMedia(mediaId))
       .items;
-    const labelShots = (await this.labelShotMutator.getByMedia(mediaId)).items;
     const labelTracks = (await this.labelTrackMutator.getByMedia(mediaId))
       .items;
     const labelSpeech = (await this.labelSpeechMutator.getByMedia(mediaId))
@@ -385,9 +381,6 @@ export class RecommendationService {
       ...labelFaces.map((f) => f.LabelEntityRef),
       ...labelPeople.map((p) => p.LabelEntityRef),
       ...labelObjects.map((o) => o.LabelEntityRef),
-      ...labelShots
-        .map((s) => s.LabelEntityRef)
-        .filter((id): id is string => !!id),
       ...labelSpeech
         .map((s) => s.LabelEntityRef)
         .filter((id): id is string => !!id),
@@ -407,7 +400,7 @@ export class RecommendationService {
       labelFaces,
       labelPeople,
       labelObjects,
-      labelShots,
+      labelShots: [],
       labelTracks,
       labelSpeech,
       labelEntities,
@@ -445,11 +438,10 @@ export class RecommendationService {
     );
 
     // Fetch from all specialized collections
-    const [faces, people, objects, shots, tracks, speech] = await Promise.all([
+    const [faces, people, objects, tracks, speech] = await Promise.all([
       Promise.all(mediaIds.map((id) => this.labelFaceMutator.getByMedia(id))),
       Promise.all(mediaIds.map((id) => this.labelPersonMutator.getByMedia(id))),
       Promise.all(mediaIds.map((id) => this.labelObjectMutator.getByMedia(id))),
-      Promise.all(mediaIds.map((id) => this.labelShotMutator.getByMedia(id))),
       Promise.all(mediaIds.map((id) => this.labelTrackMutator.getByMedia(id))),
       Promise.all(mediaIds.map((id) => this.labelSpeechMutator.getByMedia(id))),
     ]);
@@ -457,7 +449,6 @@ export class RecommendationService {
     const labelFaces = faces.flatMap((r) => r.items);
     const labelPeople = people.flatMap((r) => r.items);
     const labelObjects = objects.flatMap((r) => r.items);
-    const labelShots = shots.flatMap((r) => r.items);
     const labelTracks = tracks.flatMap((r) => r.items);
     const labelSpeech = speech.flatMap((r) => r.items);
 
@@ -465,9 +456,6 @@ export class RecommendationService {
       ...labelFaces.map((f) => f.LabelEntityRef),
       ...labelPeople.map((p) => p.LabelEntityRef),
       ...labelObjects.map((o) => o.LabelEntityRef),
-      ...labelShots
-        .map((s) => s.LabelEntityRef)
-        .filter((id): id is string => !!id),
       ...labelSpeech
         .map((s) => s.LabelEntityRef)
         .filter((id): id is string => !!id),
@@ -486,7 +474,7 @@ export class RecommendationService {
       labelFaces,
       labelPeople,
       labelObjects,
-      labelShots,
+      labelShots: [],
       labelTracks,
       labelSpeech,
       labelEntities,

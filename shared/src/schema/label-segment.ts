@@ -61,7 +61,7 @@ export const LabelSegmentInputSchema = z.object({
   end: z.number().min(0),
   duration: z.number().min(0),
   confidence: z.number().min(0).max(1),
-  metadata: z.record(z.unknown()),
+  metadata: JSONField(),
   version: z.number().optional(),
 });
 

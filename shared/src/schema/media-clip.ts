@@ -8,6 +8,7 @@ import {
 } from 'pocketbase-zod-schema/schema';
 import { z } from 'zod';
 import { ClipType } from '../enums';
+import { MediaClipMetadataSchema } from '../types';
 
 // Define the Zod schema
 export const MediaClipSchema = z
@@ -18,7 +19,7 @@ export const MediaClipSchema = z
     start: NumberField({ min: 0 }), // seconds
     end: NumberField({ min: 0 }), // seconds
     duration: NumberField({ min: 0 }), // seconds
-    clipData: JSONField().optional(), // additional data
+    clipData: JSONField(MediaClipMetadataSchema).optional(), // additional data
     version: NumberField().default(1),
     processor: TextField().optional(),
   })
@@ -42,7 +43,7 @@ export const MediaClipInputSchema = z.object({
   start: NumberField({ min: 0 }),
   end: NumberField({ min: 0 }),
   duration: NumberField({ min: 0 }),
-  clipData: JSONField().optional(),
+  clipData: JSONField(MediaClipMetadataSchema).optional(),
   version: NumberField().default(1),
   processor: z.string().optional(),
 });

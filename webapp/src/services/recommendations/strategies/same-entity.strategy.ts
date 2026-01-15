@@ -34,7 +34,6 @@ export class SameEntityStrategy extends BaseRecommendationStrategy {
         ...o,
         labelType: LabelType.OBJECT,
       })),
-      ...context.labelShots.map((s) => ({ ...s, labelType: LabelType.SHOT })),
     ];
 
     const detectionsByEntity = new Map<string, any[]>();
@@ -110,7 +109,6 @@ export class SameEntityStrategy extends BaseRecommendationStrategy {
         ...o,
         labelType: LabelType.OBJECT,
       })),
-      ...context.labelShots.map((s) => ({ ...s, labelType: LabelType.SHOT })),
     ];
 
     const seedDetections = allDetections.filter(

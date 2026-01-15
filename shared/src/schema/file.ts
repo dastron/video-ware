@@ -10,6 +10,7 @@ import {
 } from 'pocketbase-zod-schema/schema';
 import { z } from 'zod';
 import { FileStatus, FileType, FileSource } from '../enums';
+import { FileMetaSchema } from '../types/metadata';
 
 // Define the Zod schema
 export const FileSchema = z
@@ -42,7 +43,7 @@ export const FileSchema = z
     ]),
     file: FileField({ maxSize: 7000000000 }).optional(),
     s3Key: TextField().optional(),
-    meta: JSONField().optional(),
+    meta: JSONField(FileMetaSchema).optional(),
     WorkspaceRef: RelationField({ collection: 'Workspaces' }),
     UploadRef: RelationField({ collection: 'Uploads' }).optional(),
     MediaRef: RelationField({ collection: 'Media' }).optional(),
@@ -73,7 +74,7 @@ export const FileInputSchema = z.object({
   fileSource: z.enum([FileSource.S3, FileSource.POCKETBASE, FileSource.GCS]),
   file: z.instanceof(File).optional(),
   s3Key: TextField().optional(),
-  meta: JSONField().optional(),
+  meta: JSONField(FileMetaSchema).optional(),
   WorkspaceRef: z.string().min(1, 'Workspace is required'),
   UploadRef: z.string().optional(),
   MediaRef: z.string().optional(),
