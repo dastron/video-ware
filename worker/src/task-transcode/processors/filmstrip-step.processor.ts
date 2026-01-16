@@ -125,12 +125,10 @@ export class FilmstripStepProcessor extends BaseStepProcessor<
         uploadRef: input.uploadId,
         mimeType: 'image/jpeg',
         meta: {
+          mimeType: 'image/jpeg',
           filmstripConfig: {
-            segmentIndex: i,
-            startTime,
             cols: enhancedConfig.cols,
             rows: enhancedConfig.rows,
-            fps: enhancedConfig.fps,
             tileWidth: enhancedConfig.tileWidth,
             tileHeight: enhancedConfig.tileHeight,
           },

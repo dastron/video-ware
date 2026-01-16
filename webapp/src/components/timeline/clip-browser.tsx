@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/select';
 import { Search, Film, AlertCircle } from 'lucide-react';
 import { ClipBrowserItem, type MediaClipWithExpand } from './clip-browser-item';
+import { CLIP_GRID_CLASS } from './constants';
 
 interface ClipBrowserProps {
   height?: number;
@@ -44,9 +45,9 @@ export function ClipBrowser({ height: _height = 300 }: ClipBrowserProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [sortBy, setBySort] = useState<'recent' | 'duration' | 'name'>(
-    'recent'
-  );
+  const [sortBy, setBySort] = useState<
+    'recent' | 'duration' | 'name' | 'media_time'
+  >('recent');
 
   // Create mutator instance
   const mediaClipMutator = useMemo(() => new MediaClipMutator(pb), []);
@@ -90,6 +91,22 @@ export function ClipBrowser({ height: _height = 300 }: ClipBrowserProps) {
         });
       } else if (sortBy === 'duration') {
         items.sort((a, b) => b.end - b.start - (a.end - a.start));
+      } else if (sortBy === 'media_time') {
+        items.sort((a, b) => {
+          // Get mediaDate (default to 0 if missing)
+          const dateA = a.expand?.MediaRef?.mediaDate
+            ? new Date(a.expand.MediaRef.mediaDate).getTime()
+            : 0;
+          const dateB = b.expand?.MediaRef?.mediaDate
+            ? new Date(b.expand.MediaRef.mediaDate).getTime()
+            : 0;
+
+          // Add start offset (in milliseconds)
+          const timeA = dateA + a.start * 1000;
+          const timeB = dateB + b.start * 1000;
+
+          return timeA - timeB;
+        });
       } else {
         // Default to recent (creation date)
         items.sort(
@@ -166,6 +183,7 @@ export function ClipBrowser({ height: _height = 300 }: ClipBrowserProps) {
               <SelectItem value="recent">Recent</SelectItem>
               <SelectItem value="duration">Duration</SelectItem>
               <SelectItem value="name">Name</SelectItem>
+              <SelectItem value="media_time">Creation Time</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -196,7 +214,7 @@ export function ClipBrowser({ height: _height = 300 }: ClipBrowserProps) {
         style={{ scrollbarWidth: 'thin' }}
       >
         {isLoading && clips.length === 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">
+          <div className={CLIP_GRID_CLASS}>
             {Array.from({ length: 6 }).map((_, i) => (
               <ClipCardSkeleton key={i} />
             ))}
@@ -219,7 +237,7 @@ export function ClipBrowser({ height: _height = 300 }: ClipBrowserProps) {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3 pb-8">
+          <div className={`${CLIP_GRID_CLASS} pb-8`}>
             {clips.map((clip: MediaClipWithExpand) => (
               <ClipBrowserItem
                 key={clip.id}

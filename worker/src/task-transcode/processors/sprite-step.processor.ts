@@ -107,6 +107,7 @@ export class SpriteStepProcessor extends BaseStepProcessor<
       uploadRef: input.uploadId,
       mimeType: 'image/jpeg',
       meta: {
+        mimeType: 'image/jpeg',
         spriteConfig: {
           cols: enhancedConfig.cols,
           rows: enhancedConfig.rows,

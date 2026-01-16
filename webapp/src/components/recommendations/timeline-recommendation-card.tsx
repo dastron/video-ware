@@ -206,7 +206,6 @@ export function TimelineRecommendationCard({
           ),
         ].filter(Boolean) as React.ReactNode[]
       }
-      thumbnailHeight="h-32"
     />
   );
 }

@@ -174,7 +174,7 @@ export function TimelinePlayer() {
   if (!timeline) return null;
 
   return (
-    <div className="flex flex-col gap-4 w-full max-w-4xl mx-auto">
+    <div className="flex flex-col gap-2 lg:gap-4 w-full max-w-4xl mx-auto">
       <div className="relative aspect-video bg-black rounded-lg overflow-hidden shadow-2xl border border-white/10 group">
         {videoSrc ? (
           <video
