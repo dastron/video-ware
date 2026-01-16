@@ -117,6 +117,9 @@ export class SpriteStepProcessor extends BaseStepProcessor<
       },
     });
 
+    // Clean up local file if using S3
+    await this.storageService.cleanup(spritePath);
+
     // Update Media record
     const media = await this.pocketbaseService.findMediaByUpload(
       input.uploadId

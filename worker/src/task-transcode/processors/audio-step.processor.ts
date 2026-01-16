@@ -99,6 +99,9 @@ export class AudioStepProcessor extends BaseStepProcessor<
       mimeType: this.getMimeType(format),
     });
 
+    // Clean up local file if using S3
+    await this.storageService.cleanup(audioPath);
+
     // Update Media record
     if (media) {
       await this.pocketbaseService.updateMedia(media.id, {

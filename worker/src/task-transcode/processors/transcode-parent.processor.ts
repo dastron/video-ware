@@ -19,6 +19,7 @@ import {
   type ProcessUploadPayload,
 } from '@project/shared';
 import { PocketBaseService } from '../../shared/services/pocketbase.service';
+import { StorageService } from '../../shared/services/storage.service';
 import { ProbeStepProcessor } from './probe-step.processor';
 import { ThumbnailStepProcessor } from './thumbnail-step.processor';
 import { SpriteStepProcessor } from './sprite-step.processor';
@@ -45,6 +46,7 @@ export class TranscodeParentProcessor extends BaseFlowProcessor {
     @InjectQueue(QUEUE_NAMES.TRANSCODE)
     private readonly transcodeQueue: Queue,
     pocketbaseService: PocketBaseService,
+    private readonly storageService: StorageService,
     private readonly probeStepProcessor: ProbeStepProcessor,
     private readonly thumbnailStepProcessor: ThumbnailStepProcessor,
     private readonly spriteStepProcessor: SpriteStepProcessor,

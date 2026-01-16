@@ -9,7 +9,8 @@ import {
   TaskRenderFinalizeStep,
   TaskRenderFinalizeStepOutput,
 } from '@project/shared/jobs';
-import { FileType, FileSource } from '@project/shared';
+import { FileType, FileSource, FileStatus } from '@project/shared';
+import { Readable } from 'stream';
 
 /**
  * Processor for the FINALIZE step in rendering
@@ -59,20 +60,66 @@ export class FinalizeRenderStepProcessor extends BaseStepProcessor<
       await this.pocketbaseService.timelineMutator.getById(timelineId);
     const timelineName = timeline?.name || 'Untitled';
 
-    // 4. Create File record and upload to PocketBase
+    // 4. Create File record and upload to PocketBase (or S3 fallback)
     const fileName = `${timelineName}_render.${format}`;
-    const fileRecord = await this.pocketbaseService.uploadFile({
-      localFilePath: localPath,
-      fileName,
-      fileType: FileType.RENDER,
-      fileSource: FileSource.POCKETBASE, // Use POCKETBASE source as requested
-      storageKey: storagePath,
-      workspaceRef: workspaceId,
-      mimeType: this.getMimeType(format),
-      meta: {
-        ...probeOutput,
-      },
-    });
+    let fileRecord;
+
+    try {
+      fileRecord = await this.pocketbaseService.uploadFile({
+        localFilePath: localPath,
+        fileName,
+        fileType: FileType.RENDER,
+        fileSource: FileSource.POCKETBASE, // Use POCKETBASE source as requested
+        storageKey: storagePath,
+        workspaceRef: workspaceId,
+        mimeType: this.getMimeType(format),
+        meta: {
+          ...probeOutput,
+        },
+      });
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.warn(
+        `Failed to upload render to PocketBase: ${errorMessage}. Attempting S3 fallback...`
+      );
+
+      // Attempt manual S3 upload
+      try {
+        const fs = await import('fs');
+        const fileStream = fs.createReadStream(localPath);
+        // Convert Node stream to Web Stream for storage service
+        const webStream = Readable.toWeb(
+          fileStream
+        ) as unknown as ReadableStream;
+        await this.storageService.upload(storagePath, webStream);
+        this.logger.log(`Successfully uploaded render to S3: ${storagePath}`);
+
+        // Try to create File record with S3 source
+        // Note: This might still fail if PocketBase is completely down
+        // But we at least saved the file to S3
+        fileRecord = await this.pocketbaseService.createFile({
+          name: fileName,
+          size: probeResult.format.size,
+          fileStatus: FileStatus.AVAILABLE,
+          fileType: FileType.RENDER,
+          fileSource: FileSource.S3,
+          s3Key: storagePath,
+          WorkspaceRef: workspaceId,
+          meta: {
+            mimeType: this.getMimeType(format),
+            ...probeOutput,
+          },
+        });
+      } catch (fallbackError) {
+        const fallbackErrorMessage =
+          fallbackError instanceof Error
+            ? fallbackError.message
+            : String(fallbackError);
+        this.logger.error(`S3 fallback upload failed: ${fallbackErrorMessage}`);
+        throw error; // Throw the original error
+      }
+    }
 
     // 6. Create TimelineRender record
     const timelineRenderRecord =
@@ -82,8 +129,8 @@ export class FinalizeRenderStepProcessor extends BaseStepProcessor<
         FileRef: fileRecord.id,
       });
 
-    // 7. Render file stays in ./data/renders/<taskId>/ - no cleanup needed
-    // The file is now the permanent storage location
+    // 7. Cleanup local file if using S3
+    await this.storageService.cleanup(localPath);
 
     this.logger.log(
       `Successfully finalized render: ${timelineRenderRecord.id}`

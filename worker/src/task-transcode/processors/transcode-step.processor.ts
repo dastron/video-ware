@@ -100,6 +100,9 @@ export class TranscodeStepProcessor extends BaseStepProcessor<
       mimeType: 'video/mp4',
     });
 
+    // Clean up local file if using S3
+    await this.storageService.cleanup(proxyPath);
+
     // Update Media record
     const media = await this.pocketbaseService.findMediaByUpload(
       input.uploadId
