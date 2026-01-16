@@ -336,7 +336,7 @@ export class PocketBaseService implements OnModuleInit {
     uploadRef?: string;
     mediaRef?: string;
     mimeType: string;
-    meta?:FileMetadata;
+    meta?: FileMetadata;
   }): Promise<File> {
     const {
       localFilePath,

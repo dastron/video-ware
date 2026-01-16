@@ -41,7 +41,8 @@ export function TimelineRecommendationsSettingsModal({
     },
     [RecommendationStrategy.ADJACENT_SHOT]: {
       label: 'Adjacent Shot',
-      description: 'Suggests shots that are chronologically next to the current clip.',
+      description:
+        'Suggests shots that are chronologically next to the current clip.',
     },
     [RecommendationStrategy.TEMPORAL_NEARBY]: {
       label: 'Nearby',
@@ -65,7 +66,9 @@ export function TimelineRecommendationsSettingsModal({
     },
   };
 
-  const strategies = Object.values(RecommendationStrategy) as RecommendationStrategy[];
+  const strategies = Object.values(
+    RecommendationStrategy
+  ) as RecommendationStrategy[];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -77,10 +80,13 @@ export function TimelineRecommendationsSettingsModal({
           <div className="space-y-4">
             <h4 className="font-medium leading-none">General Filters</h4>
             <div className="flex items-center justify-between space-x-2">
-              <Label htmlFor="exclude-accepted" className="flex flex-col space-y-1">
+              <Label
+                htmlFor="exclude-accepted"
+                className="flex flex-col space-y-1"
+              >
                 <span>Hide Accepted</span>
                 <span className="font-normal text-xs text-muted-foreground">
-                  Don't show recommendations you've already added
+                  Don&apos;t show recommendations you&apos;ve already added
                 </span>
               </Label>
               <Switch
@@ -90,10 +96,13 @@ export function TimelineRecommendationsSettingsModal({
               />
             </div>
             <div className="flex items-center justify-between space-x-2">
-              <Label htmlFor="exclude-dismissed" className="flex flex-col space-y-1">
+              <Label
+                htmlFor="exclude-dismissed"
+                className="flex flex-col space-y-1"
+              >
                 <span>Hide Dismissed</span>
                 <span className="font-normal text-xs text-muted-foreground">
-                  Don't show recommendations you've dismissed
+                  Don&apos;t show recommendations you&apos;ve dismissed
                 </span>
               </Label>
               <Switch
@@ -107,8 +116,8 @@ export function TimelineRecommendationsSettingsModal({
           <div className="space-y-4">
             <h4 className="font-medium leading-none">Active Strategies</h4>
             <p className="text-sm text-muted-foreground">
-              Select which strategies to use for generating recommendations.
-              If none are selected, all strategies are used.
+              Select which strategies to use for generating recommendations. If
+              none are selected, all strategies are used.
             </p>
             <div className="grid gap-4">
               {strategies.map((strategy) => (

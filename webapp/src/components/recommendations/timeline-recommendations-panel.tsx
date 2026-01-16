@@ -59,9 +59,7 @@ export function TimelineRecommendationsPanel({
             className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors"
             title="Refresh recommendations"
           >
-            <RefreshCw
-              className={cn('h-4 w-4', isLoading && 'animate-spin')}
-            />
+            <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
           </Button>
           <Sparkles className="h-5 w-5 text-primary" />
           <h2 className="text-lg font-semibold">Recommendations</h2>
