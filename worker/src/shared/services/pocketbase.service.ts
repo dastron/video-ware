@@ -8,6 +8,7 @@ import {
   type TimelineRenderInput,
   type FileType,
   type FileSource,
+  type FileMetadata,
   FileStatus,
   FileInput,
   File,
@@ -335,7 +336,7 @@ export class PocketBaseService implements OnModuleInit {
     uploadRef?: string;
     mediaRef?: string;
     mimeType: string;
-    meta?: Record<string, any>;
+    meta?:FileMetadata;
   }): Promise<File> {
     const {
       localFilePath,

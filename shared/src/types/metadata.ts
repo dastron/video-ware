@@ -37,6 +37,8 @@ export const FileMetaSchema = z.object({
   mimeType: z.string(),
 });
 
+export type FileMetadata = z.infer<typeof FileMetaSchema>;
+
 export const MediaMetadataSchema = z.object({
   audio: z.object({
     bitrate: z.number(),
