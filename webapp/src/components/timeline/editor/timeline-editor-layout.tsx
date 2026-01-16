@@ -130,7 +130,7 @@ export function TimelineEditorLayout() {
 
         {/* Player Area */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-auto p-4 lg:p-8 flex items-center justify-center min-h-0 bg-black/5">
+          <div className="flex-1 overflow-auto p-2 lg:p-8 flex items-center justify-center min-h-0 bg-black/5">
             <div className="w-full max-w-4xl max-h-full aspect-video">
               <TimelinePlayer />
             </div>

@@ -1,10 +1,13 @@
 'use client';
 
+import { useState } from 'react';
 import { TimelineRecommendation } from '@project/shared';
 import { TimelineRecommendationCard } from './timeline-recommendation-card';
+import { TimelineRecommendationsSettingsModal } from './timeline-recommendations-settings-modal';
 import { Button } from '@/components/ui/button';
-import { Sparkles, RefreshCw } from 'lucide-react';
+import { Sparkles, RefreshCw, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { CLIP_GRID_CLASS } from '@/components/timeline/constants';
 
 interface TimelineRecommendationsPanelProps {
   recommendations: TimelineRecommendation[];
@@ -36,54 +39,62 @@ export function TimelineRecommendationsPanel({
   onMoreLikeThis,
   className,
 }: TimelineRecommendationsPanelProps) {
-  // Show loading state
-  if (isLoading) {
-    return (
-      <div className={cn('flex flex-col gap-4', className)}>
-        {/* Header */}
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  return (
+    <div className={cn('flex flex-col gap-4', className)}>
+      <TimelineRecommendationsSettingsModal
+        open={isSettingsOpen}
+        onOpenChange={setIsSettingsOpen}
+      />
+
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" disabled className="h-8 w-8">
-            <RefreshCw className="h-4 w-4 animate-spin" />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onMoreLikeThis}
+            disabled={isLoading || !onMoreLikeThis}
+            className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors"
+            title="Refresh recommendations"
+          >
+            <RefreshCw
+              className={cn('h-4 w-4', isLoading && 'animate-spin')}
+            />
           </Button>
           <Sparkles className="h-5 w-5 text-primary" />
           <h2 className="text-lg font-semibold">Recommendations</h2>
+          {recommendations?.length > 0 && (
+            <span className="text-sm text-muted-foreground ml-1">
+              ({recommendations.length})
+            </span>
+          )}
         </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setIsSettingsOpen(true)}
+          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+          title="Settings"
+        >
+          <Settings className="h-4 w-4" />
+        </Button>
+      </div>
 
-        {/* Loading skeleton */}
-        <div className="grid grid-cols-1 gap-4">
+      {/* Content */}
+      {isLoading ? (
+        /* Loading skeleton */
+        <div className={CLIP_GRID_CLASS}>
           {[1, 2, 3, 4].map((i) => (
             <div
               key={i}
-              className="h-64 bg-muted/50 rounded-lg animate-pulse"
+              className="h-40 bg-muted/50 rounded-lg animate-pulse"
             />
           ))}
         </div>
-      </div>
-    );
-  }
-
-  // Show empty state
-  if (!recommendations || recommendations.length === 0) {
-    return (
-      <div className={cn('flex flex-col gap-4', className)}>
-        {/* Header */}
-        <div className="flex items-center gap-2">
-          {onMoreLikeThis && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onMoreLikeThis}
-              className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors"
-              title="Refresh recommendations"
-            >
-              <RefreshCw className="h-4 w-4" />
-            </Button>
-          )}
-          <Sparkles className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-semibold">Recommendations</h2>
-        </div>
-
-        {/* Empty state */}
+      ) : !recommendations || recommendations.length === 0 ? (
+        /* Empty state */
         <div className="flex flex-col items-center justify-center py-12 px-4 text-center border-2 border-dashed border-border rounded-lg bg-muted/20">
           <Sparkles className="h-12 w-12 text-muted-foreground/50 mb-4" />
           <h3 className="text-base font-medium text-foreground mb-2">
@@ -105,47 +116,20 @@ export function TimelineRecommendationsPanel({
             </Button>
           )}
         </div>
-      </div>
-    );
-  }
-
-  // Show recommendations
-  return (
-    <div className={cn('flex flex-col gap-4', className)}>
-      {/* Header with "Refresh" button on the left */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {onMoreLikeThis && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onMoreLikeThis}
-              className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors"
-              title="Refresh recommendations"
-            >
-              <RefreshCw className="h-4 w-4" />
-            </Button>
-          )}
-          <Sparkles className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-semibold">Recommendations</h2>
-          <span className="text-sm text-muted-foreground ml-1">
-            ({recommendations.length})
-          </span>
+      ) : (
+        /* Recommendations list */
+        <div className={`${CLIP_GRID_CLASS} pb-8`}>
+          {recommendations.map((recommendation) => (
+            <TimelineRecommendationCard
+              key={recommendation.id}
+              recommendation={recommendation}
+              onAdd={onAdd}
+              onReplace={onReplace}
+              onDismiss={onDismiss}
+            />
+          ))}
         </div>
-      </div>
-
-      {/* Recommendations list */}
-      <div className="grid grid-cols-1 gap-4 pb-8">
-        {recommendations.map((recommendation) => (
-          <TimelineRecommendationCard
-            key={recommendation.id}
-            recommendation={recommendation}
-            onAdd={onAdd}
-            onReplace={onReplace}
-            onDismiss={onDismiss}
-          />
-        ))}
-      </div>
+      )}
     </div>
   );
 }

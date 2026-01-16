@@ -1,0 +1,22 @@
+
+> @project/webapp@0.0.0 dev
+> next dev
+
+▲ Next.js 16.1.2 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.2:3000
+
+✓ Starting...
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+✓ Ready in 1236ms
+○ Compiling /timelines/[id] ...
+ GET /timelines/tl1 200 in 6.7s (compile: 6.0s, render: 694ms)
+ GET /timelines/tl1 200 in 450ms (compile: 96ms, render: 353ms)
+ GET /timelines/tl1 200 in 104ms (compile: 30ms, render: 74ms)
+ GET /timelines/tl1 200 in 105ms (compile: 28ms, render: 77ms)
+ GET /timelines/tl1 200 in 600ms (compile: 126ms, render: 474ms)
+ GET /timelines/tl1 200 in 99ms (compile: 29ms, render: 70ms)
