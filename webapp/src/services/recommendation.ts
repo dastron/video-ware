@@ -426,7 +426,13 @@ export class RecommendationService {
     const mediaClipMutator = new MediaClipMutator(this.pb);
     let seedClip: MediaClip | undefined;
     if (seedClipId) {
-      seedClip = (await mediaClipMutator.getById(seedClipId)) ?? undefined;
+      // seedClipId refers to a TimelineClip, so we need to find it first
+      const seedTimelineClip = timelineClips.find((c) => c.id === seedClipId);
+      if (seedTimelineClip?.MediaClipRef) {
+        seedClip =
+          (await mediaClipMutator.getById(seedTimelineClip.MediaClipRef)) ??
+          undefined;
+      }
     }
 
     const availableClipsResult =

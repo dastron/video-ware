@@ -254,7 +254,27 @@ export function TimelineRecommendationProvider({
         }
 
         const data = await response.json();
-        setRecommendations(data.items || []);
+        setRecommendations((prev) => {
+          const newItems = (data.items || []) as TimelineRecommendation[];
+          // Merge new items into existing, updating if exists, adding if not
+          const merged = [...prev];
+          newItems.forEach((newItem) => {
+            const index = merged.findIndex((r) => r.id === newItem.id);
+            if (index >= 0) {
+              merged[index] = newItem;
+            } else {
+              merged.push(newItem);
+            }
+          });
+
+          // Re-sort
+          merged.sort((a, b) => {
+            if (a.rank !== b.rank) return a.rank - b.rank;
+            return b.score - a.score;
+          });
+
+          return merged;
+        });
       } catch (error) {
         handleError(error, 'generate');
       } finally {
