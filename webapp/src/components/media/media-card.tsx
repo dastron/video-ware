@@ -12,9 +12,15 @@ interface MediaCardProps {
   media: Media;
   onClick?: () => void;
   className?: string;
+  compact?: boolean;
 }
 
-export function MediaCard({ media, onClick, className }: MediaCardProps) {
+export function MediaCard({
+  media,
+  onClick,
+  className,
+  compact = false,
+}: MediaCardProps) {
   const [isHovering, setIsHovering] = useState(false);
 
   const formatDuration = (seconds: number): string => {
@@ -84,7 +90,12 @@ export function MediaCard({ media, onClick, className }: MediaCardProps) {
       onMouseLeave={() => setIsHovering(false)}
     >
       {/* Thumbnail/Sprite preview */}
-      <div className="relative aspect-video bg-muted overflow-hidden">
+      <div
+        className={cn(
+          'relative bg-muted overflow-hidden',
+          compact ? 'h-20' : 'aspect-video'
+        )}
+      >
         {thumbnailUrl ? (
           <>
             {/* Static thumbnail */}
@@ -112,47 +123,72 @@ export function MediaCard({ media, onClick, className }: MediaCardProps) {
           </>
         ) : (
           <div className="flex items-center justify-center h-full">
-            <Film className="h-12 w-12 text-muted-foreground" />
+            <Film
+              className={cn(
+                compact ? 'h-6 w-6' : 'h-12 w-12',
+                'text-muted-foreground'
+              )}
+            />
           </div>
         )}
 
         {/* Duration badge */}
-        <div className="absolute bottom-2 right-2">
-          <Badge variant="secondary" className="bg-black/80 text-white">
-            <Clock className="h-3 w-3 mr-1" />
+        <div
+          className={cn(
+            'absolute',
+            compact ? 'bottom-1 right-1' : 'bottom-2 right-2'
+          )}
+        >
+          <Badge
+            variant="secondary"
+            className={cn(
+              'bg-black/80 text-white',
+              compact && 'text-[10px] px-1 py-0'
+            )}
+          >
+            {!compact && <Clock className="h-3 w-3 mr-1" />}
             {formatDuration(media.duration)}
           </Badge>
         </div>
       </div>
 
       {/* Media info */}
-      <CardContent className="p-3 space-y-2">
+      <CardContent
+        className={cn(compact ? 'p-1.5 space-y-1' : 'p-3 space-y-2')}
+      >
         {/* Title - truncates to fit card width */}
         <h3
-          className="text-sm font-semibold text-foreground truncate leading-tight"
+          className={cn(
+            'font-semibold text-foreground truncate leading-tight',
+            compact ? 'text-xs' : 'text-sm'
+          )}
           title={uploadName}
         >
           {uploadName}
         </h3>
 
         {/* Media type and dimensions badges */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <Badge variant="outline" className="text-xs">
-            {media.mediaType}
-          </Badge>
-          {dimensions.width && dimensions.height && (
+        {!compact && (
+          <div className="flex items-center gap-2 flex-wrap">
             <Badge variant="outline" className="text-xs">
-              <Maximize2 className="h-3 w-3 mr-1" />
-              {formatDimensions(dimensions.width, dimensions.height)}
+              {media.mediaType}
             </Badge>
-          )}
-        </div>
+            {dimensions.width && dimensions.height && (
+              <Badge variant="outline" className="text-xs">
+                <Maximize2 className="h-3 w-3 mr-1" />
+                {formatDimensions(dimensions.width, dimensions.height)}
+              </Badge>
+            )}
+          </div>
+        )}
 
         {/* Codec info */}
-        <div className="text-xs text-muted-foreground">
-          <span className="font-medium text-foreground">Codec:</span>{' '}
-          {getCodec()}
-        </div>
+        {!compact && (
+          <div className="text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">Codec:</span>{' '}
+            {getCodec()}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
