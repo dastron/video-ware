@@ -11,6 +11,7 @@ import { CLIP_GRID_CLASS } from '@/components/timeline/constants';
 
 interface TimelineRecommendationsPanelProps {
   recommendations: TimelineRecommendation[];
+  selectedClipRecommendations?: TimelineRecommendation[];
   isLoading?: boolean;
   onAdd?: (recommendation: TimelineRecommendation) => void;
   onReplace?: (recommendation: TimelineRecommendation) => void;
@@ -32,6 +33,7 @@ interface TimelineRecommendationsPanelProps {
  */
 export function TimelineRecommendationsPanel({
   recommendations,
+  selectedClipRecommendations,
   isLoading = false,
   onAdd,
   onReplace,
@@ -40,6 +42,10 @@ export function TimelineRecommendationsPanel({
   className,
 }: TimelineRecommendationsPanelProps) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  const hasAnyRecommendations =
+    (recommendations && recommendations.length > 0) ||
+    (selectedClipRecommendations && selectedClipRecommendations.length > 0);
 
   return (
     <div className={cn('flex flex-col gap-4', className)}>
@@ -63,11 +69,6 @@ export function TimelineRecommendationsPanel({
           </Button>
           <Sparkles className="h-5 w-5 text-primary" />
           <h2 className="text-lg font-semibold">Recommendations</h2>
-          {recommendations?.length > 0 && (
-            <span className="text-sm text-muted-foreground ml-1">
-              ({recommendations.length})
-            </span>
-          )}
         </div>
         <Button
           variant="ghost"
@@ -91,7 +92,7 @@ export function TimelineRecommendationsPanel({
             />
           ))}
         </div>
-      ) : !recommendations || recommendations.length === 0 ? (
+      ) : !hasAnyRecommendations ? (
         /* Empty state */
         <div className="flex flex-col items-center justify-center py-12 px-4 text-center border-2 border-dashed border-border rounded-lg bg-muted/20">
           <Sparkles className="h-12 w-12 text-muted-foreground/50 mb-4" />
@@ -115,17 +116,48 @@ export function TimelineRecommendationsPanel({
           )}
         </div>
       ) : (
-        /* Recommendations list */
-        <div className={`${CLIP_GRID_CLASS} pb-8`}>
-          {recommendations.map((recommendation) => (
-            <TimelineRecommendationCard
-              key={recommendation.id}
-              recommendation={recommendation}
-              onAdd={onAdd}
-              onReplace={onReplace}
-              onDismiss={onDismiss}
-            />
-          ))}
+        <div className="flex flex-col gap-6 pb-8">
+          {/* Timeline Recommendations (Primary) */}
+          {recommendations && recommendations.length > 0 && (
+            <div className="flex flex-col gap-3">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                Up Next
+              </h3>
+              <div className={CLIP_GRID_CLASS}>
+                {recommendations.map((recommendation) => (
+                  <TimelineRecommendationCard
+                    key={recommendation.id}
+                    recommendation={recommendation}
+                    onAdd={onAdd}
+                    onReplace={onReplace}
+                    onDismiss={onDismiss}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Selected Clip Recommendations (Secondary) */}
+          {selectedClipRecommendations &&
+            selectedClipRecommendations.length > 0 && (
+              <div className="flex flex-col gap-3 pt-4 border-t border-border/50">
+                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                  <Sparkles className="h-3 w-3" />
+                  For Selected Clip
+                </h3>
+                <div className={CLIP_GRID_CLASS}>
+                  {selectedClipRecommendations.map((recommendation) => (
+                    <TimelineRecommendationCard
+                      key={recommendation.id}
+                      recommendation={recommendation}
+                      onAdd={onAdd}
+                      onReplace={onReplace}
+                      onDismiss={onDismiss}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
         </div>
       )}
     </div>
