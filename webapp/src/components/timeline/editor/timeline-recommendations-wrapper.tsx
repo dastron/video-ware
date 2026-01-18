@@ -27,6 +27,8 @@ export function TimelineRecommendationsPanelWrapper() {
 
   // Track which clips we have requested recommendations for to avoid infinite loops
   const requestedClipIds = useRef<Set<string>>(new Set());
+  // Track if a generation request is in-flight to prevent race conditions
+  const isGeneratingRef = useRef(false);
 
   const lastClipId = useMemo(() => {
     if (timeline && timeline.clips.length > 0) {
@@ -55,18 +57,24 @@ export function TimelineRecommendationsPanelWrapper() {
       lastClipId &&
       !requestedClipIds.current.has(lastClipId) &&
       timelineRecs.length === 0 &&
-      !isLoading
+      !isLoading &&
+      !isGeneratingRef.current
     ) {
       requestedClipIds.current.add(lastClipId);
+      isGeneratingRef.current = true;
       generateRecommendations({
         timelineId: timeline.id,
         seedClipId: lastClipId,
         targetMode: RecommendationTargetMode.APPEND,
-      }).catch((err) => {
-        console.error('Failed to generate timeline recommendations:', err);
-        // Allow retrying later if needed
-        requestedClipIds.current.delete(lastClipId);
-      });
+      })
+        .catch((err) => {
+          console.error('Failed to generate timeline recommendations:', err);
+          // Allow retrying later if needed
+          requestedClipIds.current.delete(lastClipId);
+        })
+        .finally(() => {
+          isGeneratingRef.current = false;
+        });
     }
   }, [
     timeline,
@@ -84,17 +92,26 @@ export function TimelineRecommendationsPanelWrapper() {
       selectedClipId !== lastClipId &&
       !requestedClipIds.current.has(selectedClipId) &&
       selectedRecs.length === 0 &&
-      !isLoading
+      !isLoading &&
+      !isGeneratingRef.current
     ) {
       requestedClipIds.current.add(selectedClipId);
+      isGeneratingRef.current = true;
       generateRecommendations({
         timelineId: timeline.id,
         seedClipId: selectedClipId,
         targetMode: RecommendationTargetMode.APPEND,
-      }).catch((err) => {
-        console.error('Failed to generate selected clip recommendations:', err);
-        requestedClipIds.current.delete(selectedClipId);
-      });
+      })
+        .catch((err) => {
+          console.error(
+            'Failed to generate selected clip recommendations:',
+            err
+          );
+          requestedClipIds.current.delete(selectedClipId);
+        })
+        .finally(() => {
+          isGeneratingRef.current = false;
+        });
     }
   }, [
     timeline,
@@ -123,22 +140,40 @@ export function TimelineRecommendationsPanelWrapper() {
           (c) => c.id === selectedClipId
         );
         if (selectedClip) {
-          // Calculate the target order (right after the selected clip)
-          const calculatedOrder = selectedClip.order + 1;
-          targetOrder = calculatedOrder;
+          // Sort clips by order to handle gaps and potential duplicates
+          const sortedClips = [...timeline.clips].sort(
+            (a, b) => a.order - b.order
+          );
+          const selectedIndex = sortedClips.findIndex(
+            (c) => c.id === selectedClipId
+          );
 
-          // Shift all clips with order >= calculatedOrder by +1 to make room
-          const clipsToReorder = timeline.clips
-            .filter((c) => c.order >= calculatedOrder)
-            .map((c) => ({ id: c.id, order: c.order + 1 }));
+          if (selectedIndex !== -1) {
+            // Calculate target order: insert after selected clip's position
+            // Use index-based calculation to ensure sequential ordering
+            const calculatedOrder = selectedIndex + 1;
+            targetOrder = calculatedOrder;
 
-          if (clipsToReorder.length > 0) {
-            await reorderClips(clipsToReorder);
+            // Normalize and shift: assign sequential orders to clips at/after insertion point
+            // This prevents gaps and duplicate orders
+            const clipsToReorder = sortedClips
+              .slice(calculatedOrder)
+              .map((c, idx) => ({
+                id: c.id,
+                order: calculatedOrder + idx + 1,
+              }));
+
+            if (clipsToReorder.length > 0) {
+              // If reordering fails, abort to prevent order conflicts
+              // The try-catch will handle the error and prevent acceptRecommendation
+              await reorderClips(clipsToReorder);
+            }
           }
         }
       }
 
       // Accept the recommendation with the calculated order (or undefined to append to end)
+      // Only reached if reorderClips succeeded (or wasn't needed)
       await acceptRecommendation(
         recommendation.id,
         targetOrder ? { order: targetOrder } : undefined
