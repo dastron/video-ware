@@ -10,8 +10,13 @@ import {
 } from '@project/shared';
 
 export function TimelineRecommendationsPanelWrapper() {
-  const { selectedClipId, removeClip, timeline, refreshTimeline } =
-    useTimeline();
+  const {
+    selectedClipId,
+    removeClip,
+    timeline,
+    refreshTimeline,
+    reorderClips,
+  } = useTimeline();
   const {
     recommendations,
     isLoading,
@@ -63,7 +68,13 @@ export function TimelineRecommendationsPanelWrapper() {
         requestedClipIds.current.delete(lastClipId);
       });
     }
-  }, [timeline, lastClipId, timelineRecs.length, isLoading, generateRecommendations]);
+  }, [
+    timeline,
+    lastClipId,
+    timelineRecs.length,
+    isLoading,
+    generateRecommendations,
+  ]);
 
   // Trigger generation for selected clip if needed
   useEffect(() => {
@@ -96,7 +107,42 @@ export function TimelineRecommendationsPanelWrapper() {
 
   const handleAdd = async (recommendation: TimelineRecommendation) => {
     try {
-      await acceptRecommendation(recommendation.id);
+      // Determine if this recommendation is for a selected clip (not the last clip)
+      const seedClipId = recommendation.SeedClipRef;
+      const isSelectedClipRecommendation =
+        seedClipId &&
+        selectedClipId &&
+        seedClipId === selectedClipId &&
+        seedClipId !== lastClipId;
+
+      let targetOrder: number | undefined;
+
+      if (isSelectedClipRecommendation && timeline) {
+        // Find the selected clip to get its order
+        const selectedClip = timeline.clips.find(
+          (c) => c.id === selectedClipId
+        );
+        if (selectedClip) {
+          // Calculate the target order (right after the selected clip)
+          const calculatedOrder = selectedClip.order + 1;
+          targetOrder = calculatedOrder;
+
+          // Shift all clips with order >= calculatedOrder by +1 to make room
+          const clipsToReorder = timeline.clips
+            .filter((c) => c.order >= calculatedOrder)
+            .map((c) => ({ id: c.id, order: c.order + 1 }));
+
+          if (clipsToReorder.length > 0) {
+            await reorderClips(clipsToReorder);
+          }
+        }
+      }
+
+      // Accept the recommendation with the calculated order (or undefined to append to end)
+      await acceptRecommendation(
+        recommendation.id,
+        targetOrder ? { order: targetOrder } : undefined
+      );
       // Ensure the timeline editor immediately reflects the newly added clip
       await refreshTimeline();
     } catch (error) {
@@ -159,12 +205,11 @@ export function TimelineRecommendationsPanelWrapper() {
 
       // If neither (empty timeline), generate generic ones?
       if (!lastClipId && !selectedClipId) {
-         await generateRecommendations({
+        await generateRecommendations({
           timelineId: timeline.id,
           targetMode: RecommendationTargetMode.APPEND,
         });
       }
-
     } catch (error) {
       console.error('Failed to refresh recommendations:', error);
     }
